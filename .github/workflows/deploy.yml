@@ -1,0 +1,56 @@
+# Wgrywanie panelu na serwer LH.pl
+#  - gałąź "test" → test-panel.elok-agency.pl
+#  - gałąź "main" → panel.elok-agency.pl (po zatwierdzeniu w panelu)
+# Hasła: Settings → Secrets and variables → Actions → FTP_USER, FTP_PASSWORD
+name: Wgraj panel
+on:
+  push:
+    branches: [main, test]
+  workflow_dispatch:
+concurrency: deploy-${{ github.ref_name }}
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Sprawdz skladnie PHP
+        run: find . -name '*.php' -not -path './.git/*' -print0 | xargs -0 -n1 php -l > /dev/null
+      - name: Wgraj przez FTP (proba 1)
+        id: ftp1
+        continue-on-error: true
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: serwer321493.lh.pl
+          username: ${{ secrets.FTP_USER }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          server-dir: ${{ github.ref_name == 'main' && './panel.elok-agency.pl/' || './test-panel.elok-agency.pl/' }}
+          exclude: |
+            **/.git*
+            **/.git*/**
+            .github/**
+            config.php
+            uploads/**
+            saas/baza.json
+            strona/kopie/**
+            README.md
+            config.sample.php
+      - name: Wgraj przez FTP (proba 2)
+        if: steps.ftp1.outcome == 'failure'
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: serwer321493.lh.pl
+          username: ${{ secrets.FTP_USER }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          server-dir: ${{ github.ref_name == 'main' && './panel.elok-agency.pl/' || './test-panel.elok-agency.pl/' }}
+          exclude: |
+            **/.git*
+            **/.git*/**
+            .github/**
+            config.php
+            uploads/**
+            saas/baza.json
+            strona/kopie/**
+            README.md
+            config.sample.php

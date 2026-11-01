@@ -1,0 +1,13 @@
+Options -Indexes
+DirectoryIndex index.php
+
+# Blokada plików, których nie wolno otwierać z przeglądarki
+<FilesMatch "^(config|lib)\.php$|\.(json|sql|log|md|zip|bak)$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
+</FilesMatch>

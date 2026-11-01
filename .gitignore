@@ -1,0 +1,6 @@
+config.php
+uploads/
+saas/baza.json
+strona/kopie/
+*.log
+.DS_Store

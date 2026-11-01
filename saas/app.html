@@ -1,0 +1,2956 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#080808">
+<meta name="apple-mobile-web-app-title" content="ELOK">
+<link rel="apple-touch-icon" href="logo_512.png">
+<title>ELOK V66</title>
+<link rel="manifest" href="manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script>if('serviceWorker'in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{});}</script>
+<style>
+/* ─── DESIGN TOKENS ─────────────────────────────────────────── */
+:root{
+  --bg:#080808;
+  --surface:#111111;
+  --surface2:#161616;
+  --surface3:#1c1c1c;
+  --gold:#C5A059;
+  --gold2:#8B6B30;
+  --gold-soft:rgba(197,160,89,0.08);
+  --gold-border:rgba(197,160,89,0.18);
+  --text:#eeeeee;
+  --text-sub:#aaaaaa;
+  --text-muted:#666666;
+  --border:#252525;
+  --border-soft:#1e1e1e;
+  --danger:#E05252;
+  --success:#3ECF8E;
+  /* ACCENT — overrideable per client */
+  --accent:var(--gold);
+  --accent2:var(--gold2);
+  --accent-soft:var(--gold-soft);
+  --accent-border:var(--gold-border);
+}
+
+/* ─── RESET ──────────────────────────────────────────────────── */
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body,html{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;height:100%;width:100%;overflow:hidden;display:flex;flex-direction:column;position:fixed;-webkit-font-smoothing:antialiased;}
+.outfit{font-family:'Outfit',sans-serif;}
+
+/* ─── SCROLLBAR ──────────────────────────────────────────────── */
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:#222;border-radius:4px;}
+::-webkit-scrollbar-thumb:hover{background:#333;}
+
+/* ─── BUTTONS ────────────────────────────────────────────────── */
+.btn{padding:11px 20px;border:none;border-radius:10px;cursor:pointer;font-weight:700;font-size:11px;transition:all .15s ease;display:inline-flex;align-items:center;justify-content:center;gap:7px;text-transform:uppercase;font-family:'Outfit';letter-spacing:.6px;white-space:nowrap;position:relative;overflow:hidden;}
+.btn-gold{background:linear-gradient(135deg,var(--gold) 0%,var(--gold2) 100%);color:#000;box-shadow:0 0 0 0 rgba(197,160,89,0);}
+.btn-gold:hover{box-shadow:0 4px 24px rgba(197,160,89,.25);transform:translateY(-1px);}
+.btn-gold:active{transform:translateY(0) scale(.97);}
+.btn-outline{background:transparent;border:1px solid var(--border);color:var(--text-sub);}
+.btn-outline:hover{border-color:#333;color:var(--text);background:var(--surface2);}
+.btn-danger{background:transparent;color:var(--danger);border:1px solid rgba(224,82,82,.2);}
+.btn-danger:hover{background:rgba(224,82,82,.06);}
+.btn-ghost{background:transparent;border:none;color:var(--text-muted);}
+.btn-ghost:hover{color:var(--text-sub);}
+.btn-sm{padding:7px 13px;font-size:10px;border-radius:8px;}
+.btn-icon{padding:0;width:36px;height:36px;border-radius:9px;flex-shrink:0;}
+
+/* ─── INPUTS ─────────────────────────────────────────────────── */
+input,select,textarea{
+  background:var(--surface2);
+  border:1px solid var(--border);
+  color:var(--text);
+  padding:12px 14px;
+  border-radius:10px;
+  width:100%;
+  margin-bottom:10px;
+  outline:none;
+  font-size:13px;
+  transition:border-color .15s,background .15s;
+  font-family:'Inter';
+  -webkit-appearance:none;
+}
+input:focus,select:focus,textarea:focus{border-color:var(--gold);background:var(--surface3);}
+input::placeholder,textarea::placeholder{color:var(--text-muted);}
+input[type="date"]{font-family:'Inter';}
+input[readonly]{background:var(--surface);color:var(--text-muted);cursor:not-allowed;}
+select option{background:var(--surface2);}
+.field-label{font-size:10px;color:var(--text-muted);font-weight:700;display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:.6px;}
+
+/* ─── APP LAYOUT ─────────────────────────────────────────────── */
+#app{display:none;height:100vh;width:100vw;grid-template-columns:248px 1fr;}
+.sidebar{
+  background:var(--surface);
+  border-right:1px solid var(--border-soft);
+  padding:28px 16px;
+  display:flex;flex-direction:column;justify-content:space-between;
+  height:100vh;overflow-y:auto;
+}
+.content{
+  padding:40px 44px;
+  padding-top:calc(36px + env(safe-area-inset-top));
+  overflow-y:auto;
+  background:var(--bg);
+  height:100vh;
+  -webkit-overflow-scrolling:touch;
+}
+
+/* ─── MOBILE ─────────────────────────────────────────────────── */
+@media(max-width:768px){
+  #app{display:block!important;}
+  .sidebar{display:none!important;}
+  .content{padding:16px;padding-top:calc(16px + env(safe-area-inset-top));padding-bottom:90px;height:100vh;overflow-x:hidden;}
+  .mobile-nav{display:flex!important;}
+  .grid-2,.grid-3{grid-template-columns:1fr!important;}
+  h1.ptitle{font-size:24px!important;margin-bottom:18px!important;}
+  .hide-mob{display:none!important;}
+  #view-chat.chat-active,#view-client-chat.chat-active{position:fixed!important;top:0;left:0;width:100vw;height:100svh!important;background:var(--bg);z-index:1000;display:flex!important;flex-direction:column;padding:env(safe-area-inset-top) 0 calc(72px + env(safe-area-inset-bottom)) 0!important;}
+  #view-chat.chat-active>h1,#view-client-chat.chat-active>h1{display:none;}
+  .chat-container{flex:1!important;height:auto!important;min-height:0!important;border:none!important;border-radius:0!important;}
+}
+
+/* ─── MOBILE NAV ─────────────────────────────────────────────── */
+.mobile-nav{
+  display:none;position:fixed;bottom:0;left:0;width:100%;
+  background:rgba(6,6,6,.96);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  border-top:1px solid var(--border-soft);
+  padding:8px 0 env(safe-area-inset-bottom,12px);
+  z-index:5000;justify-content:space-around;
+}
+.m-nav-item{color:var(--text-muted);display:flex;flex-direction:column;align-items:center;gap:3px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;cursor:pointer;padding:5px 10px;border-radius:10px;transition:.15s;}
+.m-nav-item.active{color:var(--gold);}
+.m-nav-item i{font-size:18px;}
+
+/* ─── SIDEBAR ────────────────────────────────────────────────── */
+.nav-logo{font-family:'Outfit';font-size:22px;font-weight:900;margin-bottom:32px;letter-spacing:-1px;padding:0 8px;}
+.nav-logo span{color:var(--gold);}
+.nav-section{
+  font-size:9px;font-weight:700;color:#252525;
+  text-transform:uppercase;letter-spacing:1.2px;
+  padding:16px 12px 6px;
+}
+.nav-item{
+  padding:10px 12px;color:var(--text-muted);cursor:pointer;
+  display:flex;gap:10px;align-items:center;
+  border-radius:9px;margin-bottom:2px;
+  transition:all .15s;font-weight:500;font-size:13px;
+  border:1px solid transparent;
+}
+.nav-item:hover{color:var(--text-sub);background:var(--surface2);}
+.nav-item.active{
+  background:var(--gold-soft);color:var(--gold);
+  border-color:var(--gold-border);font-weight:600;
+}
+.nav-item i{width:15px;text-align:center;font-size:12px;opacity:.7;}
+.nav-item.active i{opacity:1;}
+.nav-user{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 12px;background:var(--surface2);
+  border-radius:10px;border:1px solid var(--border-soft);
+  cursor:pointer;margin-top:8px;transition:.15s;
+}
+.nav-user:hover{border-color:var(--border);background:var(--surface3);}
+.nav-user img{width:32px;height:32px;border-radius:8px;object-fit:cover;background:var(--surface3);}
+.nav-user-name{font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.nav-user-role{font-size:10px;color:var(--gold);text-transform:uppercase;font-weight:700;letter-spacing:.3px;}
+
+/* ─── CARDS & GRID ───────────────────────────────────────────── */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(272px,1fr));gap:16px;}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+.card{
+  background:var(--surface);
+  border:1px solid var(--border-soft);
+  padding:20px;border-radius:16px;
+  position:relative;transition:border-color .2s,transform .2s,box-shadow .2s;
+}
+.card-click{cursor:pointer;}
+.card-click:hover{
+  border-color:var(--border);
+  transform:translateY(-2px);
+  box-shadow:0 8px 32px rgba(0,0,0,.4);
+}
+
+/* ─── PAGE HEADER ────────────────────────────────────────────── */
+.ph{display:flex;justify-content:space-between;align-items:center;margin-bottom:28px;flex-wrap:wrap;gap:12px;}
+h1.ptitle{font-family:'Outfit';font-size:28px;font-weight:800;letter-spacing:-.5px;color:var(--text);}
+
+/* ─── STAT CARDS ─────────────────────────────────────────────── */
+.stat-card{background:var(--surface);border:1px solid var(--border-soft);padding:20px;border-radius:16px;}
+.stat-card .stat-label{font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;}
+.stat-card .stat-val{font-family:'Outfit';font-size:28px;font-weight:800;line-height:1;}
+
+/* ─── BADGES ─────────────────────────────────────────────────── */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;}
+.bg-gold{background:rgba(197,160,89,.1);color:var(--gold);border:1px solid rgba(197,160,89,.18);}
+.bg-green{background:rgba(62,207,142,.08);color:#3ECF8E;border:1px solid rgba(62,207,142,.18);}
+.bg-red{background:rgba(224,82,82,.08);color:var(--danger);border:1px solid rgba(224,82,82,.18);}
+.bg-blue{background:rgba(82,130,255,.08);color:#6B9EFF;border:1px solid rgba(82,130,255,.18);}
+.bg-gray{background:rgba(255,255,255,.04);color:#555;border:1px solid var(--border);}
+.bg-purple{background:rgba(160,110,255,.08);color:#A06EFF;border:1px solid rgba(160,110,255,.18);}
+.bg-orange{background:rgba(255,160,70,.08);color:#FFA040;border:1px solid rgba(255,160,70,.18);}
+.bg-archive{background:var(--gold);color:#000;font-size:9px;font-weight:800;padding:3px 9px;border-radius:5px;text-transform:uppercase;display:inline-block;margin-bottom:10px;}
+.bg-trash{background:var(--danger);color:#fff;font-size:9px;font-weight:800;padding:3px 9px;border-radius:5px;text-transform:uppercase;display:inline-block;margin-bottom:10px;}
+
+/* ─── STATUS DOT ─────────────────────────────────────────────── */
+.dot{width:6px;height:6px;border-radius:50%;display:inline-block;flex-shrink:0;}
+.dot-green{background:var(--success);box-shadow:0 0 6px rgba(62,207,142,.5);}
+.dot-gold{background:var(--gold);box-shadow:0 0 6px rgba(197,160,89,.4);}
+.dot-red{background:var(--danger);}
+.dot-gray{background:#2a2a2a;}
+
+/* ─── PROGRESS ───────────────────────────────────────────────── */
+.prog-wrap{height:3px;background:var(--surface3);border-radius:2px;overflow:hidden;margin-top:12px;}
+.prog-bar{height:100%;background:linear-gradient(90deg,var(--gold),#E8B86D);border-radius:2px;transition:.5s ease;}
+
+/* ─── DEMO COUNTER ───────────────────────────────────────────── */
+.demo-box{background:var(--gold-soft);border:1px solid var(--gold-border);border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:12px;}
+.demo-days{font-family:'Outfit';font-size:24px;font-weight:900;color:var(--gold);}
+
+/* ─── MODALS ─────────────────────────────────────────────────── */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9000;display:none;align-items:center;justify-content:center;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);}
+.modal{
+  background:var(--surface);
+  border:1px solid var(--border);
+  padding:28px;width:95%;max-width:480px;
+  border-radius:20px;position:relative;
+  max-height:90vh;overflow-y:auto;
+  box-shadow:0 24px 64px rgba(0,0,0,.9),0 0 0 1px rgba(255,255,255,.02);
+}
+.modal h3{font-family:'Outfit';font-size:18px;font-weight:800;margin-bottom:20px;color:var(--text);}
+.mclose{position:absolute;top:16px;right:16px;background:var(--surface2);border:1px solid var(--border);color:var(--text-muted);cursor:pointer;font-size:13px;padding:6px 8px;border-radius:7px;line-height:1;transition:.15s;}
+.mclose:hover{color:var(--text);border-color:var(--border);}
+
+/* ─── NOTIFY ─────────────────────────────────────────────────── */
+#notify{
+  position:fixed;top:20px;left:50%;
+  transform:translate(-50%,-200%);
+  background:var(--surface);
+  border:1px solid var(--border);
+  color:var(--text);
+  padding:10px 20px;border-radius:24px;
+  transition:transform .3s cubic-bezier(.34,1.56,.64,1);
+  z-index:9999;display:flex;align-items:center;gap:8px;
+  font-size:12px;font-weight:600;
+  box-shadow:0 8px 32px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.03);
+}
+
+/* ─── TABLE ──────────────────────────────────────────────────── */
+.tbl-wrap{border:1px solid var(--border-soft);border-radius:12px;overflow:hidden;}
+.tbl{width:100%;border-collapse:collapse;}
+.tbl th{padding:11px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);border-bottom:1px solid var(--border-soft);text-align:left;background:var(--surface2);}
+.tbl td{padding:12px 14px;font-size:13px;border-bottom:1px solid var(--border-soft);color:var(--text-sub);}
+.tbl tr:last-child td{border-bottom:none;}
+.tbl tr:hover td{background:rgba(255,255,255,.01);}
+
+/* ─── CHAT ───────────────────────────────────────────────────── */
+.chat-container{display:flex;flex-direction:column;border:1px solid var(--border-soft);border-radius:16px;background:var(--surface);overflow:hidden;flex:1;}
+.chat-box{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px;-webkit-overflow-scrolling:touch;scroll-behavior:smooth;}
+.msg{padding:10px 14px;border-radius:12px;max-width:80%;font-size:13px;line-height:1.5;word-wrap:break-word;}
+.msg.me{background:var(--surface3);align-self:flex-end;border-bottom-right-radius:3px;color:var(--text);}
+.msg.them{background:var(--gold-soft);align-self:flex-start;color:var(--gold);border:1px solid var(--gold-border);border-bottom-left-radius:3px;}
+.msg-meta{font-size:9px;opacity:.35;margin-top:4px;text-align:right;font-weight:600;}
+.chat-inp-row{padding:12px;background:var(--surface2);display:flex;gap:8px;border-top:1px solid var(--border-soft);}
+.chat-inp-row input{margin:0;}
+
+/* ─── TABS ───────────────────────────────────────────────────── */
+.tabs{display:flex;gap:3px;background:var(--surface2);border:1px solid var(--border-soft);border-radius:10px;padding:3px;margin-bottom:20px;}
+.tab{flex:1;padding:8px;border-radius:8px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;cursor:pointer;text-align:center;color:var(--text-muted);transition:.15s;border:none;background:none;}
+.tab.active{background:var(--gold-soft);color:var(--gold);border:1px solid var(--gold-border);}
+
+/* ─── SECTION TITLE ──────────────────────────────────────────── */
+.stitle{font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px;margin-top:22px;}
+.stitle:first-child{margin-top:0;}
+
+/* ─── QUOTE BUILDER — Apple-style ─────────────────────────── */
+
+/* Nagłówek sekcji (Usługi / Części) */
+.qb-sec{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:10px 20px;
+  background:#111;
+  border-bottom:1px solid #1e1e1e;
+}
+.qb-sec-label{
+  font-size:11px;font-weight:800;color:#888;
+  text-transform:uppercase;letter-spacing:.8px;
+}
+
+/* Każdy wiersz pozycji */
+.qb-row{
+  background:#161616;
+  border-bottom:1px solid #1e1e1e;
+  padding:12px 16px;
+  display:grid;
+  gap:10px;
+  align-items:end;
+  transition:background .12s;
+}
+.qb-row:last-child{border-bottom:none;}
+.qb-row:hover{background:#1a1a1a;}
+/* Usługi: Nazwa | Ilość | Cena kat | Po rabacie | Rabat% | Wartość | Del */
+.qb-row-svc{grid-template-columns:3fr 80px 110px 120px 80px 100px 110px 36px;}
+/* Części: Nazwa | SKU | Ilość | Cena kat | Po rabacie | Rabat% | Wartość | Del */
+.qb-row-part{grid-template-columns:2.5fr 110px 80px 110px 120px 80px 110px 110px 36px;}
+
+/* Komórka z labelem */
+.qb-field{display:flex;flex-direction:column;gap:5px;}
+.qb-field label{
+  font-size:9px;font-weight:700;
+  color:#555;text-transform:uppercase;letter-spacing:.6px;
+  white-space:nowrap;
+}
+.qb-field label.gold{color:rgba(197,160,89,.7);}
+.qb-field label.green{color:rgba(62,207,142,.6);}
+
+/* Inputy w wierszu */
+.qb-row input{
+  margin:0;border:none;border-radius:8px;
+  background:#1e1e1e;color:#e8e8e8;
+  padding:9px 11px;font-size:13px;font-weight:500;
+  width:100%;outline:none;
+  border:1px solid transparent;
+  transition:border-color .12s,background .12s;
+  -webkit-appearance:none;
+}
+.qb-row input:focus{
+  border-color:var(--gold);background:#222;color:#fff;
+}
+.qb-row input::placeholder{color:#333;}
+
+/* Kolory specjalnych kolumn */
+.qb-row input.inp-after{
+  background:rgba(197,160,89,.08);
+  color:var(--gold);border-color:rgba(197,160,89,.15);
+}
+.qb-row input.inp-after:focus{background:rgba(197,160,89,.15);border-color:var(--gold);}
+.qb-row input.inp-disc{
+  background:rgba(197,160,89,.05);
+  color:var(--gold);text-align:center;font-weight:700;
+  border-color:rgba(197,160,89,.1);
+}
+.qb-row input.inp-buy{
+  background:rgba(62,207,142,.05);color:#3ECF8E;
+  border-color:rgba(62,207,142,.12);
+}
+.qb-row input.inp-val{background:#1a1a1a!important;color:#e8e8e8!important;font-weight:700;text-align:right;cursor:default;border-color:#222!important;}
+.qb-row input.inp-kat{text-align:right;font-weight:600;}
+.qb-row input.inp-qty{text-align:center;font-weight:700;}
+.qb-row input.inp-sku{color:#666;font-size:12px;}
+
+/* Combo-box do wyszukiwania usług */
+.qb-combo{position:relative;}
+.qb-combo input.inp-name{font-weight:600;color:#e8e8e8;}
+.qb-combo-list{
+  position:absolute;top:calc(100% + 4px);left:0;right:0;
+  background:#1e1e1e;border:1px solid #333;border-radius:10px;
+  z-index:999;max-height:200px;overflow-y:auto;
+  box-shadow:0 8px 24px rgba(0,0,0,.6);
+  display:none;
+}
+.qb-combo-list.open{display:block;}
+.qb-combo-opt{
+  padding:10px 14px;font-size:13px;cursor:pointer;
+  color:#ccc;border-bottom:1px solid #252525;
+  transition:background .1s;
+}
+.qb-combo-opt:last-child{border-bottom:none;}
+.qb-combo-opt:hover{background:#2a2a2a;color:#fff;}
+.qb-combo-opt .opt-price{font-size:11px;color:var(--gold);float:right;font-weight:700;}
+
+/* Przycisk usuń wiersz */
+.qb-del-btn{
+  background:none;border:none;color:#2a2a2a;
+  cursor:pointer;padding:9px 8px;border-radius:8px;
+  font-size:16px;transition:.1s;align-self:end;
+  width:36px;display:flex;align-items:center;justify-content:center;
+}
+.qb-del-btn:hover{color:#e74c3c;background:rgba(231,76,60,.08);}
+
+/* Kontrolki trybu */
+.qb-controls{
+  display:flex;gap:10px;align-items:center;padding:10px 20px;
+  background:#111;border-bottom:1px solid #1e1e1e;
+  justify-content:flex-end;
+}
+.qb-ctrl-label{font-size:10px;color:#444;font-weight:700;}
+.qb-seg{display:flex;gap:2px;background:#0a0a0a;padding:3px;border-radius:8px;border:1px solid #222;}
+.qb-seg-btn{
+  padding:4px 13px;border-radius:6px;font-size:10px;font-weight:700;
+  cursor:pointer;border:none;background:transparent;
+  color:#555;text-transform:uppercase;letter-spacing:.5px;transition:.12s;
+}
+.qb-seg-btn.active{background:var(--gold-soft);color:var(--gold);}
+
+@media(max-width:900px){
+  .qb-row-svc{grid-template-columns:1fr 70px 110px 80px 110px 36px;}
+  .qb-row-part{grid-template-columns:1fr 70px 110px 80px 110px 36px;}
+  .qb-row .qb-field.hide-m{display:none;}
+}
+
+/* Tryb jasny */
+[data-qt="light"] .qb-row{background:#f8f8f8;border-color:#eee;}
+[data-qt="light"] .qb-row:hover{background:#f2f2f2;}
+[data-qt="light"] .qb-row input{background:#fff;color:#111;border-color:#e0e0e0;}
+[data-qt="light"] .qb-row input:focus{border-color:var(--gold);background:#fff;}
+[data-qt="light"] .qb-row input.inp-after{background:#fffbf0;color:#8B6B30;}
+[data-qt="light"] .qb-row input.inp-disc{background:#fff8e6;color:#8B6B30;}
+[data-qt="light"] .qb-row input.inp-buy{
+  background:rgba(62,207,142,.05);color:#3ECF8E;
+  border-color:rgba(62,207,142,.12);
+}
+.qb-row input.inp-val{background:#1a1a1a!important;color:#e8e8e8!important;font-weight:700;text-align:right;cursor:default;border-color:#222!important;}
+[data-qt="light"] .qb-sec{background:#1a1a1a;}
+[data-qt="light"] .qb-controls{background:#1a1a1a;}
+[data-qt="light"] .qb-combo-list{background:#fff;border-color:#ddd;}
+[data-qt="light"] .qb-combo-opt{color:#222;border-color:#eee;}
+[data-qt="light"] .qb-combo-opt:hover{background:#f5f5f5;}
+
+
+/* Quote list table */
+.qlist-row{border-bottom:1px solid #141414;transition:background .1s;}
+.qlist-row:last-child{border-bottom:none;}
+.qlist-row:hover{background:#191919;}
+
+/* ─── COLOR PALETTES ─────────────────────────────────────────── */
+.palette-grid{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+.palette-swatch{
+  width:36px;height:36px;border-radius:10px;cursor:pointer;
+  border:2px solid transparent;transition:.15s;position:relative;
+  flex-shrink:0;
+}
+.palette-swatch.active,.palette-swatch:hover{border-color:#fff;transform:scale(1.1);}
+.color-picker-row{display:flex;align-items:center;gap:10px;margin-top:10px;}
+.color-picker-row input[type="color"]{width:40px;height:40px;padding:2px;border-radius:9px;cursor:pointer;background:var(--surface2);border:1px solid var(--border);}
+
+/* ─── PRICE SUMMARY ──────────────────────────────────────────── */
+.price-sum{background:var(--gold-soft);border:1px solid var(--gold-border);border-radius:14px;padding:18px;}
+.price-total{font-family:'Outfit';font-size:26px;font-weight:900;color:var(--gold);}
+
+/* ─── TOGGLE ─────────────────────────────────────────────────── */
+.trow{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border-soft);}
+.trow:last-child{border-bottom:none;}
+.trow .tl{font-size:13px;font-weight:600;color:var(--text);}
+.trow .ts{font-size:11px;color:var(--text-muted);margin-top:2px;}
+.toggle{position:relative;width:40px;height:22px;flex-shrink:0;}
+.toggle input{opacity:0;width:0;height:0;position:absolute;}
+.tslider{position:absolute;inset:0;background:var(--surface3);border-radius:11px;cursor:pointer;transition:.2s;border:1px solid var(--border);}
+.tslider:before{content:'';position:absolute;width:16px;height:16px;left:2px;top:2px;background:#333;border-radius:8px;transition:.2s;}
+.toggle input:checked+.tslider{background:rgba(197,160,89,.15);border-color:var(--gold-border);}
+.toggle input:checked+.tslider:before{transform:translateX(18px);background:var(--gold);}
+
+/* ─── MISC UTILITIES ─────────────────────────────────────────── */
+.sep{height:1px;background:var(--border-soft);margin:16px 0;}
+.av{width:38px;height:38px;border-radius:10px;object-fit:cover;background:var(--surface3);border:1px solid var(--border-soft);flex-shrink:0;}
+.av-lg{width:60px;height:60px;border-radius:14px;}
+.av-box{width:72px;height:72px;border-radius:18px;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;cursor:pointer;overflow:hidden;transition:.15s;}
+.av-box:hover{border-color:var(--gold);}
+.av-box img{width:100%;height:100%;object-fit:cover;}
+.break-word{overflow-wrap:anywhere;word-break:break-word;white-space:normal;}
+.text-gold{color:var(--gold);}
+.text-muted{color:var(--text-muted);}
+.text-sub{color:var(--text-sub);}
+.text-danger{color:var(--danger);}
+.text-success{color:var(--success);}
+.fw8{font-weight:800;}.fw7{font-weight:700;}.fw6{font-weight:600;}
+.fs13{font-size:13px;}.fs12{font-size:12px;}.fs11{font-size:11px;}.fs10{font-size:10px;}
+.mt8{margin-top:8px;}.mt12{margin-top:12px;}.mt16{margin-top:16px;}.mt24{margin-top:24px;}
+.mb0{margin-bottom:0!important;}
+.flex{display:flex;}.fxc{display:flex;align-items:center;}.fxb{display:flex;justify-content:space-between;align-items:center;}
+.g8{gap:8px;}.g12{gap:12px;}.g16{gap:16px;}
+.empty-st{text-align:center;padding:60px 20px;color:var(--text-muted);}
+.empty-st i{font-size:32px;margin-bottom:12px;display:block;opacity:.3;}
+.empty-st p{font-size:13px;color:var(--text-muted);}
+.date-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:var(--surface2);border:1px solid var(--border-soft);border-radius:6px;font-size:10px;color:var(--text-sub);margin-right:4px;font-weight:600;margin-bottom:8px;letter-spacing:.2px;}
+.date-badge i{color:var(--gold);font-size:9px;}
+
+/* ─── LOGIN SCREEN ───────────────────────────────────────────── */
+#login-screen{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;}
+.login-box{
+  width:360px;padding:40px;
+  background:var(--surface);
+  border-radius:20px;
+  border:1px solid var(--border);
+  box-shadow:0 32px 80px rgba(0,0,0,.8);
+  text-align:center;
+}
+.login-logo{font-family:'Outfit';font-size:38px;font-weight:900;letter-spacing:-1.5px;margin-bottom:8px;}
+.login-logo span{color:var(--gold);}
+.login-sub{font-size:12px;color:var(--text-muted);margin-bottom:32px;letter-spacing:.3px;}
+.login-box input{margin-bottom:10px;text-align:left;}
+.login-btn{width:100%;height:48px;border-radius:11px;margin-top:6px;font-size:12px;}
+
+/* ─── PUSH MODAL ─────────────────────────────────────────────── */
+#push-modal{z-index:99999!important;}
+
+/* ─── SERVICEMILE STYLE WIDOKU OFERT ─── */
+.sm-header-top { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-soft); padding-bottom: 20px; margin-bottom: 20px; }
+.sm-header-top h1 { font-size: 22px; margin: 0; font-weight: normal; color: var(--text); font-family: 'Inter', sans-serif; }
+
+.sm-filters-bar { background: var(--surface); padding: 15px 20px; border-radius: 8px; border: 1px solid var(--border-soft); display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.sm-tabs { display: flex; gap: 10px; }
+.sm-tabs button { color: #888; border: 1px solid #333; background: #080808; padding: 0 20px; height: 42px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: bold; border-radius: 4px; transition: 0.2s; cursor: pointer; box-sizing: border-box; }
+.sm-tabs button.active { background: var(--gold); color: #000; border-color: var(--gold); }
+.sm-tabs button:hover:not(.active) { color: #fff; border-color: #666; }
+
+.sm-search-box { padding: 0 15px; height: 42px; width: 320px; background: #080808; border: 1px solid #333; color: #fff; border-radius: 4px; font-size: 13px; transition: 0.2s; margin: 0; }
+.sm-search-box:focus { border-color: var(--gold); outline: none; }
+
+.sm-table { width: 100%; border-collapse: collapse; font-size: 13px; background: var(--surface); border-radius: 8px; overflow: hidden; }
+.sm-table th { color: #888; text-align: left; padding: 15px; border-bottom: 1px solid var(--border-soft); text-transform: uppercase; font-size: 11px; }
+.sm-table td { padding: 15px; border-bottom: 1px solid var(--border-soft); color: #ccc; vertical-align: middle; }
+.chk-col { width: 40px; text-align: center; }
+.sm-table input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; accent-color: var(--gold); }
+.vin-tag { font-size: 10px; color: var(--gold); background: rgba(197,160,89,0.1); padding: 2px 6px; border-radius: 3px; font-weight: bold; margin-top: 5px; display: inline-block; }
+
+.sm-action-wrapper { display: flex; gap: 20px; align-items: center; justify-content: flex-start; }
+.sm-action-wrapper svg { width: 22px; height: 22px; fill: currentColor; display: block; cursor: pointer; color: #888; transition: 0.2s; }
+.sm-action-wrapper svg:hover { color: var(--gold); }
+.sm-action-wrapper .delete-icon:hover { color: #ff4c4c; }
+
+.mass-action-bar { position: fixed; bottom: -100px; left: 250px; right: 0; background: #1a1a1a; padding: 15px 40px; display: flex; justify-content: space-between; align-items: center; border-top: 2px solid var(--gold); box-shadow: 0 -5px 20px rgba(0,0,0,0.5); transition: bottom 0.3s ease-in-out; z-index: 999; }
+.mass-action-bar.visible { bottom: 0; }
+.mass-info { font-weight: bold; font-size: 15px; color: #fff; }
+.btn-mass-delete { background: var(--danger); color: white; border: none; padding: 10px 20px; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 8px; }
+.btn-mass-delete:hover { background: #c0392b; }
+
+/* PRINT */
+@media print{
+  body{background:#fff!important;color:#000!important;overflow:auto!important;position:static!important;}
+  #app{display:block!important;height:auto!important;}
+  .sidebar,.mobile-nav,#notify,.btn,#push-modal{display:none!important;}
+  .content{padding:20px!important;height:auto!important;overflow:visible!important;}
+  [id^="view-"]{display:none!important;}
+  #print-area{display:block!important;}
+  .card{background:#f9f9f9!important;border:1px solid #ddd!important;}
+}
+#impersonate-bar ~ #app .content{padding-top:calc(82px + env(safe-area-inset-top))!important;}
+#impersonate-bar[style*="flex"] ~ #login-screen{top:44px!important;}
+#print-area{display:none;}
+</style>
+</head>
+<body>
+
+<div id="notify"><i class="fa-solid fa-check"></i><span id="notify-txt">Zapisano</span></div>
+
+<!-- IMPERSONATE BANNER -->
+<div id="impersonate-bar" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9998;background:linear-gradient(90deg,rgba(197,160,89,.95),rgba(148,117,58,.95));backdrop-filter:blur(10px);padding:10px 20px;display:none;align-items:center;justify-content:space-between;gap:12px;font-size:12px;font-weight:800;color:#000;box-shadow:0 3px 20px rgba(197,160,89,.4);">
+  <div style="display:flex;align-items:center;gap:9px;">
+    <i class="fa-solid fa-eye"></i>
+    <span>TRYB PODGLĄDU — przeglądasz panel jako: <span id="imp-client-name" style="text-decoration:underline;"></span></span>
+  </div>
+  <button onclick="Impersonate.exit()" style="background:#000;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:10px;font-weight:800;cursor:pointer;letter-spacing:.5px;font-family:'Outfit';">← WRÓĆ DO SWOJEGO PANELU</button>
+</div>
+
+<!-- PUSH MODAL -->
+<div id="push-modal" class="modal-bg">
+  <div class="modal" style="text-align:center;">
+    <i class="fa-solid fa-bell" style="font-size:44px;color:var(--gold);margin-bottom:18px;"></i>
+    <h2 style="font-family:'Outfit';margin-bottom:10px;">Bądź na bieżąco!</h2>
+    <p style="font-size:13px;color:#aaa;margin-bottom:24px;">Włącz powiadomienia push, aby od razu wiedzieć o nowych wiadomościach i zmianach statusu.</p>
+    <button class="btn btn-gold" style="width:100%;margin-bottom:10px;height:50px;" onclick="Push.requestFromModal()">WŁĄCZ POWIADOMIENIA</button>
+    <button class="btn btn-outline" style="width:100%;height:50px;" onclick="document.getElementById('push-modal').style.display='none'">MOŻE PÓŹNIEJ</button>
+  </div>
+</div>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">ELOK<span>.</span></div>
+    <div class="login-sub">Panel zarządzania</div>
+    <input type="text" id="l-user" placeholder="Login">
+    <input type="password" id="l-pass" placeholder="Hasło" onkeyup="if(event.key==='Enter')Auth.login()">
+    <button class="btn btn-gold login-btn" onclick="Auth.login()">Zaloguj się</button>
+    <div id="l-error" style="color:var(--danger);font-size:12px;margin-top:14px;display:none;font-weight:600;">Nieprawidłowy login lub hasło</div>
+  </div>
+</div>
+
+<div class="mobile-nav" id="mob-nav"></div>
+
+<!-- APP SHELL -->
+<div id="app">
+  <div class="sidebar">
+    <div>
+      <div class="nav-logo">ELOK<span>.</span></div>
+      <div id="desk-nav"></div>
+    </div>
+    <div class="nav-user" onclick="Nav.go('profile')">
+      <img id="sb-avatar" src="" onerror="this.src='https://via.placeholder.com/32/111/555?text=U'" class="av">
+      <div style="flex:1;overflow:hidden;">
+        <div id="sb-name" class="nav-user-name"></div>
+        <div id="sb-role" class="nav-user-role"></div>
+      </div>
+      <i class="fa-solid fa-power-off btn-ghost btn-icon" onclick="event.stopPropagation();Auth.logout()" style="font-size:12px;"></i>
+    </div>
+  </div>
+
+  <div class="content" id="main-content">
+
+    <!-- ====== ADMIN/EMPLOYEE: PROJEKTY CRM ====== -->
+    <div id="view-clients" style="display:none;">
+      <div class="ph"><h1 class="ptitle">Projekty</h1><button class="btn btn-gold" onclick="Modals.open('m-client')"><i class="fa-solid fa-plus"></i> Nowy projekt</button></div>
+      <div id="clients-grid" class="grid"></div>
+    </div>
+
+    <!-- ====== ADMIN: SYSTEM WYCEN SaaS ====== -->
+    <div id="view-pricing" style="display:none;">
+      <div class="ph"><h1 class="ptitle">System Wycen</h1><button class="btn btn-gold" onclick="Modals.open('m-saas-client')"><i class="fa-solid fa-plus"></i> Nowy klient SaaS</button></div>
+      <div class="grid-3" style="margin-bottom:26px;">
+        <div class="card"><div class="text-muted fs10 fw8" style="text-transform:uppercase;margin-bottom:5px;">Aktywni klienci</div><div id="stat-active" class="outfit" style="font-size:30px;font-weight:900;color:var(--gold);">0</div></div>
+        <div class="card"><div class="text-muted fs10 fw8" style="text-transform:uppercase;margin-bottom:5px;">W trybie Demo</div><div id="stat-demo" class="outfit" style="font-size:30px;font-weight:900;color:#e67e22;">0</div></div>
+        <div class="card"><div class="text-muted fs10 fw8" style="text-transform:uppercase;margin-bottom:5px;">Łącznie klientów</div><div id="stat-total" class="outfit" style="font-size:30px;font-weight:900;">0</div></div>
+      </div>
+      <div id="pricing-grid" class="grid"></div>
+    </div>
+
+    <!-- ====== ADMIN: KONFIGURACJA KLIENTA SaaS ====== -->
+    <div id="view-saas-detail" style="display:none;">
+      <div class="ph">
+        <button class="btn btn-outline" onclick="Nav.go('pricing')">← Wróć</button>
+        <div class="flex g8">
+          <button class="btn btn-outline" onclick="SaasDetail.impersonate()" id="btn-impersonate" style="display:none;"><i class="fa-solid fa-arrow-right-to-bracket"></i> Wejdź jako klient</button>
+          <button class="btn btn-gold" onclick="SaasDetail.save()"><i class="fa-solid fa-floppy-disk"></i> Zapisz konfigurację</button>
+        </div>
+      </div>
+      <div class="grid-2" id="saas-detail-layout">
+        <div>
+          <div class="card" style="margin-bottom:16px;">
+            <div class="fxb" style="margin-bottom:14px;">
+              <img id="sd-logo" src="" class="av av-lg" onerror="this.src='https://via.placeholder.com/64/111/555?text=L'">
+              <div id="sd-type-badge"></div>
+            </div>
+            <h2 id="sd-name" class="outfit" style="font-size:22px;font-weight:900;margin-bottom:3px;"></h2>
+            <div id="sd-subdomain" class="text-muted fs12" style="margin-bottom:14px;"></div>
+            <div class="sep"></div>
+            <div class="stitle">Dane dostępowe klienta</div>
+            <label class="field-label">Login</label>
+            <input id="sd-login" placeholder="login klienta...">
+            <label class="field-label">Hasło</label>
+            <div class="flex g8" style="margin-bottom:0;"><input id="sd-pass" placeholder="hasło..." style="margin:0;flex:1;"><button class="btn btn-outline btn-sm" onclick="genPass('sd-pass')">LOSUJ</button></div>
+          </div>
+          <div class="card" style="margin-bottom:16px;">
+            <div class="stitle">Okres Demo</div>
+            <div class="demo-box" style="margin-bottom:14px;">
+              <i class="fa-solid fa-hourglass-half text-gold" style="font-size:20px;"></i>
+              <div><div class="fxc g8"><span class="demo-days" id="sd-demo-days">-</span><span class="text-muted fs12">dni pozostało</span></div><div id="sd-demo-expires" class="text-muted" style="font-size:11px;"></div></div>
+            </div>
+            <label class="field-label">Data końca demo</label><input type="date" id="sd-demo-end">
+            <label class="field-label">Status klienta</label>
+            <select id="sd-status">
+              <option value="demo">Demo (pełny dostęp)</option>
+              <option value="active">Aktywny (pakiet płatny)</option>
+              <option value="suspended">Zawieszony</option>
+              <option value="cancelled">Anulowany</option>
+            </select>
+          </div>
+          <div class="card">
+            <div class="stitle">Notatki wewnętrzne</div>
+            <textarea id="sd-notes" placeholder="Notatki o kliencie (widoczne tylko dla Ciebie)..." style="height:90px;resize:none;margin:0;"></textarea>
+          </div>
+        </div>
+        <div>
+          <div class="card">
+            <div class="stitle">Konfiguracja pakietu</div>
+            <div class="tabs">
+              <button class="tab active" onclick="SaasDetail.setTab('basic',this)">Podstawowy</button>
+              <button class="tab" onclick="SaasDetail.setTab('plus',this)">Plus</button>
+              <button class="tab" onclick="SaasDetail.setTab('max',this)">MAX</button>
+              <button class="tab" onclick="SaasDetail.setTab('custom',this)">Własny</button>
+            </div>
+            <div id="pkg-features"></div>
+            <div class="sep"></div>
+            <div class="stitle">Limity</div>
+            <label class="field-label">Max wycen miesięcznie (0 = bez limitu)</label>
+            <input type="number" id="pkg-limit-quotes" placeholder="0" min="0">
+            <label class="field-label">Max klientów w bazie (0 = bez limitu)</label>
+            <input type="number" id="pkg-limit-clients" placeholder="0" min="0" style="margin-bottom:0;">
+            <div class="sep"></div>
+            <div class="stitle">Indywidualna cena</div>
+            <div class="flex g8">
+              <input type="number" id="pkg-price" placeholder="0" min="0" style="flex:1;margin:0;">
+              <select id="pkg-billing" style="width:130px;margin:0;">
+                <option value="monthly">/ miesiąc</option>
+                <option value="yearly">/ rok</option>
+                <option value="one-time">jednorazowo</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== ADMIN: ARCHIWUM ====== -->
+    <div id="view-archive" style="display:none;">
+      <h1 class="ptitle" style="margin-bottom:28px;">Archiwum</h1>
+      <div id="archive-grid" class="grid"></div>
+    </div>
+
+    <!-- ====== ADMIN: KOSZ ====== -->
+    <div id="view-trash" style="display:none;">
+      <h1 class="ptitle" style="margin-bottom:28px;">Kosz</h1>
+      <div id="trash-grid" class="grid"></div>
+    </div>
+
+    <!-- ====== ADMIN: ZESPÓŁ ====== -->
+    <div id="view-team" style="display:none;">
+      <div class="ph"><h1 class="ptitle">Zespół</h1><button class="btn btn-gold" onclick="Modals.open('m-team')"><i class="fa-solid fa-user-plus"></i> Dodaj</button></div>
+      <div id="team-grid" class="grid"></div>
+    </div>
+
+    <!-- ====== ADMIN: CZAT ZESPOŁU ====== -->
+    <div id="view-chat" style="display:none;flex-direction:column;height:calc(100vh - 120px);">
+      <h1 class="ptitle" style="margin-bottom:22px;">Czat Zespołu</h1>
+      <div class="chat-container">
+        <div class="chat-box" id="gen-chat-box"></div>
+        <div class="chat-inp-row"><input id="gen-chat-in" placeholder="Napisz do zespołu..." onkeyup="if(event.key==='Enter')GeneralChat.send()"><button class="btn btn-gold btn-icon" onclick="GeneralChat.send()"><i class="fa-solid fa-paper-plane"></i></button></div>
+      </div>
+    </div>
+
+    <!-- ====== ADMIN/EMPLOYEE: DETAIL PROJEKTU CRM ====== -->
+    <div id="view-detail" style="display:none;">
+      <div class="ph">
+        <button class="btn btn-outline" onclick="Nav.go('clients')">← Wróć</button>
+        <button class="btn btn-gold" id="btn-save-project" onclick="Detail.saveAll()"><i class="fa-solid fa-floppy-disk"></i> Zapisz projekt</button>
+      </div>
+      <div style="display:grid;grid-template-columns:320px 1fr;gap:36px;" id="detail-layout">
+        <div>
+          <div class="card" style="text-align:center;margin-bottom:16px;">
+            <div id="detail-badge-pos"></div>
+            <img id="d-logo" src="" style="width:90px;height:90px;margin:0 auto 16px;border-radius:22px;background:#fff;padding:7px;object-fit:contain;cursor:pointer;display:block;" onclick="document.getElementById('upl-logo').click()" onerror="this.src='https://via.placeholder.com/90/111/555?text=L'">
+            <input type="file" id="upl-logo" hidden onchange="Detail.uploadAsset(this,'logo')">
+            <h2 id="d-name" class="break-word outfit" style="font-size:22px;font-weight:900;line-height:1.2;margin-bottom:4px;"></h2>
+            <div class="break-word" style="font-size:12px;color:#555;margin-bottom:14px;font-weight:600;">@<span id="d-login" style="color:var(--gold);"></span></div>
+            <div style="display:flex;justify-content:center;gap:5px;margin-bottom:20px;flex-wrap:wrap;">
+              <div class="date-badge"><i class="fa-solid fa-play"></i><span id="ds-start"></span></div>
+              <div class="date-badge"><i class="fa-solid fa-flag-checkered"></i><span id="ds-end"></span></div>
+            </div>
+            <div style="text-align:left;background:#080808;padding:18px;border-radius:16px;margin-bottom:18px;border:1px solid #111;">
+              <div class="fxb" style="margin-bottom:10px;"><span class="text-muted fs10 fw8">DANE KLIENTA</span><button class="btn btn-outline" style="padding:4px 10px;font-size:9px;" onclick="Modals.openEditClient()">EDYTUJ</button></div>
+              <div class="break-word fs12 text-sub mb0" style="margin-bottom:5px;">Email: <span id="ds-email" style="color:#fff;"></span></div>
+              <div class="fs12 text-sub mb0" style="margin-bottom:5px;">Opiekun: <span id="ds-worker" style="color:var(--gold);font-weight:800;"></span></div>
+              <div class="fs12 text-sub mb0">NIP: <span id="ds-nip" style="color:#fff;"></span></div>
+            </div>
+            <label class="field-label" style="text-align:left;display:block;">STATUS PROJEKTU</label>
+            <select id="d-status" onchange="Detail.draft.status=this.value;Detail.autoProgress()" style="font-weight:700;color:var(--gold);margin-bottom:14px;">
+              <option>Start</option><option>Briefing</option><option>Makieta / Design</option><option>Akceptacja</option><option>Kodowanie</option><option>Poprawki</option><option>Finalizacja</option><option>Zakończone</option>
+            </select>
+            <div style="margin-bottom:4px;text-align:left;" class="fxb"><span class="fs12 fw7">Progres</span><b class="text-gold" id="d-perc">0%</b></div>
+            <input type="range" id="d-range" min="0" max="100" oninput="Detail.updateRange(this.value)" style="margin-bottom:6px;">
+            <div class="prog-wrap"><div class="prog-bar" id="d-bar"></div></div>
+            <div id="detail-actions" style="display:flex;flex-direction:column;gap:8px;margin-top:22px;">
+              <button class="btn btn-gold btn-sm" onclick="Detail.impersonateClient()"><i class="fa-solid fa-arrow-right-to-bracket"></i> Wejdź jako klient</button>
+              <button class="btn btn-outline btn-sm" onclick="Detail.archive()"><i class="fa-solid fa-box-archive"></i> Archiwizuj</button>
+              <button class="btn btn-danger btn-sm" onclick="Detail.moveToTrash()"><i class="fa-solid fa-trash"></i> Do kosza</button>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:20px;min-width:0;">
+          <div class="card">
+            <div class="fxb" style="margin-bottom:16px;"><h3 class="outfit" style="font-size:16px;">Etapy Realizacji</h3></div>
+            <div class="flex g8" style="margin-bottom:12px;"><input id="new-task" placeholder="Nowy etap..." style="margin:0;" onkeyup="if(event.key==='Enter')Detail.addTask()"><button class="btn btn-gold btn-icon" onclick="Detail.addTask()"><i class="fa-solid fa-plus"></i></button></div>
+            <div id="d-tasks"></div>
+          </div>
+          <div class="card">
+            <div class="fxb" style="margin-bottom:14px;"><h3 class="outfit" style="font-size:16px;">Dokumenty</h3><label class="btn btn-outline btn-sm" style="cursor:pointer;"><i class="fa-solid fa-upload"></i> Dodaj<input type="file" hidden onchange="Detail.uploadFile(this)"></label></div>
+            <div id="d-files" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+          </div>
+          <div class="chat-container" style="min-height:360px;">
+            <div style="padding:14px 20px;background:#111;font-weight:800;font-size:12px;color:var(--gold);border-bottom:1px solid #1a1a1a;">CZAT Z KLIENTEM</div>
+            <div class="chat-box" id="d-chat"></div>
+            <div class="chat-inp-row"><input id="d-chat-in" placeholder="Napisz wiadomość..." onkeyup="if(event.key==='Enter')Detail.sendMsg()"><button class="btn btn-gold btn-icon" onclick="Detail.sendMsg()"><i class="fa-solid fa-paper-plane"></i></button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== KLIENT CRM: DASHBOARD ====== -->
+    <div id="view-client-dash" style="display:none;max-width:900px;margin:0 auto;">
+      <div class="card" style="margin-bottom:22px;">
+        <div style="display:flex;align-items:center;gap:18px;margin-bottom:22px;">
+          <img id="cd-logo" src="" style="width:66px;height:66px;object-fit:contain;background:#fff;border-radius:15px;padding:6px;">
+          <div style="flex:1;min-width:0;">
+            <h1 id="cd-name" class="break-word outfit" style="font-size:22px;font-weight:900;line-height:1.2;margin-bottom:5px;"></h1>
+            <div id="cd-status" style="color:var(--gold);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;"></div>
+          </div>
+        </div>
+        <div style="margin-bottom:20px;flex-wrap:wrap;display:flex;gap:0;">
+          <div class="date-badge"><i class="fa-solid fa-play"></i>START: <span id="cd-start" style="color:#fff;"></span></div>
+          <div class="date-badge"><i class="fa-solid fa-flag-checkered"></i>DEADLINE: <span id="cd-end" style="color:#fff;"></span></div>
+        </div>
+        <div class="fxb" style="margin-bottom:6px;"><span class="fs10 text-muted fw8" style="text-transform:uppercase;letter-spacing:1px;">PROGRES PROJEKTU</span><div id="cd-perc-txt" class="outfit" style="font-size:32px;font-weight:900;line-height:1;">0%</div></div>
+        <div style="height:6px;background:#1a1a1a;border-radius:3px;overflow:hidden;"><div id="cd-bar" style="width:0%;height:100%;background:var(--gold);transition:1.5s;"></div></div>
+      </div>
+      <div class="card" style="margin-bottom:18px;">
+        <h3 class="outfit" style="margin-bottom:14px;font-size:17px;">Twoje Etapy</h3>
+        <div id="cd-tasks"></div>
+      </div>
+      <div class="card">
+        <h3 class="outfit" style="margin-bottom:14px;font-size:17px;">Pliki do pobrania</h3>
+        <div id="cd-files" style="display:flex;flex-direction:column;gap:10px;"></div>
+      </div>
+    </div>
+
+    <!-- ====== KLIENT CRM: CZAT ====== -->
+    <div id="view-client-chat" style="display:none;max-width:900px;margin:0 auto;flex-direction:column;height:calc(100vh - 120px);">
+      <div class="chat-container" style="flex:1;">
+        <div style="padding:14px 20px;background:#111;font-weight:800;font-size:12px;color:var(--gold);border-bottom:1px solid #1a1a1a;"><i class="fa-solid fa-comments"></i> OPIEKUN PROJEKTU</div>
+        <div class="chat-box" id="cd-chat"></div>
+        <div class="chat-inp-row"><input id="cd-chat-in" placeholder="Wpisz wiadomość..." onkeyup="if(event.key==='Enter')ClientDash.sendMsg()"><button class="btn btn-gold btn-icon" onclick="ClientDash.sendMsg()"><i class="fa-solid fa-paper-plane"></i></button></div>
+      </div>
+    </div>
+
+    <!-- ====== PROFIL ====== -->
+    <div id="view-profile" style="display:none;">
+      <div class="card" style="text-align:center;max-width:380px;margin:0 auto;padding:44px 28px;">
+        <img id="mp-avatar" src="" style="width:90px;height:90px;border-radius:28px;margin:0 auto 22px;object-fit:cover;border:2px solid var(--gold);display:block;" onerror="this.src='https://via.placeholder.com/90/111/555?text=U'">
+        <h2 id="mp-name" class="break-word outfit" style="font-size:22px;font-weight:800;margin-bottom:6px;"></h2>
+        <div id="mp-role" style="color:var(--gold);margin-bottom:36px;text-transform:uppercase;font-size:11px;font-weight:800;"></div>
+        <button class="btn btn-outline" style="width:100%;margin-bottom:12px;height:50px;border-radius:14px;" onclick="Push.installApp()"><i class="fa-solid fa-download"></i> POBIERZ APLIKACJĘ</button>
+        <button class="btn btn-danger" style="width:100%;height:50px;border-radius:14px;" onclick="Auth.logout()"><i class="fa-solid fa-power-off"></i> WYLOGUJ SIĘ</button>
+      </div>
+    </div>
+
+    <!-- ====== WARSZTAT: DASHBOARD ====== -->
+    <div id="view-wk-dashboard" style="display:none;">
+      <div class="ph">
+        <div>
+          <h1 class="ptitle" id="wk-company-name">Panel Warsztatu</h1>
+          <div id="wk-demo-bar" style="display:none;" class="demo-box mt8">
+            <i class="fa-solid fa-hourglass-half text-gold"></i>
+            <span class="text-muted fs12">Demo: <span id="wk-demo-days" class="text-gold fw8"></span> dni pozostało</span>
+          </div>
+        </div>
+        <button class="btn btn-gold" onclick="Nav.go('wk-new-quote')"><i class="fa-solid fa-plus"></i> Nowa wycena</button>
+      </div>
+      <div class="grid-3" style="margin-bottom:28px;">
+        <div class="card" style="border-top:2px solid var(--gold);">
+          <div style="font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.7px;margin-bottom:10px;">Wyceny (ten miesiąc)</div>
+          <div id="wk-stat-month" class="outfit" style="font-size:36px;font-weight:900;color:var(--gold);line-height:1;">0</div>
+          <div id="wk-stat-month-val" style="font-size:12px;color:#555;margin-top:6px;font-weight:600;">0,00 PLN</div>
+        </div>
+        <div class="card" style="border-top:2px solid #e67e22;">
+          <div style="font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.7px;margin-bottom:10px;">Oczekujące</div>
+          <div id="wk-stat-pending" class="outfit" style="font-size:36px;font-weight:900;color:#e67e22;line-height:1;">0</div>
+          <div style="font-size:12px;color:#555;margin-top:6px;">wymagają odpowiedzi</div>
+        </div>
+        <div class="card" style="border-top:2px solid #3ECF8E;">
+          <div style="font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.7px;margin-bottom:10px;">Potwierdzone</div>
+          <div id="wk-stat-confirmed" class="outfit" style="font-size:36px;font-weight:900;color:#3ECF8E;line-height:1;">0</div>
+          <div style="font-size:12px;color:#555;margin-top:6px;">zaakceptowane przez klienta</div>
+        </div>
+      </div>
+      <div class="fxb" style="margin-bottom:14px;">
+        <div class="stitle" style="margin:0;">Ostatnie wyceny</div>
+        <button class="btn btn-outline btn-sm" onclick="Nav.go('wk-quotes')">Zobacz wszystkie →</button>
+      </div>
+      <div id="wk-recent-quotes"></div>
+    </div>
+
+    <!-- ====== WARSZTAT: LISTA WYCEN ====== -->
+    <div id="view-wk-quotes" style="display:none; padding-bottom: 100px;">
+      <div class="sm-header-top">
+        <h1>Baza Ofert (Wycen dla klientów)</h1>
+        <button class="btn btn-gold" onclick="Nav.go('wk-new-quote')" style="border-radius: 4px;">+ STWÓRZ NOWĄ OFERTĘ</button>
+      </div>
+
+      <div class="sm-filters-bar">
+        <div class="sm-tabs">
+          <button id="tab-active" class="active" onclick="WK.renderQuoteList('active')">Zlecenia Aktywne</button>
+          <button id="tab-archived" onclick="WK.renderQuoteList('archived')">Zakończone (Archiwum)</button>
+        </div>
+        <input type="text" id="wk-search" class="sm-search-box" placeholder="Szukaj po VIN, Kliencie lub Numerze..." onkeyup="WK.renderQuoteList()">
+      </div>
+      
+      <table class="sm-table">
+        <thead>
+          <tr>
+            <th class="chk-col"><input type="checkbox" id="selectAllCheckbox" onclick="WK.toggleAllQuotes(this)"></th>
+            <th>NR OFERTY</th>
+            <th>KLIENT / VIN</th>
+            <th>DATA</th>
+            <th>WARTOŚĆ BRUTTO</th>
+            <th>AKCJE</th>
+          </tr>
+        </thead>
+        <tbody id="wk-quotes-tbody">
+          </tbody>
+      </table>
+
+      <div id="massActionBar" class="mass-action-bar">
+        <div class="mass-info">Zaznaczono ofert: <span id="selectedCount" style="color:#ff4c4c;">0</span></div>
+        <button class="btn-mass-delete" onclick="WK.massDeleteQuotes()">
+          <i class="fa-solid fa-trash"></i> Usuń Zaznaczone
+        </button>
+      </div>
+    </div>
+
+    <!-- ====== WARSZTAT: NOWA WYCENA ====== -->
+    <div id="view-wk-new-quote" style="display:none;">
+      <!-- TOP BAR -->
+      <div class="ph">
+        <button class="btn btn-outline" onclick="Nav.go('wk-dashboard')">← Wróć</button>
+        <div class="flex g8">
+          <button class="btn btn-outline" onclick="WK.saveQuoteDraft()"><i class="fa-solid fa-floppy-disk"></i> Zapisz szkic</button>
+          <button class="btn btn-gold" onclick="WK.finalizeQuote()"><i class="fa-solid fa-check"></i> Finalizuj wycenę</button>
+        </div>
+      </div>
+
+      <!-- CLIENT SELECTOR -->
+      <div id="qb-client-selector" style="background:#111;border:1px solid #1e1e1e;border-radius:14px;padding:14px 18px;margin-bottom:12px;display:flex;align-items:center;gap:12px;">
+        <i class="fa-solid fa-address-book" style="color:var(--gold);font-size:14px;flex-shrink:0;"></i>
+        <div style="flex:1;position:relative;">
+          <input id="qb-client-search" placeholder="Wybierz klienta z bazy lub wypełnij ręcznie poniżej..." style="margin:0;background:transparent;border:none;padding:0;font-size:13px;font-weight:500;color:#ccc;width:100%;" oninput="WK.filterClientCombo(this.value)" onfocus="WK.openClientCombo()" onblur="setTimeout(WK.closeClientCombo,200)">
+          <div id="qb-client-combo" style="display:none;position:absolute;top:calc(100% + 8px);left:-18px;right:-18px;background:#1a1a1a;border:1px solid #333;border-radius:12px;z-index:999;max-height:240px;overflow-y:auto;box-shadow:0 12px 40px rgba(0,0,0,.8);"></div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="WK.clearClientSelection()" style="flex-shrink:0;"><i class="fa-solid fa-xmark"></i> Wyczyść</button>
+      </div>
+      <!-- VEHICLE SELECTOR (pojawia się po wyborze klienta) -->
+      <div id="qb-vehicle-selector" style="display:none;background:rgba(62,207,142,.06);border:1px solid rgba(62,207,142,.15);border-radius:14px;padding:12px 18px;margin-bottom:12px;">
+        <div style="font-size:10px;font-weight:800;color:#3ECF8E;text-transform:uppercase;letter-spacing:.7px;margin-bottom:10px;"><i class="fa-solid fa-car"></i> Wybierz pojazd klienta</div>
+        <div id="qb-vehicle-list" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+      </div>
+
+      <!-- ROW 1: Klient + Auto obok siebie -->
+      <div class="grid-2" style="margin-bottom:14px;">
+        <div class="card" style="border-left:3px solid var(--gold);">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+            <i class="fa-solid fa-user-tie" style="color:var(--gold);font-size:12px;"></i>
+            <span style="font-size:10px;font-weight:800;color:var(--gold);text-transform:uppercase;letter-spacing:.8px;">Dane klienta</span>
+          </div>
+          <div class="grid-2" style="gap:8px;">
+            <input id="qb-client-name" placeholder="Imię i nazwisko / Firma" style="margin:0;" class="qb-inp">
+            <input id="qb-client-phone" placeholder="Telefon" style="margin:0;" class="qb-inp">
+            <input id="qb-client-email" type="email" placeholder="Email" style="margin:0;" class="qb-inp">
+            <input id="qb-client-nip" placeholder="NIP (opcjonalnie)" style="margin:0;" class="qb-inp">
+          </div>
+        </div>
+        <div class="card" style="border-left:3px solid #3ECF8E;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+            <i class="fa-solid fa-car" style="color:#3ECF8E;font-size:12px;"></i>
+            <span style="font-size:10px;font-weight:800;color:#3ECF8E;text-transform:uppercase;letter-spacing:.8px;">Dane pojazdu</span>
+          </div>
+          <div class="grid-2" style="gap:8px;">
+            <input id="qb-car-make" placeholder="Marka (np. BMW)" style="margin:0;" class="qb-inp">
+            <input id="qb-car-model" placeholder="Model (np. M3)" style="margin:0;" class="qb-inp">
+            <input id="qb-car-year" placeholder="Rok" style="margin:0;" class="qb-inp">
+            <input id="qb-car-reg" placeholder="Nr rejestracyjny" style="margin:0;" class="qb-inp">
+            <input id="qb-car-vin" placeholder="VIN" style="margin:0;" class="qb-inp">
+            <input id="qb-car-mileage" placeholder="Przebieg (km)" style="margin:0;" class="qb-inp">
+          </div>
+        </div>
+      </div>
+
+      <!-- ROW 2: Tabela pozycji -->
+      <div style="background:#111;border:1px solid #1e1e1e;border-radius:16px;overflow:hidden;margin-bottom:16px;" id="qt-table-wrap">
+        <!-- Kontrolki -->
+        <div class="qb-controls">
+          <span class="qb-ctrl-label">Ceny:</span>
+          <div class="qb-seg">
+            <button class="qb-seg-btn active" id="qm-netto" onclick="WK.setMode('netto')">Netto</button>
+            <button class="qb-seg-btn" id="qm-brutto" onclick="WK.setMode('brutto')">Brutto</button>
+          </div>
+
+        </div>
+        <!-- USŁUGI -->
+        <div class="qb-sec" style="border-top:1px solid #1e1e1e;">
+          <span class="qb-sec-label">Usługi</span>
+          <button class="btn btn-outline btn-sm" style="padding:4px 12px;font-size:10px;" onclick="WK.addSvcRow()"><i class="fa-solid fa-plus"></i> Dodaj usługę</button>
+        </div>
+        <div id="qb-services"></div>
+        <!-- CZĘŚCI -->
+        <div class="qb-sec">
+          <span class="qb-sec-label">Części</span>
+          <button class="btn btn-outline btn-sm" style="padding:4px 12px;font-size:10px;" onclick="WK.addPartRow()"><i class="fa-solid fa-plus"></i> Dodaj część</button>
+        </div>
+        <div id="qb-parts"></div>
+      </div>
+      <!-- ROW 3: Uwagi + Podsumowanie obok siebie -->
+      <div class="grid-2" style="gap:14px;">
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div class="card" style="padding:16px 18px;">
+            <div style="font-size:9px;font-weight:800;color:var(--gold);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px;display:flex;align-items:center;gap:6px;"><i class="fa-solid fa-comment-dots"></i> Opis usterki (widoczny dla klienta)</div>
+            <textarea id="qb-car-desc" placeholder="np. Hałas przy hamowaniu, wymiana klocków..." style="height:80px;resize:none;margin:0;border:none;background:transparent;padding:0;font-size:13px;color:#ccc;" onfocus="this.style.color='#fff'"></textarea>
+          </div>
+          <div class="card" style="padding:16px 18px;border-left:3px solid #333;">
+            <div style="font-size:9px;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px;display:flex;align-items:center;gap:6px;"><i class="fa-solid fa-lock"></i> Notatki wewnętrzne (niewidoczne w PDF)</div>
+            <textarea id="qb-notes" placeholder="Uwagi dla siebie, warunki rozliczenia..." style="height:64px;resize:none;margin:0;border:none;background:transparent;padding:0;font-size:13px;color:#777;"></textarea>
+          </div>
+        </div>
+        <div class="price-sum" style="display:flex;flex-direction:column;justify-content:space-between;">
+          <div>
+            <div class="text-muted fs10 fw8" style="text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px;">Podsumowanie</div>
+            <div style="display:grid;grid-template-columns:1fr auto;gap:4px 20px;margin-bottom:14px;">
+              <span class="text-sub fs13">Usługi (netto)</span><span id="sum-services" class="fw7" style="text-align:right;white-space:nowrap;">0,00 PLN</span>
+              <span class="text-sub fs13">Części (netto)</span><span id="sum-parts" class="fw7" style="text-align:right;white-space:nowrap;">0,00 PLN</span>
+              <span class="text-sub fs13" id="sum-discount-lbl">Rabat ogólny</span><span id="sum-discount-val" class="fw7 text-danger" style="text-align:right;white-space:nowrap;">0,00 PLN</span>
+              <span class="text-sub fs13">VAT</span><span id="sum-vat" class="fw7" style="text-align:right;white-space:nowrap;">0,00 PLN</span>
+            </div>
+            <div class="sep" style="margin:10px 0;"></div>
+            <div class="fxb"><span class="fw8" style="font-size:14px;">RAZEM (brutto)</span><span class="price-total" id="sum-total">0,00 PLN</span></div>
+          </div>
+          <div class="grid-2 mt12" style="gap:8px;">
+            <div><label class="field-label">Stawka VAT</label><select id="qb-vat" onchange="WK.calcSummary()" style="margin:0;"><option value="23">23%</option><option value="8">8%</option><option value="0">0% (zw.)</option></select></div>
+            <div><label class="field-label">Rabat ogólny (%)</label><input type="number" id="qb-discount" placeholder="0" min="0" max="100" oninput="WK.calcSummary()" style="margin:0;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== WARSZTAT: PODGLĄD WYCENY ====== -->
+    <div id="view-wk-quote-detail" style="display:none;">
+      <div class="ph">
+        <button class="btn btn-outline" onclick="Nav.go('wk-quotes')">← Wróć</button>
+        <div class="flex g8">
+          <button class="btn btn-outline" onclick="WK.printQuote()"><i class="fa-solid fa-print"></i> Drukuj / PDF</button>
+          <button class="btn btn-outline" onclick="WK.sendQuoteEmail()"><i class="fa-solid fa-envelope"></i> Email</button>
+          <button class="btn btn-outline" onclick="WK.editQuote(CURRENT_QUOTE_ID)"><i class="fa-solid fa-pen-to-square"></i> Edytuj</button>
+          <button class="btn btn-gold" onclick="Modals.open('m-change-status')"><i class="fa-solid fa-pen"></i> Status</button>
+        </div>
+      </div>
+      <div id="quote-detail-content"></div>
+    </div>
+
+    <!-- ====== WARSZTAT: BAZA KLIENTÓW ====== -->
+    <div id="view-wk-clients" style="display:none;">
+      <div class="ph"><h1 class="ptitle">Baza klientów</h1><button class="btn btn-gold" onclick="Modals.open('m-wk-client')"><i class="fa-solid fa-plus"></i> Nowy klient</button></div>
+      <div id="wk-clients-grid" class="grid"></div>
+    </div>
+
+    <!-- ====== WARSZTAT: PROFIL KLIENTA ====== -->
+    <div id="view-wk-client-detail" style="display:none;">
+      <div class="ph">
+        <button class="btn btn-outline" onclick="Nav.go('wk-clients')">← Wróć do listy</button>
+        <div class="flex g8">
+          <button class="btn btn-gold" onclick="Nav.go('wk-new-quote');setTimeout(()=>{if(WK._profClient)WK.selectClient(WK._profClient.id);},100)"><i class="fa-solid fa-plus"></i> Nowa wycena</button>
+        </div>
+      </div>
+      <!-- CLIENT HEADER -->
+      <div class="card" style="margin-bottom:18px;padding:20px 24px;">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
+          <div style="width:52px;height:52px;border-radius:14px;background:var(--gold-soft);border:1px solid var(--gold-border);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <i class="fa-solid fa-user" style="color:var(--gold);font-size:18px;"></i>
+          </div>
+          <div>
+            <h2 id="cp-name" class="outfit" style="font-size:22px;font-weight:800;margin-bottom:3px;"></h2>
+            <div id="cp-meta" style="font-size:12px;color:#666;"></div>
+          </div>
+        </div>
+        <!-- Tabs -->
+        <div class="tabs" id="cp-tabs">
+          <button class="tab active" onclick="ClientProfile.tab('dane',this)">Dane</button>
+          <button class="tab" onclick="ClientProfile.tab('pojazdy',this)">Pojazdy</button>
+          <button class="tab" onclick="ClientProfile.tab('wyceny',this)">Historia wycen</button>
+          <button class="tab" onclick="ClientProfile.tab('notatki',this)">Notatki</button>
+        </div>
+      </div>
+      <!-- TAB CONTENT -->
+      <div id="cp-tab-dane">
+        <div class="card" style="max-width:500px;">
+          <div class="stitle">Dane kontaktowe</div>
+          <label class="field-label">Imię i nazwisko / Firma</label><input id="cp-edit-name" style="margin-bottom:10px;">
+          <label class="field-label">Telefon</label><input id="cp-edit-phone" style="margin-bottom:10px;">
+          <label class="field-label">Email</label><input id="cp-edit-email" type="email" style="margin-bottom:10px;">
+          <label class="field-label">NIP</label><input id="cp-edit-nip" style="margin-bottom:14px;">
+          <button class="btn btn-gold" style="width:100%;" onclick="ClientProfile.saveDane()">Zapisz dane</button>
+        </div>
+      </div>
+      <div id="cp-tab-pojazdy" style="display:none;">
+        <div class="ph" style="margin-bottom:16px;">
+          <div class="stitle" style="margin:0;">Pojazdy klienta</div>
+          <button class="btn btn-gold btn-sm" onclick="Modals.open('m-add-vehicle')"><i class="fa-solid fa-plus"></i> Dodaj pojazd</button>
+        </div>
+        <div id="cp-vehicles-list" class="grid"></div>
+      </div>
+      <div id="cp-tab-wyceny" style="display:none;">
+        <div class="stitle">Historia wycen</div>
+        <div id="cp-quotes-list"></div>
+      </div>
+      <div id="cp-tab-notatki" style="display:none;">
+        <div class="card" style="max-width:600px;">
+          <div class="stitle">Notatki o kliencie</div>
+          <textarea id="cp-notes" style="height:200px;resize:vertical;" placeholder="Notatki, preferencje, historia serwisowa..."></textarea>
+          <button class="btn btn-gold" style="width:100%;margin-top:4px;" onclick="ClientProfile.saveNotes()">Zapisz notatki</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== WARSZTAT: USTAWIENIA ====== -->
+    <div id="view-wk-settings" style="display:none;">
+      <h1 class="ptitle" style="margin-bottom:28px;">Ustawienia warsztatu</h1>
+      <div class="grid-2">
+        <div>
+          <div class="card" style="margin-bottom:16px;">
+            <div class="stitle">Dane firmy</div>
+            <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;">
+              <div style="position:relative;">
+                <img id="ws-logo-prev" src="" style="width:56px;height:56px;border-radius:12px;object-fit:contain;background:var(--surface2);border:1px solid var(--border);padding:4px;" onerror="this.src='https://via.placeholder.com/56/111/555?text=L'">
+                <label style="position:absolute;inset:0;cursor:pointer;border-radius:12px;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5);opacity:0;transition:.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0"><i class="fa-solid fa-camera" style="color:#fff;font-size:13px;"></i><input type="file" hidden accept="image/*" onchange="WK.uploadLogo(this)"></label>
+              </div>
+              <div class="text-muted fs11">Kliknij logo żeby zmienić.<br>Pojawi się na PDF i w panelu.</div>
+            </div>
+            <input id="ws-company-name" placeholder="Nazwa warsztatu">
+            <input id="ws-company-nip" placeholder="NIP">
+            <input id="ws-company-addr" placeholder="Adres">
+            <input id="ws-company-phone" placeholder="Telefon">
+            <input id="ws-company-email" type="email" placeholder="Email" style="margin-bottom:0;">
+            <button class="btn btn-gold" style="width:100%;margin-top:12px;" onclick="WK.saveSettings()">Zapisz dane firmy</button>
+          </div>
+          <div class="card">
+            <div class="stitle">Opcje PDF i email</div>
+            <div class="trow"><div><div class="tl">Stopka z danymi firmy w PDF</div><div class="ts">Dane kontaktowe na wydruku</div></div><label class="toggle"><input type="checkbox" id="ws-pdf-footer" onchange="WK.saveSettings()" checked><span class="tslider"></span></label></div>
+            <div class="trow"><div><div class="tl">Auto-email po finalizacji wyceny</div><div class="ts">Wyślij PDF klientowi automatycznie</div></div><label class="toggle"><input type="checkbox" id="ws-auto-email" onchange="WK.saveSettings()"><span class="tslider"></span></label></div>
+          </div>
+          <div class="card mt16">
+            <div class="stitle">Kolor akcentu panelu</div>
+            <div class="text-muted fs11" style="margin-bottom:12px;">Wybierz gotową paletę lub ustaw własny kolor. Zmiana dotyczy tylko Twojego panelu.</div>
+            <div class="palette-grid" id="palette-grid"></div>
+            <div class="color-picker-row">
+              <input type="color" id="ws-accent-picker" value="#C5A059" onchange="WK.applyAccent(this.value,null,true)">
+              <div>
+                <div class="fs12 fw6">Własny kolor akcentu</div>
+                <div class="text-muted fs11">Kliknij żeby wybrać dowolny kolor</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="card" style="margin-bottom:16px;">
+            <div class="fxb" style="margin-bottom:14px;"><div class="stitle" style="margin:0;">Katalog usług</div><button class="btn btn-gold btn-sm" onclick="Modals.open('m-add-service')"><i class="fa-solid fa-plus"></i> Dodaj</button></div>
+            <div id="ws-services-list"></div>
+          </div>
+          <div class="card">
+            <div class="fxb" style="margin-bottom:14px;"><div class="stitle" style="margin:0;">Statusy wycen</div><button class="btn btn-gold btn-sm" onclick="Modals.open('m-add-status')"><i class="fa-solid fa-plus"></i> Dodaj</button></div>
+            <div id="ws-statuses-list"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== E-COMMERCE: DASHBOARD (placeholder) ====== -->
+    <div id="view-ec-dashboard" style="display:none;">
+      <div class="ph"><h1 class="ptitle" id="ec-company-name">Panel Sklepu</h1></div>
+      <div id="ec-demo-bar" style="display:none;" class="demo-box" style="margin-bottom:22px;">
+        <i class="fa-solid fa-hourglass-half text-gold"></i>
+        <span class="text-muted fs12">Demo: <span id="ec-demo-days" class="text-gold fw8"></span> dni pozostało</span>
+      </div>
+      <div class="card" style="max-width:480px;margin:40px auto;text-align:center;padding:40px;">
+        <i class="fa-solid fa-store text-gold" style="font-size:38px;margin-bottom:14px;display:block;"></i>
+        <h2 class="outfit" style="font-size:19px;margin-bottom:10px;">Panel E-commerce</h2>
+        <p class="text-sub fs13">Integracja z WooCommerce i Shopify — wkrótce dostępna.</p>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /app -->
+
+<div id="print-area"></div>
+
+<!-- ========== MODALS ========== -->
+<div id="m-client" class="modal-bg"><div class="modal">
+  <button class="mclose" onclick="Modals.close()"><i class="fa-solid fa-xmark"></i></button>
+  <h3>Nowy projekt</h3>
+  <div class="av-box" onclick="document.getElementById('nc-av-file').click()"><img id="nc-av-prev" src=""><i class="fa-solid fa-camera" id="nc-av-icon"></i></div>
+  <input type="file" id="nc-av-file" hidden onchange="Modals.uploadTemp(this,'nc')">
+  <input id="nc-name" placeholder="Nazwa firmy / projektu">
+  <input id="nc-login" placeholder="Login klienta (bez spacji)">
+  <input id="nc-email" type="email" placeholder="Email klienta">
+  <label class="field-label">Hasło logowania</label>
+  <div class="flex g8" style="margin-bottom:10px;"><input id="nc-pass" readonly placeholder="Wylosuj..." style="margin:0;flex:1;"><button class="btn btn-outline btn-sm" onclick="genPass('nc-pass')">LOSUJ</button></div>
+  <div class="grid-2" style="gap:9px;margin-bottom:10px;">
+    <div><label class="field-label">Start projektu</label><input type="date" id="nc-start" style="margin:0;"></div>
+    <div><label class="field-label">Deadline</label><input type="date" id="nc-deadline" style="margin:0;"></div>
+  </div>
+  <label class="field-label">Opiekun projektu</label><select id="nc-worker" style="margin-bottom:10px;"></select>
+  <input id="nc-nip" placeholder="NIP firmy (opcjonalnie)">
+  <input id="nc-addr" placeholder="Adres firmy (opcjonalnie)" style="margin-bottom:0;">
+  <div class="flex g8 mt16"><button class="btn btn-gold" style="flex:1;" onclick="App.createClient()">STWÓRZ PROJEKT</button><button class="btn btn-outline" onclick="Modals.close()">ANULUJ</button></div>
+</div></div>
+
+<div id="m-edit-client" class="modal-bg"><div class="modal">
+  <button class="mclose" onclick="Modals.close()"><i class="fa-solid fa-xmark"></i></button>
+  <h3>Edycja projektu</h3>
+  <label class="field-label">Opiekun projektu</label><select id="ec-worker" style="margin-bottom:10px;"></select>
+  <label class="field-label">Hasło logowania</label>
+  <div class="flex g8" style="margin-bottom:10px;"><input id="ec-pass" readonly style="margin:0;flex:1;"><button class="btn btn-outline btn-sm" onclick="genPass('ec-pass')">LOSUJ</button></div>
+  <div class="grid-2" style="gap:9px;margin-bottom:10px;">
+    <div><label class="field-label">Start</label><input type="date" id="ec-start" style="margin:0;"></div>
+    <div><label class="field-label">Deadline</label><input type="date" id="ec-deadline" style="margin:0;"></div>
+  </div>
+  <input id="ec-email" type="email" placeholder="Email klienta">
+  <input id="ec-nip" placeholder="NIP">
+  <input id="ec-phone" type="tel" placeholder="Telefon">
+  <input id="ec-addr" placeholder="Adres firmy" style="margin-bottom:0;">
+  <button class="btn btn-gold" style="width:100%;margin-top:16px;" onclick="Detail.saveProfileDraft()">ZASTOSUJ ZMIANY</button>
+  <button class="btn btn-outline" style="width:100%;margin-top:8px;" onclick="Modals.close()">ANULUJ</button>
+</div></div>
+
+<div id="m-saas-client" class="modal-bg"><div class="modal">
+  <button class="mclose" onclick="Modals.close()"><i class="fa-solid fa-xmark"></i></button>
+  <h3>Nowy klient SaaS</h3>
+  <input id="nsc-name" placeholder="Nazwa firmy / warsztatu">
+  <input id="nsc-subdomain" placeholder="Subdomena (np. warsztat-kowalski)">
+  <label class="field-label">Typ klienta</label>
+  <select id="nsc-type" style="margin-bottom:10px;"><option value="warsztat">Warsztat samochodowy</option><option value="ecommerce">Sklep e-commerce</option></select>
+  <label class="field-label">Dni demo od dziś</label>
+  <input type="number" id="nsc-demo-days" value="60" min="1" style="margin-bottom:0;">
+  <div class="flex g8 mt16"><button class="btn btn-gold" style="flex:1;" onclick="App.createSaasClient()">UTWÓRZ KLIENTA</button><button class="btn btn-outline" onclick="Modals.close()">ANULUJ</button></div>
+</div></div>
+
+<div id="m-team" class="modal-bg"><div class="modal">
+  <button class="mclose" onclick="Modals.close()"><i class="fa-solid fa-xmark"></i></button>
+  <h3>Dodaj pracownika</h3>
+  <div class="av-box" onclick="document.getElementById('nt-av-file').click()"><img id="nt-av-prev" src=""><i class="fa-solid fa-user-plus" id="nt-av-icon"></i></div>
+  <input type="file" id="nt-av-file" hidden onchange="Modals.uploadTemp(this,'nt')">
+  <input id="nt-name" placeholder="Imię i Nazwisko">
+  <input id="nt-login" placeholder="Login">
+  <label class="field-label">Hasło</label>
+  <div class="flex g8" style="margin-bottom:10px;"><input id="nt-pass" readonly placeholder="Wylosuj..." style="margin:0;flex:1;"><button class="btn btn-outline btn-sm" onclick="genPass('nt-pass')">LOSUJ</button></div>
+  <input id="nt-email" type="email" placeholder="Email służbowy">
+  <label class="field-label">Rola</label><select id="nt-role" style="margin-bottom:0;"><option value="employee">Pracownik</option><option value="admin">Admin</option></select>
+  <div class="flex g8 mt16"><button class="btn btn-gold" style="flex:1;" onclick="App.createTeam()">DODAJ PRACOWNIKA</button><button class="btn btn-outline" onclick="Modals.close()">ANULUJ</button></div>
+</div></div>
+
+<div id="m-edit-team" class="modal-bg"><div class="modal">
+  <button class="mclose" onclick="Modals.close()"><i class="fa-solid fa-xmark"></i></button>
+  <h3>Edytuj pracownika</h3>
+  <div class="av-box" onclick="document.getElementById('et-av-file').click()"><img id="et-av-prev" src=""></div>
+  <input type="file" id="et-av-file" hidden onchange="TeamDetail.changeAvatar(this)">
+  <label class="field-label">Hasło</label>
+  <div class="flex g8" style="margin-bottom:10px;"><input id="et-pass" readonly style="margin:0;flex:1;"><button class="btn btn-outline btn-sm" onclick="genPass('et-pass')">LOSUJ</button></div>
+  <input id="et-email" type="email" placeholder="Email służbowy">
+  <label class="field-label">Rola</label><select id="et-role" style="margin-bottom:0;"><option value="employee">Pracownik</option><option value="admin">Admin</option></select>
+  <button class="btn btn-gold" style="width:100%;margin-top:16px;" onclick="TeamDetail.save()">ZAPISZ DANE</button>
+  <button class="btn btn-danger" style="width:100%;margin-top:8px;" onclick="TeamDetail.delete()">USUŃ PRACOWNIKA</button>
+</div></div>
+
+<div id="m-add-service" class="modal-bg"><div class="modal">
+  <button class="mclose" onclick="Modals.close()"><i class="fa-solid fa-xmark"></i></button>
+  <h3>Dodaj usługę</h3>
+  <input id="ms-name" placeholder="Nazwa usługi (np. Wymiana oleju)">
+  <input id="ms-unit" placeholder="Jednostka (np. roboczogodzina, szt.)">
+  <input type="number" id="ms-price" placeholder="Cena netto (PLN)" min="0">
+  <textarea id="ms-desc" placeholder="Opis (opcjonalnie)" style="height:68px;resize:none;margin-bottom:0;"></textarea>
+  <button class="btn btn-gold" style="width:100%;margin-top:14px;" onclick="WK.addService()">DODAJ USŁUGĘ</button>
+</div></div>
+
+<div id="m-add-status" class="modal-bg"><div class="modal">
+  <button class="mclose" onclick="Modals.close()"><i class="fa-solid fa-xmark"></i></button>
+  <h3>Nowy status wyceny</h3>
+  <input id="mst-name" placeholder="Nazwa statusu (np. W trakcie weryfikacji)">
+  <label class="field-label">Kolor</label>
+  <select id="mst-color" style="margin-bottom:0;"><option value="gold">Złoty</option><option value="green">Zielony</option><option value="blue">Niebieski</option><option value="red">Czerwony</option><option value="orange">Pomarańczowy</option><option value="gray">Szary</option><option value="purple">Fioletowy</option></select>
+  <button class="btn btn-gold" style="width:100%;margin-top:14px;" onclick="WK.addStatus()">DODAJ STATUS</button>
+</div></div>
+
+<div id="m-change-status" class="modal-bg"><div class="modal">
+  <button class="mclose" onclick="Modals.close()"><i class="fa-solid fa-xmark"></i></button>
+  <h3>Zmień status wyceny</h3>
+  <select id="m-status-select" style="font-size:14px;padding:15px;"></select>
+  <button class="btn btn-gold" style="width:100%;margin-top:14px;" onclick="WK.changeQuoteStatus()">ZMIEŃ STATUS</button>
+</div></div>
+
+<div id="m-wk-client" class="modal-bg"><div class="modal">
+  <button class="mclose" onclick="Modals.close()"><i class="fa-solid fa-xmark"></i></button>
+  <h3>Nowy klient warsztatu</h3>
+  <input id="wkc-name" placeholder="Imię i nazwisko / Firma">
+  <input id="wkc-phone" placeholder="Telefon">
+  <input id="wkc-email" type="email" placeholder="Email">
+  <input id="wkc-nip" placeholder="NIP (opcjonalnie)">
+  <textarea id="wkc-notes" placeholder="Notatki..." style="height:68px;resize:none;margin-bottom:0;"></textarea>
+  <button class="btn btn-gold" style="width:100%;margin-top:14px;" onclick="WK.addClient()">DODAJ KLIENTA</button>
+</div></div>
+
+<div id="m-add-vehicle" class="modal-bg"><div class="modal">
+  <button class="mclose" onclick="Modals.close()"><i class="fa-solid fa-xmark"></i></button>
+  <h3>Dodaj pojazd</h3>
+  <div class="grid-2" style="gap:9px;">
+    <div><label class="field-label">Marka</label><input id="av-make" placeholder="np. BMW" style="margin:0;"></div>
+    <div><label class="field-label">Model</label><input id="av-model" placeholder="np. M3" style="margin:0;"></div>
+    <div><label class="field-label">Rok produkcji</label><input id="av-year" placeholder="2021" style="margin:0;"></div>
+    <div><label class="field-label">Nr rejestracyjny</label><input id="av-reg" placeholder="np. WPI 3937M" style="margin:0;"></div>
+    <div><label class="field-label">VIN</label><input id="av-vin" placeholder="opcjonalnie" style="margin:0;"></div>
+    <div><label class="field-label">Przebieg (km)</label><input id="av-mileage" placeholder="np. 45000" style="margin:0;"></div>
+  </div>
+  <button class="btn btn-gold" style="width:100%;margin-top:14px;" onclick="ClientProfile.addVehicle()">DODAJ POJAZD</button>
+</div></div>
+
+<script async src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+<script>
+// ============================================================
+// CONSTANTS & STATE
+// ============================================================
+const API='api.php';
+const STATUS_MAP={"Start":5,"Briefing":15,"Makieta / Design":30,"Akceptacja":45,"Kodowanie":65,"Poprawki":85,"Finalizacja":95,"Zakończone":100};
+const PKG_FEATURES=[
+  {key:'quotes_pdf',label:'Wyceny w PDF',sub:'Generowanie i pobieranie PDF'},
+  {key:'email_send',label:'Wysyłanie emaili',sub:'Email do klienta z wyceną'},
+  {key:'custom_email',label:'Własna skrzynka email',sub:'SMTP klienta (własna domena)'},
+  {key:'custom_logo',label:'Własne logo i kolory',sub:'Branding w panelu i PDF'},
+  {key:'custom_statuses',label:'Własne statusy wycen',sub:'Konfigurowalny workflow'},
+  {key:'clients_db',label:'Baza klientów',sub:'Historia klientów i pojazdów'},
+  {key:'api_parts',label:'Integracja API części',sub:'Automatyczne ceny z dostawcy'},
+  {key:'woo_shopify',label:'WooCommerce / Shopify',sub:'Połączenie ze sklepem'},
+  {key:'multi_user',label:'Wielu użytkowników',sub:'Pracownicy z rolami'},
+  {key:'reports',label:'Raporty i statystyki',sub:'Miesięczne podsumowania'},
+];
+const PKG_PRESETS={
+  basic:{quotes_pdf:1,email_send:1,custom_email:0,custom_logo:0,custom_statuses:0,clients_db:1,api_parts:0,woo_shopify:0,multi_user:0,reports:0},
+  plus: {quotes_pdf:1,email_send:1,custom_email:1,custom_logo:1,custom_statuses:1,clients_db:1,api_parts:0,woo_shopify:0,multi_user:1,reports:1},
+  max:  {quotes_pdf:1,email_send:1,custom_email:1,custom_logo:1,custom_statuses:1,clients_db:1,api_parts:1,woo_shopify:1,multi_user:1,reports:1},
+};
+const DEFAULT_STATUSES=[
+  {id:'new',name:'Nowa',color:'blue'},
+  {id:'sent',name:'Wysłana',color:'gold'},
+  {id:'verif',name:'W trakcie weryfikacji',color:'orange'},
+  {id:'confirmed',name:'Potwierdzona',color:'green'},
+  {id:'done',name:'Zakończona',color:'purple'},
+  {id:'rejected',name:'Odrzucona',color:'red'},
+];
+
+let DB={clients:[],archive:[],trash:[],team:[],general_chat:[],saas_clients:[]};
+let USER=null,EDIT_ID=null,CONTEXT='active',TEMP_AVATAR='',CURRENT_QUOTE_ID=null,CURRENT_WK=null;
+
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt',(e)=>{e.preventDefault();deferredPrompt=e;});
+
+// ============================================================
+// HELPERS
+// ============================================================
+const fmtDate=ts=>{if(!ts)return'';const d=new Date(ts),now=new Date(),t=d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');if(d.toDateString()===now.toDateString())return t;return d.getDate()+'.'+(d.getMonth()+1)+' '+t;};
+const fmtMoney=v=>Number(v||0).toFixed(2).replace('.',',')+' PLN';
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const gv=id=>{const e=document.getElementById(id);return e?e.value.trim():'';};
+const sv=(id,v)=>{const e=document.getElementById(id);if(e)e.value=v;};
+const st=(id,v)=>{const e=document.getElementById(id);if(e)e.innerText=v;};
+const daysLeft=ds=>{if(!ds)return-999;return Math.ceil((new Date(ds)-new Date())/864e5);};
+const statusBadge=c=>({'gold':'bg-gold','green':'bg-green','blue':'bg-blue','red':'bg-red','orange':'bg-orange','gray':'bg-gray','purple':'bg-purple'}[c]||'bg-gray');
+const emptyState=(icon,msg)=>`<div class="empty-st"><i class="fa-solid ${icon}"></i><p>${msg}</p></div>`;
+const genPass=id=>sv(id,Math.random().toString(36).slice(-8)+Math.random().toString(36).slice(-4));
+
+function notify(msg,type='ok'){
+  const n=document.getElementById('notify');
+  n.querySelector('i').className=type==='ok'?'fa-solid fa-check':'fa-solid fa-triangle-exclamation';
+  document.getElementById('notify-txt').innerText=msg;
+  n.style.transform='translate(-50%,0)';
+  setTimeout(()=>n.style.transform='translate(-50%,-200%)',2200);
+}
+
+// ============================================================
+// APP CORE
+// ============================================================
+const App={
+  loadDB:async()=>{
+    const fd=new FormData();fd.append('action','loadDB');
+    const r=await fetch(API+'?nc='+Date.now(),{method:'POST',body:fd,cache:'no-store'});
+    const txt=await r.text();
+    try{const d=JSON.parse(txt);Object.assign(DB,{clients:[],archive:[],trash:[],team:[],general_chat:[],saas_clients:[],...d});}catch(e){throw e;}
+  },
+  save:async(silent=false)=>{
+    if(!silent)notify('Zapisano');
+    const fd=new FormData();fd.append('action','saveDB');fd.append('data',JSON.stringify(DB));
+    await fetch(API,{method:'POST',body:fd});
+  },
+  sendMail:async(to,subject,msg)=>{
+    if(!to||!to.includes('@'))return;
+    const fd=new FormData();fd.append('action','sendMail');fd.append('to',to);fd.append('subject',subject);fd.append('msg',msg);
+    fetch(API,{method:'POST',body:fd}).catch(()=>{});
+  },
+  uploadFile:async(f,folder='general')=>{
+    if(!f)return null;
+    const fd=new FormData();fd.append('action','uploadFile');fd.append('file',f);fd.append('folder',folder);
+    const r=await fetch(API,{method:'POST',body:fd});return await r.json();
+  },
+  createClient:()=>{
+    const name=gv('nc-name'),login=gv('nc-login'),pass=gv('nc-pass');
+    if(!name||!login||!pass){alert('Podaj Nazwę, Login i Hasło!');return;}
+    DB.clients.push({id:uid(),name,login,pass,worker:gv('nc-worker'),progress:0,status:'Start',logo:TEMP_AVATAR,email:gv('nc-email'),phone:'',nip:gv('nc-nip'),addr:gv('nc-addr'),startDate:gv('nc-start'),deadline:gv('nc-deadline'),tasks:[],messages:[],files:[]});
+    TEMP_AVATAR='';App.save();Modals.close();UI.renderClients();
+  },
+  createSaasClient:()=>{
+    const name=gv('nsc-name'),subdomain=gv('nsc-subdomain'),type=gv('nsc-type');
+    const demoDays=parseInt(gv('nsc-demo-days'))||60;
+    if(!name||!subdomain){alert('Podaj nazwę i subdomenę!');return;}
+    const demoEnd=new Date();demoEnd.setDate(demoEnd.getDate()+demoDays);
+    DB.saas_clients.push({
+      id:uid(),name,subdomain,type,logo:'',login:'',pass:'',
+      status:'demo',demo_end:demoEnd.toISOString().split('T')[0],notes:'',
+      package:JSON.parse(JSON.stringify(PKG_PRESETS.basic)),
+      pkg_limits:{quotes:0,clients:0},pkg_price:0,pkg_billing:'monthly',
+      settings:{company_name:name,nip:'',addr:'',phone:'',email:'',pdf_footer:true,auto_email:false},
+      services:[
+        {id:uid(),name:'Roboczogodzina (mechanik)',unit:'rg',price:150,desc:''},
+        {id:uid(),name:'Roboczogodzina (blacharstwo)',unit:'rg',price:350,desc:''},
+        {id:uid(),name:'Diagnostyka komputerowa',unit:'szt',price:100,desc:''},
+      ],
+      statuses:JSON.parse(JSON.stringify(DEFAULT_STATUSES)),
+      quotes:[],wk_clients:[],
+    });
+    App.save();Modals.close();UI.renderPricingClients();
+  },
+  createTeam:()=>{
+    const name=gv('nt-name'),login=gv('nt-login'),pass=gv('nt-pass');
+    if(!name||!login||!pass){alert('Podaj Imię, Login i Hasło!');return;}
+    DB.team.push({name,login,pass,email:gv('nt-email'),role:gv('nt-role'),avatar:TEMP_AVATAR});
+    TEMP_AVATAR='';App.save();Modals.close();UI.renderTeam();
+  },
+};
+
+// ============================================================
+// AUTH
+// ============================================================
+const Auth={
+  login:async()=>{
+    document.getElementById('l-error').style.display='none';
+    try{
+      const l=gv('l-user'),p=gv('l-pass');
+      await App.loadDB();
+      const isTeam=DB.team.find(t=>t.login===l&&t.pass===p);
+      const isSaas=(DB.saas_clients||[]).find(c=>c.login===l&&c.pass===p);
+      if(isTeam){USER={...isTeam};localStorage.setItem('elok_u',JSON.stringify(USER));UI.init();}
+      else if(isSaas){USER={...isSaas,role:isSaas.type==='ecommerce'?'ecommerce':'warsztat'};localStorage.setItem('elok_u',JSON.stringify(USER));UI.init();}
+      else document.getElementById('l-error').style.display='block';
+    }catch(e){document.getElementById('l-error').style.display='block';}
+  },
+  logout:()=>{localStorage.removeItem('elok_u');sessionStorage.removeItem('elok_admin_backup');sessionStorage.removeItem('elok_impersonating');location.reload();},
+  loginAs:async(login,pass)=>{
+    try{
+      await App.loadDB();
+      const isTeam=DB.team.find(t=>t.login===login&&t.pass===pass);
+      const isSaas=(DB.saas_clients||[]).find(c=>c.login===login&&c.pass===pass);
+      if(isTeam){USER={...isTeam};localStorage.setItem('elok_u',JSON.stringify(USER));UI.init();}
+      else if(isSaas){USER={...isSaas,role:isSaas.type==='ecommerce'?'ecommerce':'warsztat'};localStorage.setItem('elok_u',JSON.stringify(USER));UI.init();}
+      else{// CRM client
+        const crmClient=DB.clients.find(c=>c.login===login&&c.pass===pass);
+        if(crmClient){USER={...crmClient,role:'client'};localStorage.setItem('elok_u',JSON.stringify(USER));UI.init();}
+        else notify('Klient nie znaleziony — sprawdź login i hasło','err');
+      }
+    }catch(e){notify('Błąd logowania','err');}
+  },
+  check:async()=>{
+    const s=localStorage.getItem('elok_u');
+    if(s){
+      try{
+        const saved=JSON.parse(s);await App.loadDB();
+        const isTeam=DB.team.find(t=>t.login===saved.login&&t.pass===saved.pass);
+        const isSaas=(DB.saas_clients||[]).find(c=>c.login===saved.login&&c.pass===saved.pass);
+        if(isTeam){USER={...isTeam};UI.init();}
+        else if(isSaas){USER={...isSaas,role:isSaas.type==='ecommerce'?'ecommerce':'warsztat'};UI.init();}
+        else document.getElementById('login-screen').style.display='flex';
+      }catch(e){document.getElementById('login-screen').style.display='flex';}
+    }else document.getElementById('login-screen').style.display='flex';
+  }
+};
+
+// ============================================================
+// UI
+// ============================================================
+const UI={
+  // ── CLIENT COMBO ──────────────────────────────────────────
+  _selClient:null,
+  openClientCombo:()=>{
+    const clients=CURRENT_WK?.wk_clients||[];
+    const combo=document.getElementById('qb-client-combo');if(!combo)return;
+    const q=document.getElementById('qb-client-search')?.value.toLowerCase()||'';
+    const filtered=clients.filter(cl=>`${cl.name}${cl.phone}${cl.email}`.toLowerCase().includes(q));
+    if(!filtered.length){combo.innerHTML='<div style="padding:12px 16px;color:#555;font-size:13px;">Brak klientów w bazie</div>';}
+    else{combo.innerHTML=filtered.map(cl=>`
+      <div class="qb-client-opt" data-id="${cl.id}" onmousedown="WK.selectClient('${cl.id}')" style="padding:12px 16px;cursor:pointer;border-bottom:1px solid #222;">
+        <div style="font-weight:700;font-size:13px;color:#e8e8e8;">${cl.name}</div>
+        <div style="font-size:11px;color:#666;margin-top:2px;">${cl.phone||''}${cl.email?' · '+cl.email:''}</div>
+      </div>`).join('');}
+    combo.style.display='block';
+  },
+  closeClientCombo:()=>{const c=document.getElementById('qb-client-combo');if(c)c.style.display='none';},
+  filterClientCombo:(val)=>{WK.openClientCombo();},
+  selectClient:(id)=>{
+    const cl=(CURRENT_WK?.wk_clients||[]).find(x=>x.id===id);if(!cl)return;
+    WK._selClient=cl;
+    const srch=document.getElementById('qb-client-search');if(srch)srch.value=cl.name;
+    WK.closeClientCombo();
+    // Fill client fields
+    sv('qb-client-name',cl.name);sv('qb-client-phone',cl.phone||'');
+    sv('qb-client-email',cl.email||'');sv('qb-client-nip',cl.nip||'');
+    // Show vehicle selector
+    const vs=document.getElementById('qb-vehicle-selector');
+    const vl=document.getElementById('qb-vehicle-list');
+    if(vs&&vl&&cl.vehicles?.length){
+      vl.innerHTML=cl.vehicles.map(v=>`
+        <div onclick="WK.selectVehicle('${v.id}')" style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:10px 14px;cursor:pointer;transition:.15s;min-width:160px;" onmouseover="this.style.borderColor='#3ECF8E'" onmouseout="this.style.borderColor='#2a2a2a'">
+          <div style="font-weight:700;font-size:13px;color:#e8e8e8;">${v.make} ${v.model}</div>
+          <div style="font-size:11px;color:#666;margin-top:3px;">${v.year||''} · <span style="color:var(--gold);font-weight:700;">${v.reg||'Brak rej.'}</span></div>
+          ${v.mileage?`<div style="font-size:10px;color:#444;margin-top:2px;">${v.mileage} km</div>`:''}
+        </div>`).join('');
+      vs.style.display='block';
+    }else if(vs){vs.style.display='none';}
+  },
+  selectVehicle:(vid)=>{
+    const cl=WK._selClient;if(!cl)return;
+    const v=(cl.vehicles||[]).find(x=>x.id===vid);if(!v)return;
+    sv('qb-car-make',v.make||'');sv('qb-car-model',v.model||'');
+    sv('qb-car-year',v.year||'');sv('qb-car-reg',v.reg||'');
+    sv('qb-car-vin',v.vin||'');sv('qb-car-mileage',v.mileage||'');
+    // Highlight selected
+    document.querySelectorAll('#qb-vehicle-list > div').forEach(el=>el.style.borderColor='#2a2a2a');
+    const vidEl=document.querySelector(`#qb-vehicle-list [onclick*="${vid}"]`);
+    if(vidEl)vidEl.style.borderColor='#3ECF8E';
+  },
+  clearClientSelection:()=>{
+    WK._selClient=null;
+    const srch=document.getElementById('qb-client-search');if(srch)srch.value='';
+    const vs=document.getElementById('qb-vehicle-selector');if(vs)vs.style.display='none';
+    ['qb-client-name','qb-client-phone','qb-client-email','qb-client-nip',
+     'qb-car-make','qb-car-model','qb-car-year','qb-car-reg','qb-car-vin','qb-car-mileage'].forEach(id=>sv(id,''));
+  },
+
+  init:()=>{
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('app').style.display='grid';
+    const av=USER.avatar||USER.logo||'https://via.placeholder.com/36/111/555?text=U';
+    st('sb-name',USER.name);st('sb-role',USER.role);
+    document.getElementById('sb-avatar').src=av;
+    document.getElementById('mp-avatar').src=av;
+    st('mp-name',USER.name);st('mp-role',USER.role);
+    RoleRouter.init(USER.role);
+    Push.autoPrompt();
+    Impersonate.checkBar();
+  },
+  renderClients:()=>{
+    const g=document.getElementById('clients-grid');
+    const list=DB.clients.filter(c=>USER.role==='admin'||c.worker===USER.login);
+    g.innerHTML=list.length?'':emptyState('fa-folder-open','Brak projektów — dodaj pierwszy');
+    list.forEach(c=>{
+      const el=document.createElement('div');el.className='card card-click';
+      el.innerHTML=`<div style="display:flex;justify-content:space-between;margin-bottom:13px;align-items:flex-start;"><img src="${c.logo||'https://via.placeholder.com/38/111/555?text=L'}" style="width:38px;height:38px;border-radius:10px;object-fit:contain;background:#111;padding:3px;border:1px solid #1a1a1a;"><span class="badge bg-gray" style="font-size:9px;">${c.status}</span></div><h3 class="break-word outfit" style="font-size:17px;font-weight:800;margin-bottom:4px;">${c.name}</h3><div class="text-muted fs11" style="margin-bottom:10px;">Opiekun: <span class="text-gold fw8">${c.worker||'admin'}</span></div><div class="prog-wrap"><div class="prog-bar" style="width:${c.progress}%;"></div></div><div style="display:flex;justify-content:space-between;margin-top:7px;"><span class="text-muted fs11">${c.progress}%</span><span class="text-muted fs11">${c.deadline||''}</span></div>`;
+      el.onclick=()=>{CONTEXT='active';Detail.open(c.id);};g.appendChild(el);
+    });
+  },
+  renderPricingClients:()=>{
+    const g=document.getElementById('pricing-grid');
+    const list=DB.saas_clients||[];
+    st('stat-active',list.filter(c=>c.status==='active').length);
+    st('stat-demo',list.filter(c=>c.status==='demo').length);
+    st('stat-total',list.length);
+    g.innerHTML=list.length?'':emptyState('fa-building','Brak klientów SaaS — dodaj pierwszego');
+    list.forEach(c=>{
+      const days=daysLeft(c.demo_end),isDemo=c.status==='demo';
+      const el=document.createElement('div');el.className='card card-click';
+      el.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;"><div class="fxc g8"><div class="dot ${isDemo?'dot-gold':'dot-green'}"></div><span class="text-muted fs10 fw8">${c.type==='warsztat'?'Warsztat':'E-commerce'}</span></div><div class="badge ${isDemo?'bg-gold':'bg-green'}" style="font-size:9px;">${isDemo?'DEMO':'AKTYWNY'}</div></div><h3 class="break-word outfit" style="font-size:17px;font-weight:800;margin-bottom:3px;">${c.name}</h3><div class="text-muted fs11" style="margin-bottom:11px;">${c.subdomain}</div>${isDemo?`<div class="fxc g8"><i class="fa-solid fa-hourglass-half" style="color:${days<7?'#e74c3c':'var(--gold)'};font-size:11px;"></i><span class="fs12 fw8" style="color:${days<7?'#e74c3c':'var(--gold)'};">${days>0?days+' dni demo':'Demo wygasło'}</span></div>`:''}<div class="prog-wrap mt8"><div class="prog-bar" style="width:${c.login?100:20}%;"></div></div><div class="text-muted fs10 mt8 fw8" style="text-transform:uppercase;">${c.login?'Skonfigurowany':'Wymaga konfiguracji'}</div>`;
+      el.onclick=()=>SaasDetail.open(c.id);g.appendChild(el);
+    });
+  },
+  renderTeam:()=>{
+    const g=document.getElementById('team-grid');g.innerHTML='';
+    DB.team.forEach(t=>{
+      const el=document.createElement('div');el.className='card card-click';el.style.textAlign='center';
+      el.innerHTML=`<img src="${t.avatar||'https://via.placeholder.com/60/111/555?text=U'}" style="width:60px;height:60px;border-radius:50%;margin:0 auto 12px;display:block;object-fit:cover;border:2px solid #1a1a1a;"><h4 class="break-word outfit" style="font-size:16px;font-weight:800;">${t.name}</h4><div class="text-gold fs10 fw8" style="text-transform:uppercase;margin-top:5px;">${t.role}</div>`;
+      el.onclick=()=>Modals.openEditTeam(t.login);g.appendChild(el);
+    });
+  },
+};
+
+// ============================================================
+// ROLE ROUTER
+// ============================================================
+const RoleRouter={
+  navConfig:{
+    admin:[
+      {section:'CRM'},
+      {id:'clients',label:'Projekty',icon:'fa-folder-open'},
+      {id:'archive',label:'Archiwum',icon:'fa-box-archive'},
+      {id:'trash',label:'Kosz',icon:'fa-trash-can'},
+      {section:'SAAS'},
+      {id:'pricing',label:'System Wycen',icon:'fa-calculator'},
+      {section:'ZESPÓŁ'},
+      {id:'team',label:'Zespół',icon:'fa-users-gear'},
+      {id:'chat',label:'Czat Firmowy',icon:'fa-comment'},
+    ],
+    employee:[
+      {id:'clients',label:'Projekty',icon:'fa-folder-open'},
+      {id:'chat',label:'Czat',icon:'fa-comment'},
+    ],
+    warsztat:[
+      {id:'wk-dashboard',label:'Dashboard',icon:'fa-gauge-high'},
+      {id:'wk-quotes',label:'Wyceny',icon:'fa-file-invoice'},
+      {id:'wk-clients',label:'Klienci',icon:'fa-address-book'},
+      {id:'wk-settings',label:'Ustawienia',icon:'fa-gear'},
+    ],
+    ecommerce:[
+      {id:'ec-dashboard',label:'Dashboard',icon:'fa-store'},
+    ],
+    client:[
+      {id:'client-dash',label:'Mój projekt',icon:'fa-gem'},
+      {id:'client-chat',label:'Wiadomości',icon:'fa-comments'},
+    ],
+  },
+  mobileNav:{
+    admin:[{id:'clients',icon:'fa-folder',label:'Projekty'},{id:'pricing',icon:'fa-calculator',label:'Wyceny'},{id:'chat',icon:'fa-comments',label:'Czat'},{id:'profile',icon:'fa-user',label:'Profil'}],
+    employee:[{id:'clients',icon:'fa-folder',label:'Projekty'},{id:'chat',icon:'fa-comments',label:'Czat'},{id:'profile',icon:'fa-user',label:'Profil'}],
+    warsztat:[{id:'wk-dashboard',icon:'fa-gauge-high',label:'Home'},{id:'wk-quotes',icon:'fa-file-invoice',label:'Wyceny'},{id:'wk-clients',icon:'fa-address-book',label:'Klienci'},{id:'wk-settings',icon:'fa-gear',label:'Ustawienia'}],
+    ecommerce:[{id:'ec-dashboard',icon:'fa-store',label:'Panel'},{id:'profile',icon:'fa-user',label:'Profil'}],
+    client:[{id:'client-dash',icon:'fa-gem',label:'Panel'},{id:'client-chat',icon:'fa-comments',label:'Czat'},{id:'profile',icon:'fa-user',label:'Profil'}],
+  },
+  init:(role)=>{
+    const navItems=RoleRouter.navConfig[role]||RoleRouter.navConfig.employee;
+    const mobileItems=RoleRouter.mobileNav[role]||RoleRouter.mobileNav.employee;
+    let deskHTML='';
+    navItems.forEach(n=>{
+      if(n.section){deskHTML+=`<div class="nav-section">${n.section}</div>`;}
+      else{deskHTML+=`<div class="nav-item" id="n-${n.id}" onclick="Nav.go('${n.id}')"><i class="fa-solid ${n.icon}"></i>${n.label}</div>`;}
+    });
+    document.getElementById('desk-nav').innerHTML=deskHTML;
+    document.getElementById('mob-nav').innerHTML=mobileItems.map(n=>`<div class="m-nav-item" id="mn-${n.id}" onclick="Nav.go('${n.id}')"><i class="fa-solid ${n.icon}"></i><span>${n.label}</span></div>`).join('');
+
+    if(role==='warsztat'||role==='ecommerce'){
+      CURRENT_WK=DB.saas_clients.find(c=>c.login===USER.login)||null;
+      if(CURRENT_WK){WK.init();Nav.go(role==='warsztat'?'wk-dashboard':'ec-dashboard');}
+      else notify('Błąd konfiguracji konta','err');
+    }else if(role==='client'){
+      Nav.go('client-dash');
+    }else{
+      Nav.go('clients');
+    }
+  }
+};
+
+// ============================================================
+// NAV
+// ============================================================
+const Nav={
+  go:(v)=>{
+    document.querySelectorAll('[id^="view-"]').forEach(el=>{el.style.display='none';el.classList.remove('chat-active');});
+    document.querySelectorAll('.nav-item,.m-nav-item').forEach(el=>el.classList.remove('active'));
+    ['n-'+v,'mn-'+v].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.add('active');});
+    const content=document.querySelector('.content');if(content)content.scrollTop=0;
+
+    const show=(id,flex=false)=>{const el=document.getElementById(id);if(el)el.style.display=flex?'flex':'block';};
+    const showChat=(id)=>{const el=document.getElementById(id);if(el){el.style.display='flex';el.classList.add('chat-active');}};
+
+    if(v==='clients'){show('view-clients');UI.renderClients();}
+    else if(v==='pricing'){show('view-pricing');UI.renderPricingClients();}
+    else if(v==='archive'){show('view-archive');renderArchive();}
+    else if(v==='trash'){show('view-trash');renderTrash();}
+    else if(v==='team'){show('view-team');UI.renderTeam();}
+    else if(v==='chat'){showChat('view-chat');GeneralChat.render();}
+    else if(v==='detail'){show('view-detail');}
+    else if(v==='saas-detail'){show('view-saas-detail');}
+    else if(v==='client-dash'){show('view-client-dash');ClientDash.initDash();}
+    else if(v==='client-chat'){showChat('view-client-chat');ClientDash.initChat();}
+    else if(v==='profile'){show('view-profile');}
+    else if(v==='wk-dashboard'){show('view-wk-dashboard');WK.renderDashboard();}
+    else if(v==='wk-quotes'){show('view-wk-quotes');WK.renderQuoteList();}
+    else if(v==='wk-new-quote'){show('view-wk-new-quote');WK.initNewQuote();}
+    else if(v==='wk-quote-detail'){show('view-wk-quote-detail');}
+    else if(v==='wk-clients'){show('view-wk-clients');WK.renderClients();}
+    else if(v==='wk-client-detail'){show('view-wk-client-detail');}
+    else if(v==='wk-settings'){show('view-wk-settings');WK.renderSettings();}
+    else if(v==='ec-dashboard'){show('view-ec-dashboard');EC.renderDashboard();}
+  },
+  restore:(id)=>{const c=DB.trash.find(x=>x.id==id);if(!c)return;DB.clients.push(c);DB.trash=DB.trash.filter(x=>x.id!=id);App.save();renderTrash();},
+  restoreArchive:(id)=>{const c=DB.archive.find(x=>x.id==id);if(!c)return;DB.clients.push(c);DB.archive=DB.archive.filter(x=>x.id!=id);App.save();renderArchive();},
+  permanentDelete:(id)=>{if(!confirm('Usunąć trwale?'))return;DB.trash=DB.trash.filter(x=>x.id!=id);App.save();renderTrash();}
+};
+
+function renderArchive(){const g=document.getElementById('archive-grid');g.innerHTML=DB.archive.length?'':emptyState('fa-box-archive','Archiwum jest puste');DB.archive.forEach(c=>{const el=document.createElement('div');el.className='card card-click';el.innerHTML=`<div class="bg-archive">ARCHIWUM</div><h3 class="break-word outfit" style="font-size:17px;font-weight:800;">${c.name}</h3><button class="btn btn-outline btn-sm mt12" onclick="event.stopPropagation();Nav.restoreArchive('${c.id}')">PRZYWRÓĆ</button>`;el.onclick=()=>{CONTEXT='archive';Detail.open(c.id);};g.appendChild(el);});}
+function renderTrash(){const g=document.getElementById('trash-grid');g.innerHTML=DB.trash.length?'':emptyState('fa-trash-can','Kosz jest pusty');DB.trash.forEach(c=>{const el=document.createElement('div');el.className='card';el.innerHTML=`<div class="bg-trash">KOSZ</div><h3 class="break-word outfit" style="font-size:17px;font-weight:800;">${c.name}</h3><div class="flex g8 mt12"><button class="btn btn-outline btn-sm" onclick="Nav.restore('${c.id}')">PRZYWRÓĆ</button><button class="btn btn-danger btn-sm" onclick="Nav.permanentDelete('${c.id}')">USUŃ</button></div>`;g.appendChild(el);});}
+
+// ============================================================
+// MODALS
+// ============================================================
+const Modals={
+  open:(id)=>{
+    document.getElementById(id).style.display='flex';
+    if(id==='m-client'){const s=document.getElementById('nc-worker');if(s){s.innerHTML='';DB.team.forEach(t=>s.innerHTML+=`<option value="${t.login}">${t.name}</option>`);}}
+    if(id==='m-change-status'&&CURRENT_WK){const s=document.getElementById('m-status-select');s.innerHTML='';(CURRENT_WK.statuses||DEFAULT_STATUSES).forEach(st2=>s.innerHTML+=`<option value="${st2.id}">${st2.name}</option>`);}
+  },
+  close:()=>document.querySelectorAll('.modal-bg').forEach(m=>m.style.display='none'),
+  uploadTemp:async(inp,prefix)=>{const r=await App.uploadFile(inp.files[0],'temp');if(r?.status==='success'){TEMP_AVATAR=r.link;const prev=document.getElementById(prefix+'-av-prev');const icon=document.getElementById(prefix+'-av-icon');if(prev)prev.src=r.link;if(icon)icon.style.display='none';}},
+  openEditClient:()=>{
+    const d=Detail.draft;
+    sv('ec-pass',d.pass||'');sv('ec-email',d.email||'');sv('ec-nip',d.nip||'');
+    sv('ec-phone',d.phone||'');sv('ec-addr',d.addr||'');sv('ec-start',d.startDate||'');sv('ec-deadline',d.deadline||'');
+    const s=document.getElementById('ec-worker');if(s){s.innerHTML='';DB.team.forEach(t=>s.innerHTML+=`<option value="${t.login}">${t.name}</option>`);s.value=d.worker||'admin';}
+    Modals.open('m-edit-client');
+  },
+  openEditTeam:(login)=>{
+    const t=DB.team.find(x=>x.login===login);if(!t)return;
+    TeamDetail.curr=t;sv('et-pass',t.pass);sv('et-email',t.email||'');
+    const prev=document.getElementById('et-av-prev');if(prev)prev.src=t.avatar||'';
+    const r=document.getElementById('et-role');if(r)r.value=t.role;
+    Modals.open('m-edit-team');
+  }
+};
+
+// ============================================================
+// PUSH
+// ============================================================
+const Push={
+  autoPrompt:()=>{
+    const isMobile=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const isApp=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
+    if(isMobile&&isApp&&window.Notification&&Notification.permission==='default'){document.getElementById('push-modal').style.display='flex';}
+  },
+  requestFromModal:()=>{
+    if(window.Notification){Notification.requestPermission().then(p=>{document.getElementById('push-modal').style.display='none';if(p==='granted'&&navigator.serviceWorker)navigator.serviceWorker.ready.then(reg=>reg.showNotification("ELOK",{body:"Powiadomienia aktywne!",icon:'logo_512.png'}));});}
+  },
+  send:(title,body)=>{
+    if(window.Notification&&Notification.permission==='granted'){
+      if(navigator.serviceWorker){navigator.serviceWorker.ready.then(reg=>reg.showNotification(title,{body,icon:'logo_512.png',vibrate:[100,50,100]})).catch(()=>new Notification(title,{body,icon:'logo_512.png'}));}
+      else new Notification(title,{body,icon:'logo_512.png'});
+    }
+  },
+  installApp:()=>{
+    if(deferredPrompt){deferredPrompt.prompt();}
+    else alert("Aby zainstalować na iPhone: Safari → ikona Udostępnij → 'Do ekranu początkowego'.");
+  }
+};
+
+// ============================================================
+// SAAS DETAIL
+// ============================================================
+const SaasDetail={
+  curr:null,
+  open:(id)=>{
+    SaasDetail.curr=DB.saas_clients.find(x=>x.id==id);if(!SaasDetail.curr)return;
+    const c=SaasDetail.curr;
+    st('sd-name',c.name);st('sd-subdomain',c.subdomain);
+    document.getElementById('sd-logo').src=c.logo||'https://via.placeholder.com/64/111/555?text=L';
+    document.getElementById('sd-type-badge').innerHTML=`<div class="badge ${c.type==='warsztat'?'bg-blue':'bg-purple'}">${c.type==='warsztat'?'Warsztat':'E-commerce'}</div>`;
+    sv('sd-login',c.login||'');sv('sd-pass',c.pass||'');
+    sv('sd-demo-end',c.demo_end||'');sv('sd-status',c.status||'demo');
+    sv('sd-notes',c.notes||'');
+    sv('pkg-limit-quotes',c.pkg_limits?.quotes||0);sv('pkg-limit-clients',c.pkg_limits?.clients||0);
+    sv('pkg-price',c.pkg_price||0);sv('pkg-billing',c.pkg_billing||'monthly');
+    const days=daysLeft(c.demo_end);
+    st('sd-demo-days',days>0?days:'Wygasło');
+    st('sd-demo-expires',c.demo_end?'Wygasa: '+c.demo_end:'');
+    SaasDetail.renderFeatures();
+    const impBtn=document.getElementById('btn-impersonate');
+    if(impBtn)impBtn.style.display=(c.login&&c.pass)?'inline-flex':'none';
+    Nav.go('saas-detail');
+  },
+  setTab:(tab,btn)=>{
+    document.querySelectorAll('#view-saas-detail .tab').forEach(t=>t.classList.remove('active'));
+    if(btn)btn.classList.add('active');
+    if(tab!=='custom'&&PKG_PRESETS[tab])SaasDetail.curr.package=JSON.parse(JSON.stringify(PKG_PRESETS[tab]));
+    SaasDetail.renderFeatures();
+  },
+  renderFeatures:()=>{
+    const c=SaasDetail.curr;if(!c)return;
+    document.getElementById('pkg-features').innerHTML=PKG_FEATURES.map(f=>`
+      <div class="trow">
+        <div><div class="tl">${f.label}</div><div class="ts">${f.sub}</div></div>
+        <label class="toggle"><input type="checkbox" data-key="${f.key}" ${c.package?.[f.key]?'checked':''} onchange="SaasDetail.toggleFeat('${f.key}',this.checked)"><span class="tslider"></span></label>
+      </div>`).join('');
+  },
+  toggleFeat:(key,val)=>{if(!SaasDetail.curr.package)SaasDetail.curr.package={};SaasDetail.curr.package[key]=val?1:0;},
+  impersonate:()=>{
+    const c=SaasDetail.curr;if(!c||!c.login||!c.pass){notify('Najpierw ustaw login i hasło klienta, potem zapisz!','err');return;}
+    Impersonate.start({login:c.login,pass:c.pass,type:c.type});
+  },
+  save:()=>{
+    const c=SaasDetail.curr;if(!c)return;
+    c.login=gv('sd-login');c.pass=gv('sd-pass');c.demo_end=gv('sd-demo-end');c.status=gv('sd-status');c.notes=gv('sd-notes');
+    c.pkg_limits={quotes:parseInt(gv('pkg-limit-quotes'))||0,clients:parseInt(gv('pkg-limit-clients'))||0};
+    c.pkg_price=parseFloat(gv('pkg-price'))||0;c.pkg_billing=gv('pkg-billing');
+    const idx=DB.saas_clients.findIndex(x=>x.id===c.id);if(idx>-1)DB.saas_clients[idx]=c;
+    App.save();notify('Konfiguracja zapisana');
+  }
+};
+
+// ============================================================
+// DETAIL (CRM Project)
+// ============================================================
+const Detail={
+  curr:null,draft:null,
+  open:(id)=>{
+    EDIT_ID=id;
+    if(CONTEXT==='active')Detail.curr=DB.clients.find(x=>x.id==id);
+    else if(CONTEXT==='archive')Detail.curr=DB.archive.find(x=>x.id==id);
+    else Detail.curr=DB.trash.find(x=>x.id==id);
+    if(!Detail.curr)return;
+    Detail.draft=JSON.parse(JSON.stringify(Detail.curr));
+    Nav.go('detail');Detail.syncUI();
+  },
+  hasChanges:()=>{
+    if(!Detail.curr||!Detail.draft)return false;
+    const c=JSON.parse(JSON.stringify(Detail.curr));const d=JSON.parse(JSON.stringify(Detail.draft));
+    c.messages=[];d.messages=[];return JSON.stringify(c)!==JSON.stringify(d);
+  },
+  syncUI:()=>{
+    const d=Detail.draft;
+    st('d-name',d.name);st('d-login',d.login);
+    st('ds-email',d.email||'-');st('ds-worker',d.worker||'admin');st('ds-nip',d.nip||'-');
+    st('ds-start',d.startDate||'Brak');st('ds-end',d.deadline||'Brak');
+    sv('d-status',d.status);st('d-perc',d.progress+'%');sv('d-range',d.progress);
+    document.getElementById('d-logo').src=d.logo||'https://via.placeholder.com/90/111/555?text=L';
+    document.getElementById('d-bar').style.width=d.progress+'%';
+    const badgePos=document.getElementById('detail-badge-pos');if(badgePos)badgePos.innerHTML='';
+    document.getElementById('detail-actions').style.display=(CONTEXT==='active')?'flex':'none';
+    const btn=document.getElementById('btn-save-project');
+    if(btn){
+      if(Detail.hasChanges()){btn.style.background='#e74c3c';btn.style.color='#fff';btn.innerHTML='<i class="fa-solid fa-triangle-exclamation"></i> NIEZAPISANE';}
+      else{btn.style.background='';btn.style.color='';btn.innerHTML='<i class="fa-solid fa-floppy-disk"></i> Zapisz projekt';}
+    }
+    Detail.renderLists();
+  },
+  updateRange:(v)=>{Detail.draft.progress=parseInt(v);st('d-perc',v+'%');document.getElementById('d-bar').style.width=v+'%';Detail.syncUI();},
+  autoProgress:()=>{const v=STATUS_MAP[Detail.draft.status]||Detail.draft.progress;Detail.draft.progress=v;sv('d-range',v);st('d-perc',v+'%');Detail.syncUI();},
+  addTask:()=>{const el=document.getElementById('new-task');if(el&&el.value.trim()){Detail.draft.tasks.push({txt:el.value.trim(),done:false});el.value='';Detail.syncUI();}},
+  saveAll:()=>{
+    const oldStatus=Detail.curr.status;
+    Detail.draft.status=gv('d-status');
+    const idx=DB.clients.findIndex(c=>c.id==EDIT_ID);if(idx<0)return;
+    DB.clients[idx]=JSON.parse(JSON.stringify(Detail.draft));
+    Detail.curr=JSON.parse(JSON.stringify(Detail.draft));
+    App.save();
+    if(typeof confetti==='function'&&Detail.draft.status==='Zakończone')confetti();
+    if(oldStatus!==Detail.draft.status&&Detail.draft.email)App.sendMail(Detail.draft.email,'Zmiana statusu projektu','Status Twojego projektu zmienił się na: <strong>'+Detail.draft.status+'</strong>');
+    Detail.syncUI();
+  },
+  saveProfileDraft:()=>{
+    Detail.draft.pass=gv('ec-pass');Detail.draft.email=gv('ec-email');Detail.draft.nip=gv('ec-nip');
+    Detail.draft.phone=gv('ec-phone');Detail.draft.addr=gv('ec-addr');Detail.draft.worker=gv('ec-worker');
+    Detail.draft.startDate=gv('ec-start');Detail.draft.deadline=gv('ec-deadline');
+    Modals.close();Detail.syncUI();
+  },
+  renderLists:()=>{
+    const tasksEl=document.getElementById('d-tasks');
+    if(tasksEl)tasksEl.innerHTML=(Detail.draft.tasks||[]).map((t,i)=>`<div style="display:flex;gap:10px;padding:11px;background:#0a0a0a;margin-bottom:6px;border-radius:10px;border:1px solid #111;"><i class="fa-solid fa-check-circle" style="color:${t.done?'var(--gold)':'#1e1e1e'};cursor:pointer;font-size:17px;flex-shrink:0;margin-top:1px;" onclick="Detail.draft.tasks[${i}].done=!Detail.draft.tasks[${i}].done;Detail.syncUI()"></i><span style="${t.done?'opacity:.3;text-decoration:line-through':''};font-size:13px;">${t.txt}</span></div>`).join('');
+    const filesEl=document.getElementById('d-files');
+    if(filesEl)filesEl.innerHTML=(Detail.draft.files||[]).map(f=>`<a href="${f.link}" target="_blank" style="padding:7px 12px;background:#0a0a0a;border-radius:9px;color:#fff;font-size:11px;text-decoration:none;border:1px solid #111;display:inline-flex;align-items:center;gap:6px;"><i class="fa-solid fa-file" style="color:var(--gold);"></i>${f.name}</a>`).join('');
+    const box=document.getElementById('d-chat');
+    if(box){box.innerHTML=(Detail.curr.messages||[]).map(m=>`<div class="msg ${m.author==='admin'?'me':'them'}">${m.txt}<div class="msg-meta">${fmtDate(m.date)}</div></div>`).join('');box.scrollTop=box.scrollHeight;}
+  },
+  sendMsg:async()=>{
+    const inp=document.getElementById('d-chat-in');if(!inp)return;const val=inp.value.trim();if(!val)return;inp.value='';
+    const msg={txt:val,author:'admin',date:Date.now()};
+    const idx=DB.clients.findIndex(c=>c.id==EDIT_ID);if(idx<0)return;
+    DB.clients[idx].messages.push(msg);
+    Detail.curr.messages=JSON.parse(JSON.stringify(DB.clients[idx].messages));
+    Detail.draft.messages=JSON.parse(JSON.stringify(DB.clients[idx].messages));
+    Detail.renderLists();
+    if(Detail.curr.email)App.sendMail(Detail.curr.email,'Nowa wiadomość od opiekuna','Twój opiekun napisał nową wiadomość w panelu projektu.');
+    await App.save(true);
+  },
+  archive:()=>{if(!confirm('Archiwizować projekt?'))return;Detail.saveAll();DB.archive.push(DB.clients.find(c=>c.id==EDIT_ID));DB.clients=DB.clients.filter(c=>c.id!=EDIT_ID);App.save();EDIT_ID=null;Nav.go('clients');},
+  moveToTrash:()=>{if(!confirm('Wyrzucić do kosza?'))return;DB.trash.push(DB.clients.find(c=>c.id==EDIT_ID));DB.clients=DB.clients.filter(c=>c.id!=EDIT_ID);App.save();EDIT_ID=null;Nav.go('clients');},
+  impersonateClient:()=>{
+    const c=Detail.draft;
+    if(!c.login||!c.pass){notify('Ten klient nie ma loginu lub hasła!','err');return;}
+    Impersonate.start({login:c.login,pass:c.pass,type:'client'});
+  },
+  uploadAsset:async(inp,type)=>{const r=await App.uploadFile(inp.files[0],Detail.draft.login||'assets');if(r?.status==='success'){Detail.draft[type]=r.link;Detail.syncUI();}},
+  uploadFile:async(inp)=>{const r=await App.uploadFile(inp.files[0],Detail.draft.login||'files');if(r?.status==='success'){Detail.draft.files.push({name:r.name,link:r.link});Detail.syncUI();}}
+};
+
+// ============================================================
+// TEAM DETAIL
+// ============================================================
+const TeamDetail={
+  curr:null,
+  save:()=>{
+    if(!TeamDetail.curr)return;
+    TeamDetail.curr.pass=gv('et-pass')||TeamDetail.curr.pass;
+    TeamDetail.curr.email=gv('et-email')||TeamDetail.curr.email;
+    TeamDetail.curr.role=gv('et-role')||TeamDetail.curr.role;
+    App.save();Modals.close();UI.renderTeam();
+  },
+  changeAvatar:async(inp)=>{const r=await App.uploadFile(inp.files[0],'team');if(r?.status==='success'){TeamDetail.curr.avatar=r.link;const prev=document.getElementById('et-av-prev');if(prev)prev.src=r.link;App.save();}},
+  delete:()=>{if(!confirm('Usuń pracownika?'))return;DB.team=DB.team.filter(t=>t.login!==TeamDetail.curr.login);App.save();Modals.close();UI.renderTeam();}
+};
+
+// ============================================================
+// CLIENT DASHBOARD (CRM client role)
+// ============================================================
+const ClientDash={
+  initDash:()=>{
+    const c=USER;
+    st('cd-name',c.name);st('cd-status',c.status);st('cd-perc-txt',c.progress+'%');
+    if(document.getElementById('cd-bar'))document.getElementById('cd-bar').style.width=c.progress+'%';
+    st('cd-start',c.startDate||'Brak');st('cd-end',c.deadline||'Brak');
+    if(c.logo&&document.getElementById('cd-logo'))document.getElementById('cd-logo').src=c.logo;
+    const tasksEl=document.getElementById('cd-tasks');
+    if(tasksEl)tasksEl.innerHTML=(c.tasks||[]).map(t=>`<div style="padding:13px;border-bottom:1px solid #111;color:${t.done?'var(--gold)':'#555'};display:flex;gap:10px;align-items:center;font-weight:600;font-size:13px;"><i class="fa-solid fa-check-double"></i>${t.txt}</div>`).join('');
+    const filesEl=document.getElementById('cd-files');
+    if(filesEl)filesEl.innerHTML=(c.files||[]).map(f=>`<a href="${f.link}" target="_blank" style="padding:14px;background:#0f0f0f;border-radius:12px;color:#fff;text-decoration:none;border:1px solid #1a1a1a;display:flex;justify-content:space-between;align-items:center;font-size:12px;"><span>${f.name}</span><i class="fa-solid fa-download" style="color:var(--gold);"></i></a>`).join('');
+  },
+  initChat:()=>{
+    const box=document.getElementById('cd-chat');if(!box)return;
+    box.innerHTML=(USER.messages||[]).map(m=>`<div class="msg ${m.author!=='admin'?'me':'them'}">${m.txt}<div class="msg-meta">${fmtDate(m.date)}</div></div>`).join('');
+    box.scrollTop=box.scrollHeight;
+  },
+  sendMsg:async()=>{
+    const inp=document.getElementById('cd-chat-in');if(!inp)return;const val=inp.value.trim();if(!val)return;inp.value='';
+    const msg={txt:val,author:'client',date:Date.now()};
+    const idx=DB.clients.findIndex(x=>x.login===USER.login);if(idx<0)return;
+    DB.clients[idx].messages.push(msg);
+    USER.messages=JSON.parse(JSON.stringify(DB.clients[idx].messages));
+    ClientDash.initChat();
+    App.sendMail('biuro@elok-agency.pl','Wiadomość w panelu od klienta','Klient <strong>'+USER.name+'</strong> napisał nową wiadomość w panelu projektu.');
+    await App.save(true);
+  }
+};
+
+// ============================================================
+// GENERAL CHAT
+// ============================================================
+const GeneralChat={
+  render:()=>{const box=document.getElementById('gen-chat-box');if(!box)return;box.innerHTML=(DB.general_chat||[]).map(m=>`<div class="msg ${m.login===USER.login?'me':'them'}"><div style="font-size:10px;color:var(--gold);margin-bottom:4px;font-weight:800;">${m.name}</div>${m.txt}<div class="msg-meta">${fmtDate(m.date)}</div></div>`).join('');box.scrollTop=box.scrollHeight;},
+  send:async()=>{const inp=document.getElementById('gen-chat-in');if(!inp)return;const val=inp.value.trim();if(!val)return;inp.value='';DB.general_chat.push({txt:val,name:USER.name,login:USER.login,date:Date.now()});await App.save(true);GeneralChat.render();}
+};
+
+// ============================================================
+// WK — WORKSHOP MODULE
+// ============================================================
+const WK={
+  // ── CLIENT COMBO ──────────────────────────────────────────
+  _selClient:null,
+  openClientCombo:()=>{
+    const clients=CURRENT_WK?.wk_clients||[];
+    const combo=document.getElementById('qb-client-combo');if(!combo)return;
+    const q=document.getElementById('qb-client-search')?.value.toLowerCase()||'';
+    const filtered=clients.filter(cl=>`${cl.name}${cl.phone}${cl.email}`.toLowerCase().includes(q));
+    if(!filtered.length){combo.innerHTML='<div style="padding:12px 16px;color:#555;font-size:13px;">Brak klientów w bazie</div>';}
+    else{combo.innerHTML=filtered.map(cl=>`
+      <div class="qb-client-opt" data-id="${cl.id}" onmousedown="WK.selectClient('${cl.id}')" style="padding:12px 16px;cursor:pointer;border-bottom:1px solid #222;">
+        <div style="font-weight:700;font-size:13px;color:#e8e8e8;">${cl.name}</div>
+        <div style="font-size:11px;color:#666;margin-top:2px;">${cl.phone||''}${cl.email?' · '+cl.email:''}</div>
+      </div>`).join('');}
+    combo.style.display='block';
+  },
+  closeClientCombo:()=>{const c=document.getElementById('qb-client-combo');if(c)c.style.display='none';},
+  filterClientCombo:(val)=>{WK.openClientCombo();},
+  selectClient:(id)=>{
+    const cl=(CURRENT_WK?.wk_clients||[]).find(x=>x.id===id);if(!cl)return;
+    WK._selClient=cl;
+    const srch=document.getElementById('qb-client-search');if(srch)srch.value=cl.name;
+    WK.closeClientCombo();
+    // Fill client fields
+    sv('qb-client-name',cl.name);sv('qb-client-phone',cl.phone||'');
+    sv('qb-client-email',cl.email||'');sv('qb-client-nip',cl.nip||'');
+    // Show vehicle selector
+    const vs=document.getElementById('qb-vehicle-selector');
+    const vl=document.getElementById('qb-vehicle-list');
+    if(vs&&vl&&cl.vehicles?.length){
+      vl.innerHTML=cl.vehicles.map(v=>`
+        <div onclick="WK.selectVehicle('${v.id}')" style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:10px 14px;cursor:pointer;transition:.15s;min-width:160px;" onmouseover="this.style.borderColor='#3ECF8E'" onmouseout="this.style.borderColor='#2a2a2a'">
+          <div style="font-weight:700;font-size:13px;color:#e8e8e8;">${v.make} ${v.model}</div>
+          <div style="font-size:11px;color:#666;margin-top:3px;">${v.year||''} · <span style="color:var(--gold);font-weight:700;">${v.reg||'Brak rej.'}</span></div>
+          ${v.mileage?`<div style="font-size:10px;color:#444;margin-top:2px;">${v.mileage} km</div>`:''}
+        </div>`).join('');
+      vs.style.display='block';
+    }else if(vs){vs.style.display='none';}
+  },
+  selectVehicle:(vid)=>{
+    const cl=WK._selClient;if(!cl)return;
+    const v=(cl.vehicles||[]).find(x=>x.id===vid);if(!v)return;
+    sv('qb-car-make',v.make||'');sv('qb-car-model',v.model||'');
+    sv('qb-car-year',v.year||'');sv('qb-car-reg',v.reg||'');
+    sv('qb-car-vin',v.vin||'');sv('qb-car-mileage',v.mileage||'');
+    // Highlight selected
+    document.querySelectorAll('#qb-vehicle-list > div').forEach(el=>el.style.borderColor='#2a2a2a');
+    const vidEl=document.querySelector(`#qb-vehicle-list [onclick*="${vid}"]`);
+    if(vidEl)vidEl.style.borderColor='#3ECF8E';
+  },
+  clearClientSelection:()=>{
+    WK._selClient=null;
+    const srch=document.getElementById('qb-client-search');if(srch)srch.value='';
+    const vs=document.getElementById('qb-vehicle-selector');if(vs)vs.style.display='none';
+    ['qb-client-name','qb-client-phone','qb-client-email','qb-client-nip',
+     'qb-car-make','qb-car-model','qb-car-year','qb-car-reg','qb-car-vin','qb-car-mileage'].forEach(id=>sv(id,''));
+  },
+
+  init:()=>{
+    CURRENT_WK=DB.saas_clients.find(c=>c.login===USER.login)||CURRENT_WK;
+    if(!CURRENT_WK)return;
+    if(!CURRENT_WK.statuses||!CURRENT_WK.statuses.length)CURRENT_WK.statuses=JSON.parse(JSON.stringify(DEFAULT_STATUSES));
+    if(!CURRENT_WK.quotes)CURRENT_WK.quotes=[];
+    if(!CURRENT_WK.wk_clients)CURRENT_WK.wk_clients=[];
+    if(!CURRENT_WK.services)CURRENT_WK.services=[];
+    Theme.load();
+  },
+  save:async(silent=false)=>{const idx=DB.saas_clients.findIndex(x=>x.id===CURRENT_WK.id);if(idx>-1)DB.saas_clients[idx]=CURRENT_WK;await App.save(silent);},
+  getSt:(id)=>(CURRENT_WK.statuses||DEFAULT_STATUSES).find(s=>s.id===id)||(CURRENT_WK.statuses||DEFAULT_STATUSES)[0],
+  renderDashboard:()=>{
+    if(!CURRENT_WK)return;
+    const name=CURRENT_WK.settings?.company_name||CURRENT_WK.name;
+    st('wk-company-name',name);
+    const days=daysLeft(CURRENT_WK.demo_end);
+    const dBar=document.getElementById('wk-demo-bar');
+    if(CURRENT_WK.status==='demo'&&dBar){dBar.style.display='flex';st('wk-demo-days',days>0?days:'Wygasło');}
+    const quotes=CURRENT_WK.quotes||[];
+    const now=new Date();
+    const thisMonth=quotes.filter(q=>new Date(q.created).getMonth()===now.getMonth()&&new Date(q.created).getFullYear()===now.getFullYear());
+    const pending=quotes.filter(q=>['new','sent','verif'].includes(q.status_id));
+    const confirmed=quotes.filter(q=>q.status_id==='confirmed');
+    const thisMonthVal=thisMonth.reduce((a,q)=>a+q.total_brutto,0);
+    st('wk-stat-month',thisMonth.length);
+    st('wk-stat-pending',pending.length);
+    st('wk-stat-confirmed',confirmed.length);
+    const valEl=document.getElementById('wk-stat-month-val');
+    if(valEl)valEl.innerText=fmtMoney(thisMonthVal);
+    // Recent 5
+    const recent=document.getElementById('wk-recent-quotes');
+    const last5=quotes.slice().reverse().slice(0,5);
+    if(!last5.length){recent.innerHTML=emptyState('fa-file-invoice','Brak wycen — utwórz pierwszą');return;}
+    recent.innerHTML=`<div style="border:1px solid #1e1e1e;border-radius:12px;overflow:hidden;">
+      <table style="width:100%;border-collapse:collapse;">
+        <thead><tr style="background:#111;border-bottom:1px solid #222;">
+          <th style="padding:10px 16px;text-align:left;font-size:9px;font-weight:800;color:#444;text-transform:uppercase;letter-spacing:.8px;">Nr oferty</th>
+          <th style="padding:10px 16px;text-align:left;font-size:9px;font-weight:800;color:#444;text-transform:uppercase;letter-spacing:.8px;">Klient / Pojazd</th>
+          <th style="padding:10px 16px;text-align:right;font-size:9px;font-weight:800;color:#444;text-transform:uppercase;letter-spacing:.8px;">Wartość</th>
+          <th style="padding:10px 16px;text-align:center;font-size:9px;font-weight:800;color:#444;text-transform:uppercase;letter-spacing:.8px;">Status</th>
+          <th style="padding:10px 12px;"></th>
+        </tr></thead>
+        <tbody>${last5.map(q=>WK.quoteRowHTML(q)).join('')}</tbody>
+      </table>
+    </div>`;
+  },
+
+  quoteRowHTML:(q)=>{
+    const s=WK.getSt(q.status_id);
+    const d=new Date(q.created);
+    const dateStr=d.getDate().toString().padStart(2,'0')+'.'+(d.getMonth()+1).toString().padStart(2,'0')+'.'+d.getFullYear();
+    const timeStr=d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');
+    const num='OFE/'+( d.getMonth()+1)+'/'+d.getFullYear()+'/'+q.id.slice(-6).toUpperCase();
+    const carInfo=[q.car_make,q.car_model,q.car_year?'('+q.car_year+')':''].filter(Boolean).join(' ');
+    return `<tr class="qlist-row" onclick="WK.openQuote('${q.id}')" style="cursor:pointer;">
+      <td style="padding:14px 16px;font-size:11px;font-weight:700;color:#555;white-space:nowrap;font-family:monospace;">${num}</td>
+      <td style="padding:14px 16px;">
+        <div style="font-size:14px;font-weight:700;color:#e8e8e8;margin-bottom:3px;">${q.client_name||'—'}</div>
+        ${carInfo?`<div style="font-size:12px;color:#666;">${carInfo}${q.car_reg?` <span style="color:var(--gold);font-weight:700;font-size:11px;padding:1px 6px;background:rgba(197,160,89,.1);border-radius:4px;">${q.car_reg}</span>`:''}</div>`:''}
+      </td>
+      <td style="padding:14px 16px;font-size:12px;color:#666;white-space:nowrap;">${dateStr}<br><span style="color:#444;font-size:11px;">${timeStr}</span></td>
+      <td style="padding:14px 16px;text-align:right;white-space:nowrap;">
+        <div style="font-size:15px;font-weight:800;color:var(--gold);">${fmtMoney(q.total_brutto)}</div>
+      </td>
+      <td style="padding:14px 16px;text-align:center;" onclick="event.stopPropagation()">
+        <div style="position:relative;display:inline-block;">
+          <span class="badge ${statusBadge(s.color)}" style="font-size:10px;cursor:pointer;" onclick="WK.toggleStatusDropdown('${q.id}',this)">${s.name} <i class="fa-solid fa-chevron-down" style="font-size:8px;margin-left:3px;"></i></span>
+          <div id="sdrop-${q.id}" style="display:none;position:absolute;top:calc(100% + 4px);left:50%;transform:translateX(-50%);background:#1a1a1a;border:1px solid #333;border-radius:10px;z-index:999;min-width:160px;box-shadow:0 8px 24px rgba(0,0,0,.7);overflow:hidden;">
+            ${(CURRENT_WK.statuses||DEFAULT_STATUSES).map(st2=>`<div onclick="WK.quickChangeStatus('${q.id}','${st2.id}')" style="padding:9px 14px;font-size:12px;cursor:pointer;font-weight:600;color:#ccc;border-bottom:1px solid #222;" onmouseover="this.style.background='#252525'" onmouseout="this.style.background=''">${st2.name}</div>`).join('')}
+          </div>
+        </div>
+      </td>
+      <td style="padding:14px 12px;white-space:nowrap;" onclick="event.stopPropagation()">
+        <button class="btn btn-outline btn-icon btn-sm" onclick="WK.openQuote('${q.id}')" title="Podgląd" style="margin-right:4px;"><i class="fa-solid fa-eye"></i></button>
+        <button class="btn btn-outline btn-icon btn-sm" onclick="WK.editQuote('${q.id}')" title="Edytuj" style="margin-right:4px;"><i class="fa-solid fa-pen"></i></button>
+        <button class="btn btn-danger btn-icon btn-sm" onclick="WK.deleteQuote('${q.id}')" title="Usuń"><i class="fa-solid fa-trash"></i></button>
+      </td>
+    </tr>`;
+  },
+
+  editQuote:(id)=>{
+    const q=CURRENT_WK.quotes.find(x=>x.id===id);if(!q)return;
+    CURRENT_QUOTE_ID=id;
+    Nav.go('wk-new-quote');
+    // Fill client data
+    setTimeout(()=>{
+      sv('qb-client-name',q.client_name||'');sv('qb-client-phone',q.client_phone||'');
+      sv('qb-client-email',q.client_email||'');sv('qb-client-nip',q.client_nip||'');
+      sv('qb-car-make',q.car_make||'');sv('qb-car-model',q.car_model||'');
+      sv('qb-car-year',q.car_year||'');sv('qb-car-reg',q.car_reg||'');
+      sv('qb-car-vin',q.car_vin||'');sv('qb-car-mileage',q.car_mileage||'');
+      sv('qb-car-desc',q.car_desc||'');sv('qb-notes',q.notes||'');
+      sv('qb-vat',q.vat_rate||23);sv('qb-discount',q.discount||0);
+      // Fill services
+      (q.services||[]).forEach(s=>{WK.addSvcRow();const rows=document.querySelectorAll('#qb-services .qb-row');const row=rows[rows.length-1];if(row){const ni=row.querySelector('.inp-name');if(ni)ni.value=s.name||'';const ki=row.querySelector('.inp-kat');if(ki)ki.value=s.kat||s.price||0;const ai=row.querySelector('.inp-after');if(ai)ai.value=(s.after&&s.after!==(s.kat||s.price))?s.after:'';const di=row.querySelector('.inp-disc');if(di)di.value=s.disc||0;const qi=row.querySelector('.inp-qty');if(qi)qi.value=s.qty||1;row.dataset.ch='disc';WK._calc(row);}});
+      // Fill parts
+      (q.parts||[]).forEach(p=>{WK.addPartRow();const rows=document.querySelectorAll('#qb-parts .qb-row');const row=rows[rows.length-1];if(row){const ni=row.querySelector('input.inp-name');if(ni)ni.value=p.name||'';const si=row.querySelector('.inp-sku');if(si)si.value=p.sku||'';const ki=row.querySelector('.inp-kat');if(ki)ki.value=p.kat||p.cat||p.price||0;const ai=row.querySelector('.inp-after');if(ai)ai.value=(p.after&&p.after!==p.kat)?p.after:'';const di=row.querySelector('.inp-disc');if(di)di.value=p.disc||0;const qi=row.querySelector('.inp-qty');if(qi)qi.value=p.qty||1;row.dataset.ch='disc';WK._calc(row);}});
+      WK.calcSummary();
+    },100);
+  },
+  toggleStatusDropdown:(qid,el)=>{
+    // Close all others first
+    document.querySelectorAll('[id^="sdrop-"]').forEach(d=>{if(d.id!=='sdrop-'+qid)d.style.display='none';});
+    const d=document.getElementById('sdrop-'+qid);
+    if(d)d.style.display=d.style.display==='none'?'block':'none';
+    // Close on outside click
+    const close=(e)=>{if(!el.closest('[id^="sdrop-"]')&&!el.contains(e.target)){if(d)d.style.display='none';document.removeEventListener('click',close);}};
+    setTimeout(()=>document.addEventListener('click',close),10);
+  },
+  quickChangeStatus:async(qid,statusId)=>{
+    const idx=CURRENT_WK.quotes.findIndex(q=>q.id===qid);
+    if(idx>-1){CURRENT_WK.quotes[idx].status_id=statusId;await WK.save(true);WK.renderQuoteList();notify('Status zmieniony');}
+    const d=document.getElementById('sdrop-'+qid);if(d)d.style.display='none';
+  },
+  deleteQuote:async(id)=>{
+    if(!confirm('Usunąć wycenę?'))return;
+    CURRENT_WK.quotes=CURRENT_WK.quotes.filter(q=>q.id!==id);
+    await WK.save(true);WK.renderQuoteList();notify('Wycena usunięta');
+  },
+
+  _currentFilter: 'active',
+  renderQuoteList:(filter='')=>{
+    if(!CURRENT_WK.quotes) CURRENT_WK.quotes=[];
+    
+    // Logika zakładek (Zlecenia Aktywne vs Zakończone)
+    const viewStatus = filter || WK._currentFilter || 'active';
+    WK._currentFilter = viewStatus;
+
+    document.querySelectorAll('.sm-tabs button').forEach(b => b.classList.remove('active'));
+    const activeBtn = document.getElementById('tab-' + viewStatus);
+    if(activeBtn) activeBtn.classList.add('active');
+
+    let list = CURRENT_WK.quotes.slice().reverse();
+
+    if(viewStatus === 'active') {
+        list = list.filter(q => q.status_id !== 'done' && q.status_id !== 'rejected');
+    } else {
+        list = list.filter(q => q.status_id === 'done' || q.status_id === 'rejected');
+    }
+
+    const search = gv('wk-search').toLowerCase();
+    if(search) list = list.filter(q=>((q.client_name||'')+(q.car_vin||'')+(q.nr||'')).toLowerCase().includes(search));
+
+    const tbody = document.getElementById('wk-quotes-tbody');
+    tbody.innerHTML = list.length ? list.map(q=>{
+      const d = new Date(q.created);
+      const dateStr = d.toLocaleDateString('pl-PL');
+      const timeStr = d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');
+      const s = WK.getSt(q.status_id);
+
+      return `
+      <tr class="offer-row">
+        <td class="chk-col"><input type="checkbox" class="offer-checkbox" value="${q.id}" onclick="WK.updateMassActionBar()"></td>
+        <td style="font-weight:bold; color:#fff;">${q.nr||('OFE/'+q.id.slice(-6).toUpperCase())}</td>
+        <td>
+            ${q.client_name||'Brak danych'}<br>
+            ${q.car_vin ? `<span class="vin-tag">VIN: ${q.car_vin}</span>` : ''}
+        </td>
+        <td>
+            ${dateStr}<br>
+            <span style="font-size: 11px; color: #888; letter-spacing: 0.5px;">${timeStr}</span>
+        </td>
+        <td style="color:var(--gold); font-weight:bold;">${fmtMoney(q.total_brutto)}</td>
+        <td>
+            <div class="sm-action-wrapper">
+                <svg viewBox="0 0 24 24" class="view" title="Podgląd" onclick="WK.openQuote('${q.id}')"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+                <svg viewBox="0 0 24 24" class="edit" title="Edytuj" onclick="WK.editQuote('${q.id}')"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                <svg viewBox="0 0 24 24" class="pdf" title="Pobierz PDF" onclick="CURRENT_QUOTE_ID='${q.id}'; WK.printQuote()"><path d="M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8.5 7.5c0 .83-.67 1.5-1.5 1.5H9v2H7.5V7H10c.83 0 1.5.67 1.5 1.5v1zm5 2c0 .83-.67 1.5-1.5 1.5h-2.5V7H15c.83 0 1.5.67 1.5 1.5v3zm4-3H19v1h1.5V11H19v2h-1.5V7h3v1.5zM9 9.5h1v-1H9v1zM4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm10 5.5h1v-3h-1v3z"/></svg>
+                <svg viewBox="0 0 24 24" class="email" title="Wyślij Email" onclick="WK.openMailModal('${q.id}')"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+                ${viewStatus === 'active' ? 
+                  `<svg viewBox="0 0 24 24" class="archive" title="Oznacz jako Zakończone" onclick="WK.quickChangeStatus('${q.id}', 'done')"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>` : 
+                  `<svg viewBox="0 0 24 24" class="archive" style="color:var(--gold);" title="Przywróć do Aktywnych" onclick="WK.quickChangeStatus('${q.id}', 'new')"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>`}
+                <svg viewBox="0 0 24 24" class="delete-icon" title="Usuń trwale" onclick="WK.deleteQuote('${q.id}')"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+            </div>
+        </td>
+      </tr>`;
+    }).join('') : `<tr><td colspan="6" style="text-align:center; color:#888; padding:30px;">Brak ofert w tej zakładce.</td></tr>`;
+    
+    WK.updateMassActionBar();
+  },
+
+  toggleAllQuotes:(checkbox)=>{
+    document.querySelectorAll('.offer-checkbox').forEach(cb => {
+        const row = cb.closest('tr');
+        if (row.style.display !== "none") cb.checked = checkbox.checked;
+    });
+    WK.updateMassActionBar();
+  },
+
+  updateMassActionBar:()=>{
+    const selectedCount = document.querySelectorAll('.offer-checkbox:checked').length;
+    const actionBar = document.getElementById('massActionBar');
+    if(actionBar) {
+        document.getElementById('selectedCount').innerText = selectedCount;
+        if (selectedCount > 0) actionBar.classList.add('visible');
+        else { 
+            actionBar.classList.remove('visible'); 
+            const sa = document.getElementById('selectAllCheckbox');
+            if(sa) sa.checked = false; 
+        }
+    }
+  },
+
+  massDeleteQuotes:async ()=>{
+    const checked = document.querySelectorAll('.offer-checkbox:checked');
+    if(!checked.length) return;
+    if(!confirm(`Czy na pewno chcesz usunąć ${checked.length} ofert(y)?`)) return;
+    
+    const idsToDelete = Array.from(checked).map(cb => cb.value);
+    CURRENT_WK.quotes = CURRENT_WK.quotes.filter(q => !idsToDelete.includes(q.id));
+    
+    await App.save(true);
+    WK.renderQuoteList();
+    notify('Usunięto wybrane oferty');
+  },
+
+  initNewQuote:()=>{
+    // Apply saved theme
+    const savedTheme=localStorage.getItem('elok_qt_theme')||'dark';
+    setTimeout(()=>WK.setQtTheme(savedTheme),0);
+    WK._servLines=[];WK._partLines=[];
+    ['qb-client-name','qb-client-phone','qb-client-email','qb-client-nip','qb-car-make','qb-car-model','qb-car-year','qb-car-vin','qb-car-reg','qb-car-mileage','qb-car-desc','qb-notes','qb-discount'].forEach(id=>sv(id,''));
+    document.getElementById('qb-services').innerHTML='';
+    document.getElementById('qb-parts').innerHTML='';
+    WK._selClient=null;const srch=document.getElementById('qb-client-search');if(srch)srch.value='';
+    const vs=document.getElementById('qb-vehicle-selector');if(vs)vs.style.display='none';
+    WK.calcSummary();
+    CURRENT_QUOTE_ID=null;
+    // Load saved preferences
+    setTimeout(()=>{WK.setQtTheme(localStorage.getItem('elok_qt_theme')||'dark');WK.setMode(localStorage.getItem('elok_qb_mode')||'netto');WK.addSvcRow();WK.addPartRow&&null;},60);
+  },
+  _qbMode:'netto',
+
+  setMode:(m)=>{
+    WK._qbMode=m;
+    document.querySelectorAll('.qb-seg-btn[id^="qm-"]').forEach(b=>b.classList.toggle('active',b.id==='qm-'+m));
+    const isNetto=m==='netto';
+    document.querySelectorAll('.lbl-kat').forEach(el=>el.innerText=isNetto?'Cena kat. netto':'Cena kat. brutto');
+    document.querySelectorAll('.lbl-after').forEach(el=>el.innerText=isNetto?'Po rabacie netto':'Po rabacie brutto');
+    document.querySelectorAll('.lbl-val').forEach(el=>el.innerText=isNetto?'Wartość netto':'Wartość brutto');
+    try{localStorage.setItem('elok_qb_mode',m);}catch(e){}
+  },
+
+  setQtTheme:(theme)=>{
+    const wrap=document.getElementById('qt-table-wrap');if(wrap)wrap.dataset.qt=theme;
+    document.querySelectorAll('.qb-seg-btn[id^="qt-btn-"]').forEach(b=>b.classList.toggle('active',b.id==='qt-btn-'+theme));
+    try{localStorage.setItem('elok_qt_theme',theme);}catch(e){}
+  },
+
+  _calc:(row)=>{
+    const kat  = parseFloat(row.querySelector('.inp-kat')?.value)||0;
+    const after= parseFloat(row.querySelector('.inp-after')?.value)||0;
+    const disc = parseFloat(row.querySelector('.inp-disc')?.value)||0;
+    const qty  = parseFloat(row.querySelector('.inp-qty')?.value)||1;
+    const changed = row.dataset.ch||'kat';
+    let finalUnit=kat;
+    const iA=row.querySelector('.inp-after');
+    const iD=row.querySelector('.inp-disc');
+    const iV=row.querySelector('.inp-val');
+    if(changed==='after'&&after>0&&kat>0){
+      const pct=Math.round((1-after/kat)*10000)/100;
+      if(iD)iD.value=pct>0?pct:'';
+      finalUnit=after;
+    } else if((changed==='disc'||changed==='kat')&&kat>0){
+      const fin=Math.round(kat*(1-disc/100)*100)/100;
+      if(iA)iA.value=disc>0?fin:'';
+      finalUnit=disc>0?fin:kat;
+    }
+    if(iV)iV.value=qty>0?(finalUnit*qty).toFixed(2):'0.00';
+    WK.calcSummary();
+  },
+
+  _mkCombo:(id,placeholder)=>{
+    const services=CURRENT_WK?.services||[];
+    const opts=services.map(s=>`<div class="qb-combo-opt" onmousedown="WK._pickSvc('${id}',${s.price},this.dataset.name)" data-name="${s.name}"><span>${s.name}</span><span class="opt-price">${s.price} PLN/${s.unit}</span></div>`).join('');
+    return `<div class="qb-combo">
+      <input class="inp-name" type="text" placeholder="${placeholder}"
+        oninput="WK._filterCombo('${id}',this.value)"
+        onfocus="WK._openCombo('${id}')"
+        onblur="setTimeout(()=>WK._closeCombo('${id}'),150)">
+      <div class="qb-combo-list" id="cbl-${id}">${opts||'<div class="qb-combo-opt" style="color:#555;">Brak usług w katalogu</div>'}</div>
+    </div>`;
+  },
+  _openCombo:(id)=>{const el=document.getElementById('cbl-'+id);if(el)el.classList.add('open');},
+  _closeCombo:(id)=>{const el=document.getElementById('cbl-'+id);if(el)el.classList.remove('open');},
+  _filterCombo:(id,val)=>{
+    const el=document.getElementById('cbl-'+id);if(!el)return;
+    const q=val.toLowerCase();
+    el.querySelectorAll('.qb-combo-opt').forEach(opt=>{
+      opt.style.display=(!q||opt.dataset.name.toLowerCase().includes(q))?'':'none';
+    });
+    if(el.querySelectorAll('.qb-combo-opt:not([style*="none"])').length>0)el.classList.add('open');
+    else el.classList.remove('open');
+  },
+  _pickSvc:(id,price,name)=>{
+    const row=document.getElementById('qr-'+id);if(!row)return;
+    const nameInp=row.querySelector('.inp-name');if(nameInp)nameInp.value=name;
+    const katInp=row.querySelector('.inp-kat');if(katInp&&!katInp.value){katInp.value=price;row.dataset.ch='kat';WK._calc(row);}
+    WK._closeCombo(id);
+  },
+
+  addSvcRow:()=>{
+    const id=uid();
+    const m=WK._qbMode;
+    const isNetto=m==='netto';
+    const div=document.createElement('div');
+    div.className='qb-row qb-row-svc';div.id='qr-'+id;div.dataset.ch='kat';
+    div.innerHTML=`
+      <div class="qb-field" style="min-width:0;">
+        <label>Nazwa usługi</label>
+        ${WK._mkCombo(id,'Wpisz lub wybierz z katalogu...')}
+      </div>
+      <div class="qb-field">
+        <label>Ilość / rg</label>
+        <input class="inp-qty" type="number" min="0.01" step="0.5" value="1" placeholder="1"
+          oninput="document.getElementById('qr-${id}').dataset.ch='kat';WK._calc(document.getElementById('qr-${id}'))">
+      </div>
+      <div class="qb-field">
+        <label class="lbl-kat">${isNetto?'Cena kat. netto':'Cena kat. brutto'}</label>
+        <input class="inp-kat" type="number" min="0" step="0.01" placeholder="0,00"
+          oninput="document.getElementById('qr-${id}').dataset.ch='kat';WK._calc(document.getElementById('qr-${id}'))">
+      </div>
+      <div class="qb-field">
+        <label class="lbl-after gold">${isNetto?'Po rabacie netto':'Po rabacie brutto'}</label>
+        <input class="inp-after" type="number" min="0" step="0.01" placeholder="zostaw puste"
+          oninput="document.getElementById('qr-${id}').dataset.ch='after';WK._calc(document.getElementById('qr-${id}'))">
+      </div>
+      <div class="qb-field">
+        <label class="gold">Rabat %</label>
+        <input class="inp-disc" type="number" min="0" max="100" step="1" placeholder="0"
+          oninput="document.getElementById('qr-${id}').dataset.ch='disc';WK._calc(document.getElementById('qr-${id}'))">
+      </div>
+      <div class="qb-field">
+        <label style="color:rgba(62,207,142,.5);">Cena zakupu</label>
+        <input class="inp-buy" type="number" min="0" step="0.01" placeholder="ukryte w PDF" title="Cena zakupu netto — widoczna tylko dla Ciebie">
+      </div>
+      <div class="qb-field">
+        <label class="lbl-val">${isNetto?'Wartość netto':'Wartość brutto'}</label>
+        <input class="inp-val" type="number" readonly tabindex="-1" placeholder="0,00">
+      </div>
+      <button class="qb-del-btn" onclick="document.getElementById('qr-${id}').remove();WK.calcSummary()" title="Usuń"><i class="fa-solid fa-xmark"></i></button>`;
+    document.getElementById('qb-services').appendChild(div);
+  },
+
+  addPartRow:()=>{
+    const id=uid();
+    const m=WK._qbMode;const isNetto=m==='netto';
+    const div=document.createElement('div');
+    div.className='qb-row qb-row-part';div.id='qr-'+id;div.dataset.ch='kat';
+    div.innerHTML=`
+      <div class="qb-field" style="min-width:0;">
+        <label>Nazwa części</label>
+        <input class="inp-name" type="text" placeholder="np. Klocki hamulcowe BMW M3...">
+      </div>
+      <div class="qb-field hide-m">
+        <label>SKU / Kod</label>
+        <input class="inp-sku" type="text" placeholder="np. 34118855010">
+      </div>
+      <div class="qb-field">
+        <label>Ilość</label>
+        <input class="inp-qty" type="number" min="0" value="1" step="1" placeholder="1"
+          oninput="document.getElementById('qr-${id}').dataset.ch='kat';WK._calc(document.getElementById('qr-${id}'))">
+      </div>
+      <div class="qb-field hide-m">
+        <label class="lbl-kat">${isNetto?'Cena kat. netto':'Cena kat. brutto'}</label>
+        <input class="inp-kat" type="number" min="0" step="0.01" placeholder="0,00"
+          oninput="document.getElementById('qr-${id}').dataset.ch='kat';WK._calc(document.getElementById('qr-${id}'))">
+      </div>
+      <div class="qb-field">
+        <label class="lbl-after gold">${isNetto?'Po rabacie netto':'Po rabacie brutto'}</label>
+        <input class="inp-after" type="number" min="0" step="0.01" placeholder="zostaw puste"
+          oninput="document.getElementById('qr-${id}').dataset.ch='after';WK._calc(document.getElementById('qr-${id}'))">
+      </div>
+      <div class="qb-field">
+        <label class="gold">Rabat %</label>
+        <input class="inp-disc" type="number" min="0" max="100" step="1" placeholder="0"
+          oninput="document.getElementById('qr-${id}').dataset.ch='disc';WK._calc(document.getElementById('qr-${id}'))">
+      </div>
+            <div class="qb-field hide-m">
+        <label style="color:rgba(62,207,142,.5);">Cena zakupu</label>
+        <input class="inp-buy" type="number" min="0" step="0.01" placeholder="ukryte" title="Widoczna tylko dla Ciebie">
+      </div>
+<div class="qb-field">
+        <label class="lbl-val">${isNetto?'Wartość netto':'Wartość brutto'}</label>
+        <input class="inp-val" type="number" readonly tabindex="-1" placeholder="0,00">
+      </div>
+      <button class="qb-del-btn" onclick="document.getElementById('qr-${id}').remove();WK.calcSummary()" title="Usuń"><i class="fa-solid fa-xmark"></i></button>`;
+    document.getElementById('qb-parts').appendChild(div);
+  },
+
+  // Legacy aliases
+  addServiceLine:()=>WK.addSvcRow(),
+  addPartLine:()=>WK.addPartRow(),
+
+  calcSummary:()=>{
+    let svc=0,parts=0,lineDiscTotal=0;
+    document.querySelectorAll('#qb-services .qb-row').forEach(r=>{
+      const val=parseFloat(r.querySelector('.inp-val')?.value)||0;
+      const kat=parseFloat(r.querySelector('.inp-kat')?.value)||0;
+      const disc=parseFloat(r.querySelector('.inp-disc')?.value)||0;
+      const qty=parseFloat(r.querySelector('.inp-qty')?.value)||1;
+      svc+=val;
+      if(kat>0&&disc>0)lineDiscTotal+=kat*disc/100*qty;
+    });
+    document.querySelectorAll('#qb-parts .qb-row').forEach(r=>{
+      const val=parseFloat(r.querySelector('.inp-val')?.value)||0;
+      const kat=parseFloat(r.querySelector('.inp-kat')?.value)||0;
+      const disc=parseFloat(r.querySelector('.inp-disc')?.value)||0;
+      const qty=parseFloat(r.querySelector('.inp-qty')?.value)||1;
+      parts+=val;
+      if(kat>0&&disc>0)lineDiscTotal+=kat*disc/100*qty;
+    });
+    const isNetto=WK._qbMode==='netto';
+    const vr=(parseInt(gv('qb-vat'))||23)/100;
+    const gd=(parseFloat(gv('qb-discount'))||0)/100;
+    const raw=svc+parts;
+    const nettoBase=isNetto?raw:raw/(1+vr);
+    const nettoDisc=nettoBase*(1-gd);
+    const vat=nettoDisc*vr;
+    const brutto=nettoDisc+vat;
+    const globalDiscAmt=nettoBase*gd;
+    const totalDisc=lineDiscTotal+(isNetto?globalDiscAmt:globalDiscAmt*(1+vr));
+    st('sum-services',fmtMoney(isNetto?svc:svc/(1+vr)));
+    st('sum-parts',fmtMoney(isNetto?parts:parts/(1+vr)));
+    st('sum-vat',fmtMoney(vat));
+    st('sum-total',fmtMoney(brutto));
+    const dEl=document.getElementById('sum-discount-val');
+    if(dEl)dEl.innerText=totalDisc>0.001?'–'+fmtMoney(totalDisc):'0,00 PLN';
+    const dLbl=document.getElementById('sum-discount-lbl');
+    if(dLbl)dLbl.innerText=lineDiscTotal>0?'Rabat łączny (poz.+ogólny)':'Rabat ogólny';
+    return{svc,parts,vat,brutto,vatRate:parseInt(gv('qb-vat'))||23,discount:parseFloat(gv('qb-discount'))||0,lineDiscTotal};
+  },
+
+  collectData:()=>{
+    const sums=WK.calcSummary();
+    const isNetto=WK._qbMode==='netto';
+    const vr=(parseInt(gv('qb-vat'))||23)/100;
+    const services=[],parts=[];
+    document.querySelectorAll('#qb-services .qb-row').forEach(row=>{
+      const name=row.querySelector('.inp-name')?.value||'Usługa';
+      const qty=parseFloat(row.querySelector('.inp-qty')?.value)||0;
+      const kat=parseFloat(row.querySelector('.inp-kat')?.value)||0;
+      const after=parseFloat(row.querySelector('.inp-after')?.value)||(kat||0);
+      const disc=parseFloat(row.querySelector('.inp-disc')?.value)||0;
+      const buy=parseFloat(row.querySelector('.inp-buy')?.value)||0;
+      const val=parseFloat(row.querySelector('.inp-val')?.value)||0;
+      if(qty&&(kat||val))services.push({name,qty,kat,after:after||kat,disc,buy,price:isNetto?after||kat:(after||kat)/(1+vr),total:val});
+    });
+    document.querySelectorAll('#qb-parts .qb-row').forEach(row=>{
+      const name=row.querySelector('input.inp-name')?.value||'Część';
+      const qty=parseFloat(row.querySelector('.inp-qty')?.value)||0;
+      const kat=parseFloat(row.querySelector('.inp-kat')?.value)||0;
+      const after=parseFloat(row.querySelector('.inp-after')?.value)||(kat||0);
+      const disc=parseFloat(row.querySelector('.inp-disc')?.value)||0;
+      const sku=row.querySelector('.inp-sku')?.value||'';
+      const val=parseFloat(row.querySelector('.inp-val')?.value)||0;
+      if(qty&&(kat||val))parts.push({name,sku,qty,kat,after:after||kat,disc,price:isNetto?after||kat:(after||kat)/(1+vr),total:val});
+    });
+    return{id:CURRENT_QUOTE_ID||uid(),created:Date.now(),mode:WK._qbMode,
+      status_id:(CURRENT_WK.statuses||DEFAULT_STATUSES)[0]?.id||'new',
+      client_name:gv('qb-client-name'),client_phone:gv('qb-client-phone'),
+      client_email:gv('qb-client-email'),client_nip:gv('qb-client-nip'),
+      car_make:gv('qb-car-make'),car_model:gv('qb-car-model'),car_year:gv('qb-car-year'),
+      car_vin:gv('qb-car-vin'),car_reg:gv('qb-car-reg'),car_mileage:gv('qb-car-mileage'),
+      car_desc:gv('qb-car-desc'),notes:gv('qb-notes'),
+      vat_rate:sums.vatRate,discount:sums.discount,services,parts,
+      total_netto:sums.svc+sums.parts,total_vat:sums.vat,total_brutto:sums.brutto};
+  },
+
+  saveQuoteDraft:async()=>{
+    const q=WK.collectData();if(!q.client_name){notify('Podaj imię klienta','err');return;}
+    q.draft=true;const idx=CURRENT_WK.quotes.findIndex(x=>x.id===q.id);
+    if(idx>-1)CURRENT_WK.quotes[idx]=q;else CURRENT_WK.quotes.push(q);
+    CURRENT_QUOTE_ID=q.id;await WK.save(true);notify('Szkic zapisany');
+  },
+  finalizeQuote:async()=>{
+    const q=WK.collectData();if(!q.client_name){notify('Podaj imię klienta','err');return;}
+    q.draft=false;const idx=CURRENT_WK.quotes.findIndex(x=>x.id===q.id);
+    if(idx>-1)CURRENT_WK.quotes[idx]=q;else CURRENT_WK.quotes.push(q);
+    CURRENT_QUOTE_ID=q.id;await WK.save(true);notify('Wycena zapisana!');
+    if(CURRENT_WK.settings?.auto_email&&q.client_email)WK.sendQuoteEmail();
+    WK.openQuote(q.id);
+  },
+  openQuote:(id)=>{
+    const q=CURRENT_WK.quotes.find(x=>x.id===id);if(!q)return;
+    CURRENT_QUOTE_ID=id;
+    const s=WK.getSt(q.status_id);
+    const svcNetto=(q.services||[]).reduce((a,x)=>a+x.total,0);
+    const partsNetto=(q.parts||[]).reduce((a,x)=>a+x.total,0);
+    const num=q.id.slice(-6).toUpperCase();
+    document.getElementById('quote-detail-content').innerHTML=`
+    <div style="max-width:860px;margin:0 auto;">
+      <!-- Header card -->
+      <div class="card" style="margin-bottom:16px;padding:24px 28px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
+          <div>
+            <div style="font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;">Wycena</div>
+            <div style="font-family:'Outfit';font-size:22px;font-weight:900;letter-spacing:-.3px;">#${num}</div>
+            <div style="font-size:12px;color:#666;margin-top:3px;">${new Date(q.created).toLocaleDateString('pl-PL',{day:'2-digit',month:'long',year:'numeric'})}</div>
+          </div>
+          <div class="badge ${statusBadge(s.color)}" style="font-size:12px;padding:8px 18px;border-radius:10px;">${s.name}</div>
+        </div>
+        <div style="height:1px;background:#1e1e1e;margin:20px 0;"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+          <div>
+            <div style="font-size:9px;font-weight:800;color:var(--gold);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;display:flex;align-items:center;gap:6px;"><i class="fa-solid fa-user-tie"></i> Klient</div>
+            <div style="font-size:16px;font-weight:700;margin-bottom:4px;">${q.client_name||'—'}</div>
+            ${q.client_phone?`<div style="font-size:13px;color:#888;margin-bottom:2px;"><i class="fa-solid fa-phone" style="font-size:10px;margin-right:5px;color:#555;"></i>${q.client_phone}</div>`:''}
+            ${q.client_email?`<div style="font-size:13px;color:#888;margin-bottom:2px;"><i class="fa-solid fa-envelope" style="font-size:10px;margin-right:5px;color:#555;"></i>${q.client_email}</div>`:''}
+            ${q.client_nip?`<div style="font-size:12px;color:#555;">NIP: ${q.client_nip}</div>`:''}
+          </div>
+          <div>
+            <div style="font-size:9px;font-weight:800;color:#3ECF8E;text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;display:flex;align-items:center;gap:6px;"><i class="fa-solid fa-car"></i> Pojazd</div>
+            <div style="font-size:16px;font-weight:700;margin-bottom:4px;">${q.car_make||''} ${q.car_model||''} ${q.car_year?'('+q.car_year+')':''}</div>
+            ${q.car_reg?`<div style="font-size:13px;color:#888;margin-bottom:2px;"><i class="fa-solid fa-id-card" style="font-size:10px;margin-right:5px;color:#555;"></i><span style="font-weight:700;color:#e0e0e0;">${q.car_reg}</span></div>`:''}
+            ${q.car_vin?`<div style="font-size:12px;color:#555;margin-bottom:2px;">VIN: ${q.car_vin}</div>`:''}
+            ${q.car_mileage?`<div style="font-size:12px;color:#555;">Przebieg: ${q.car_mileage} km</div>`:''}
+            ${q.car_desc?`<div style="font-size:12px;color:#666;margin-top:6px;padding:8px;background:#111;border-radius:8px;">${q.car_desc}</div>`:''}
+          </div>
+        </div>
+      </div>
+
+      <!-- Services table -->
+      ${q.services?.length?`
+      <div class="card" style="margin-bottom:12px;padding:0;overflow:hidden;">
+        <div style="padding:12px 20px;background:#111;border-bottom:1px solid #1e1e1e;display:flex;align-items:center;gap:8px;">
+          <i class="fa-solid fa-wrench" style="color:var(--gold);font-size:11px;"></i>
+          <span style="font-size:10px;font-weight:800;color:#888;text-transform:uppercase;letter-spacing:.8px;">Usługi</span>
+        </div>
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr style="background:#0d0d0d;">
+              <th style="padding:10px 20px;text-align:left;font-size:9px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.6px;border-bottom:1px solid #1e1e1e;">Nazwa</th>
+              <th style="padding:10px 12px;text-align:center;font-size:9px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.6px;border-bottom:1px solid #1e1e1e;">Ilość</th>
+              <th style="padding:10px 12px;text-align:right;font-size:9px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.6px;border-bottom:1px solid #1e1e1e;">Cena jedn.</th>
+              <th style="padding:10px 12px;text-align:center;font-size:9px;font-weight:700;color:rgba(197,160,89,.6);text-transform:uppercase;letter-spacing:.6px;border-bottom:1px solid #1e1e1e;">Rabat</th>
+              <th style="padding:10px 20px;text-align:right;font-size:9px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.6px;border-bottom:1px solid #1e1e1e;">Wartość</th>
+            </tr>
+          </thead>
+          <tbody>
+          ${q.services.map((s2,i)=>`
+            <tr style="border-bottom:1px solid #141414;${i%2===1?'background:#0f0f0f':''}">
+              <td style="padding:13px 20px;font-size:14px;font-weight:600;color:#e8e8e8;">${s2.name}</td>
+              <td style="padding:13px 12px;text-align:center;font-size:13px;color:#888;">${s2.qty}</td>
+              <td style="padding:13px 12px;text-align:right;font-size:13px;color:#ccc;">${fmtMoney(s2.price||s2.after||s2.kat)}</td>
+              <td style="padding:13px 12px;text-align:center;font-size:12px;color:${s2.disc>0?'var(--gold)':'#333'};font-weight:700;">${s2.disc>0?s2.disc+'%':'—'}</td>
+              <td style="padding:13px 20px;text-align:right;font-size:14px;font-weight:800;color:#fff;">${fmtMoney(s2.total)}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`:'' }
+
+      <!-- Parts table -->
+      ${q.parts?.length?`
+      <div class="card" style="margin-bottom:16px;padding:0;overflow:hidden;">
+        <div style="padding:12px 20px;background:#111;border-bottom:1px solid #1e1e1e;display:flex;align-items:center;gap:8px;">
+          <i class="fa-solid fa-gear" style="color:#3ECF8E;font-size:11px;"></i>
+          <span style="font-size:10px;font-weight:800;color:#888;text-transform:uppercase;letter-spacing:.8px;">Części</span>
+        </div>
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr style="background:#0d0d0d;">
+              <th style="padding:10px 20px;text-align:left;font-size:9px;font-weight:700;color:#555;text-transform:uppercase;border-bottom:1px solid #1e1e1e;">Nazwa</th>
+              <th style="padding:10px 12px;text-align:left;font-size:9px;font-weight:700;color:#444;text-transform:uppercase;border-bottom:1px solid #1e1e1e;">SKU</th>
+              <th style="padding:10px 12px;text-align:center;font-size:9px;font-weight:700;color:#555;text-transform:uppercase;border-bottom:1px solid #1e1e1e;">Ilość</th>
+              <th style="padding:10px 12px;text-align:right;font-size:9px;font-weight:700;color:#555;text-transform:uppercase;border-bottom:1px solid #1e1e1e;">Cena jedn.</th>
+              <th style="padding:10px 12px;text-align:center;font-size:9px;font-weight:700;color:rgba(197,160,89,.6);text-transform:uppercase;border-bottom:1px solid #1e1e1e;">Rabat</th>
+              <th style="padding:10px 20px;text-align:right;font-size:9px;font-weight:700;color:#888;text-transform:uppercase;border-bottom:1px solid #1e1e1e;">Wartość</th>
+            </tr>
+          </thead>
+          <tbody>
+          ${q.parts.map((p,i)=>`
+            <tr style="border-bottom:1px solid #141414;${i%2===1?'background:#0f0f0f':''}">
+              <td style="padding:13px 20px;font-size:14px;font-weight:600;color:#e8e8e8;">${p.name}</td>
+              <td style="padding:13px 12px;font-size:11px;color:#444;font-family:monospace;">${p.sku||'—'}</td>
+              <td style="padding:13px 12px;text-align:center;font-size:13px;color:#888;">${p.qty}</td>
+              <td style="padding:13px 12px;text-align:right;font-size:13px;color:#ccc;">${fmtMoney(p.price||p.after||p.kat)}</td>
+              <td style="padding:13px 12px;text-align:center;font-size:12px;color:${p.disc>0?'var(--gold)':'#333'};font-weight:700;">${p.disc>0?p.disc+'%':'—'}</td>
+              <td style="padding:13px 20px;text-align:right;font-size:14px;font-weight:800;color:#fff;">${fmtMoney(p.total)}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`:'' }
+
+      <!-- Summary -->
+      <div style="display:flex;justify-content:flex-end;">
+        <div class="card" style="width:420px;padding:20px 24px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:9px;"><span style="color:#666;font-size:13px;">Usługi netto</span><span style="color:#ccc;font-weight:600;">${fmtMoney(svcNetto)}</span></div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:9px;"><span style="color:#666;font-size:13px;">Części netto</span><span style="color:#ccc;font-weight:600;">${fmtMoney(partsNetto)}</span></div>
+          ${(q.services||[]).reduce((a,x)=>a+(x.disc>0?x.kat*x.disc/100*x.qty:0),0)+(q.parts||[]).reduce((a,x)=>a+(x.disc>0?x.kat*x.disc/100*x.qty:0),0)>0?`<div style="display:flex;justify-content:space-between;margin-bottom:9px;"><span style="color:#666;font-size:13px;">Rabat z pozycji</span><span style="color:var(--gold);font-weight:600;">–${fmtMoney((q.services||[]).reduce((a,x)=>a+(x.disc>0?x.kat*x.disc/100*x.qty:0),0)+(q.parts||[]).reduce((a,x)=>a+(x.disc>0?x.kat*x.disc/100*x.qty:0),0))}</span></div>`:''}
+          <div style="display:flex;justify-content:space-between;margin-bottom:12px;"><span style="color:#666;font-size:13px;">VAT (${q.vat_rate||23}%)</span><span style="color:#ccc;font-weight:600;">${fmtMoney(q.total_vat)}</span></div>
+          <div style="height:1px;background:#222;margin-bottom:14px;"></div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;">
+            <span style="font-size:13px;font-weight:700;">RAZEM BRUTTO</span>
+            <span style="font-family:'Outfit';font-size:26px;font-weight:900;color:var(--gold);">${fmtMoney(q.total_brutto)}</span>
+          </div>
+        </div>
+      </div>
+      ${q.notes?`<div class="card" style="margin-top:12px;padding:16px 20px;border-left:3px solid #2a2a2a;"><div style="font-size:10px;font-weight:700;color:#444;text-transform:uppercase;margin-bottom:6px;">Uwagi</div><div style="font-size:13px;color:#888;">${q.notes}</div></div>`:''}
+    </div>`;
+    const ss=document.getElementById('m-status-select');
+    if(ss){ss.innerHTML='';(CURRENT_WK.statuses||DEFAULT_STATUSES).forEach(s2=>ss.innerHTML+=`<option value="${s2.id}" ${s2.id===q.status_id?'selected':''}>${s2.name}</option>`);}
+    Nav.go('wk-quote-detail');
+  },
+
+  changeQuoteStatus:async()=>{
+    const ns=gv('m-status-select');
+    const idx=CURRENT_WK.quotes.findIndex(q=>q.id===CURRENT_QUOTE_ID);
+    if(idx>-1){CURRENT_WK.quotes[idx].status_id=ns;await WK.save(true);Modals.close();WK.openQuote(CURRENT_QUOTE_ID);notify('Status zmieniony');}
+  },
+  printQuote:()=>{
+    const q=CURRENT_WK.quotes.find(x=>x.id===CURRENT_QUOTE_ID);if(!q)return;
+    const comp=CURRENT_WK.settings||{};const s=WK.getSt(q.status_id);
+    const svcNetto=(q.services||[]).reduce((a,x)=>a+x.total,0);
+    const partsNetto=(q.parts||[]).reduce((a,x)=>a+x.total,0);
+    document.getElementById('print-area').innerHTML=`<div style="font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:30px;color:#111;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:28px;"><div><h1 style="font-size:26px;font-weight:900;margin:0;">${comp.company_name||CURRENT_WK.name}</h1>${comp.nip?`<div style="font-size:11px;color:#888;margin-top:3px;">NIP: ${comp.nip}</div>`:''}</div><div style="text-align:right;"><div style="font-size:11px;color:#888;">Wycena #${q.id.slice(-6).toUpperCase()}</div><div style="font-size:11px;color:#888;">${new Date(q.created).toLocaleDateString('pl-PL')}</div><div style="display:inline-block;padding:4px 10px;background:#f0f0f0;border-radius:6px;font-size:11px;font-weight:800;margin-top:4px;">${s.name}</div></div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:22px;"><div style="padding:14px;background:#f9f9f9;border-radius:8px;"><div style="font-size:10px;font-weight:800;text-transform:uppercase;color:#888;margin-bottom:7px;">Klient</div><div style="font-weight:700;font-size:14px;">${q.client_name}</div>${q.client_phone?`<div style="font-size:12px;color:#555;margin-top:3px;">${q.client_phone}</div>`:''}${q.client_email?`<div style="font-size:12px;color:#555;">${q.client_email}</div>`:''}</div><div style="padding:14px;background:#f9f9f9;border-radius:8px;"><div style="font-size:10px;font-weight:800;text-transform:uppercase;color:#888;margin-bottom:7px;">Pojazd</div><div style="font-weight:700;font-size:14px;">${q.car_make||''} ${q.car_model||''} ${q.car_year?'('+q.car_year+')':''}</div>${q.car_reg?`<div style="font-size:12px;color:#555;margin-top:3px;">Rej: ${q.car_reg}</div>`:''}</div></div>
+      ${q.services?.length?`<table style="width:100%;border-collapse:collapse;margin-bottom:14px;"><thead><tr style="background:#f0f0f0;"><th style="padding:9px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;">Usługa</th><th style="padding:9px;text-align:center;font-size:10px;font-weight:800;">Ilość</th><th style="padding:9px;text-align:right;font-size:10px;font-weight:800;">Cena jedn.</th><th style="padding:9px;text-align:right;font-size:10px;font-weight:800;">Wartość</th></tr></thead><tbody>${q.services.map((x,i)=>`<tr style="background:${i%2?'#fafafa':'#fff'};"><td style="padding:9px;border-bottom:1px solid #eee;">${x.name}</td><td style="padding:9px;text-align:center;border-bottom:1px solid #eee;">${x.qty}</td><td style="padding:9px;text-align:right;border-bottom:1px solid #eee;">${x.price.toFixed(2)} PLN</td><td style="padding:9px;text-align:right;border-bottom:1px solid #eee;font-weight:800;">${x.total.toFixed(2)} PLN</td></tr>`).join('')}</tbody></table>`:''}
+      ${q.parts?.length?`<table style="width:100%;border-collapse:collapse;margin-bottom:14px;"><thead><tr style="background:#f0f0f0;"><th style="padding:9px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;">Część</th><th style="padding:9px;text-align:center;font-size:10px;font-weight:800;">Ilość</th><th style="padding:9px;text-align:right;font-size:10px;font-weight:800;">Cena jedn.</th><th style="padding:9px;text-align:right;font-size:10px;font-weight:800;">Wartość</th></tr></thead><tbody>${q.parts.map((x,i)=>`<tr style="background:${i%2?'#fafafa':'#fff'};"><td style="padding:9px;border-bottom:1px solid #eee;">${x.name}</td><td style="padding:9px;text-align:center;border-bottom:1px solid #eee;">${x.qty}</td><td style="padding:9px;text-align:right;border-bottom:1px solid #eee;">${x.price.toFixed(2)} PLN</td><td style="padding:9px;text-align:right;border-bottom:1px solid #eee;font-weight:800;">${x.total.toFixed(2)} PLN</td></tr>`).join('')}</tbody></table>`:''}
+      <div style="max-width:280px;margin-left:auto;padding:14px;background:#f9f9f9;border-radius:8px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:5px;font-size:13px;"><span>Usługi netto</span><span>${svcNetto.toFixed(2)} PLN</span></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:5px;font-size:13px;"><span>Części netto</span><span>${partsNetto.toFixed(2)} PLN</span></div>
+        ${q.discount?`<div style="display:flex;justify-content:space-between;margin-bottom:5px;font-size:13px;"><span>Rabat (${q.discount}%)</span><span>-${((svcNetto+partsNetto)*q.discount/100).toFixed(2)} PLN</span></div>`:''}
+        <div style="display:flex;justify-content:space-between;margin-bottom:5px;font-size:13px;"><span>VAT (${q.vat_rate}%)</span><span>${(q.total_vat||0).toFixed(2)} PLN</span></div>
+        <div style="display:flex;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:2px solid #ddd;font-weight:900;font-size:16px;"><span>RAZEM BRUTTO</span><span>${(q.total_brutto||0).toFixed(2)} PLN</span></div>
+      </div>
+      ${comp.pdf_footer&&comp.phone?`<div style="margin-top:28px;padding-top:14px;border-top:1px solid #eee;font-size:11px;color:#888;text-align:center;">${comp.company_name||''} · ${comp.addr||''} · Tel: ${comp.phone} · ${comp.email||''}</div>`:''}
+    </div>`;
+    window.print();setTimeout(()=>{document.getElementById('print-area').innerHTML='';},3000);
+  },
+  sendQuoteEmail:async()=>{
+    const q=CURRENT_WK.quotes.find(x=>x.id===CURRENT_QUOTE_ID);if(!q)return;
+    if(!q.client_email){notify('Klient nie ma adresu email','err');return;}
+    const comp=CURRENT_WK.settings||{};
+    await App.sendMail(q.client_email,'Wycena od '+comp.company_name,`Szanowny/a ${q.client_name},<br><br>Przesyłamy wycenę dla pojazdu <strong>${q.car_make||''} ${q.car_model||''}</strong>.<br><br>Łączna kwota brutto: <strong>${fmtMoney(q.total_brutto)}</strong><br><br>Pozdrawiamy,<br><strong>${comp.company_name}</strong>`);
+    notify('Email wysłany do '+q.client_email);
+  },
+  renderSettings:()=>{
+    if(!CURRENT_WK)return;
+    const s=CURRENT_WK.settings||{};
+    Theme.load();
+    WK.renderPalettes();
+    const logoEl=document.getElementById('ws-logo-prev');
+    if(logoEl)logoEl.src=s.logo||CURRENT_WK.logo||'https://via.placeholder.com/56/111/555?text=L';
+    sv('ws-company-name',s.company_name||'');sv('ws-company-nip',s.nip||'');
+    sv('ws-company-addr',s.addr||'');sv('ws-company-phone',s.phone||'');sv('ws-company-email',s.email||'');
+    const pf=document.getElementById('ws-pdf-footer');if(pf)pf.checked=s.pdf_footer!==false;
+    const ae=document.getElementById('ws-auto-email');if(ae)ae.checked=!!s.auto_email;
+    WK.renderServicesList();WK.renderStatusesList();
+  },
+  saveSettings:async()=>{
+    if(!CURRENT_WK.settings)CURRENT_WK.settings={};
+    Object.assign(CURRENT_WK.settings,{
+      company_name:gv('ws-company-name'),nip:gv('ws-company-nip'),
+      addr:gv('ws-company-addr'),phone:gv('ws-company-phone'),email:gv('ws-company-email'),
+      pdf_footer:document.getElementById('ws-pdf-footer')?.checked!==false,
+      auto_email:!!document.getElementById('ws-auto-email')?.checked,
+    });
+    await WK.save(true);notify('Ustawienia zapisane');
+  },
+  uploadLogo:async(inp)=>{
+    const r=await App.uploadFile(inp.files[0],'logos');
+    if(r?.status==='success'){
+      if(!CURRENT_WK.settings)CURRENT_WK.settings={};
+      CURRENT_WK.settings.logo=r.link;CURRENT_WK.logo=r.link;
+      const prev=document.getElementById('ws-logo-prev');if(prev)prev.src=r.link;
+      await WK.save(true);notify('Logo zaktualizowane');
+    }
+  },
+  applyAccent:(hex,name,save=false)=>{
+    const palette=PALETTES.find(p=>p.accent===hex);
+    const accent2=palette?palette.accent2:Theme.darken(hex);
+    Theme.apply(hex,accent2);
+    // update picker value
+    const picker=document.getElementById('ws-accent-picker');if(picker)picker.value=hex;
+    // update active swatch
+    document.querySelectorAll('.palette-swatch').forEach(s=>s.classList.toggle('active',s.dataset.accent===hex));
+    if(save){
+      if(!CURRENT_WK.settings)CURRENT_WK.settings={};
+      CURRENT_WK.settings.accent=hex;CURRENT_WK.settings.accent2=accent2;
+      WK.save(true);notify('Kolor zastosowany');
+    }
+  },
+  renderPalettes:()=>{
+    const grid=document.getElementById('palette-grid');if(!grid)return;
+    const current=CURRENT_WK?.settings?.accent||'#C5A059';
+    grid.innerHTML=PALETTES.map(p=>`
+      <div class="palette-swatch ${p.accent===current?'active':''}" data-accent="${p.accent}"
+        style="background:${p.accent};" title="${p.name}"
+        onclick="WK.applyAccent('${p.accent}','${p.name}',true)"></div>`).join('');
+    const picker=document.getElementById('ws-accent-picker');if(picker)picker.value=current;
+  },
+  renderServicesList:()=>{
+    const el=document.getElementById('ws-services-list');if(!el)return;
+    const list=CURRENT_WK.services||[];
+    el.innerHTML=list.length?list.map((s,i)=>`<div class="fxb" style="padding:11px 0;border-bottom:1px solid #0f0f0f;"><div><div class="fw7 fs13">${s.name}</div><div class="text-muted fs11">${s.price} PLN / ${s.unit}</div></div><button class="btn btn-danger btn-icon btn-sm" onclick="WK.removeService(${i})"><i class="fa-solid fa-xmark"></i></button></div>`).join(''):emptyState('fa-tools','Brak usług — dodaj pierwszą');
+  },
+  addService:async()=>{
+    const name=gv('ms-name'),unit=gv('ms-unit'),price=parseFloat(gv('ms-price'));
+    if(!name||!price){notify('Podaj nazwę i cenę','err');return;}
+    if(!CURRENT_WK.services)CURRENT_WK.services=[];
+    CURRENT_WK.services.push({id:uid(),name,unit:unit||'szt',price,desc:gv('ms-desc')});
+    await WK.save(true);Modals.close();WK.renderServicesList();notify('Usługa dodana');
+  },
+  removeService:async(idx)=>{CURRENT_WK.services.splice(idx,1);await WK.save(true);WK.renderServicesList();},
+  renderStatusesList:()=>{
+    const el=document.getElementById('ws-statuses-list');if(!el)return;
+    const list=CURRENT_WK.statuses||DEFAULT_STATUSES;
+    el.innerHTML=list.map((s,i)=>`<div class="fxb" style="padding:9px 0;border-bottom:1px solid #0f0f0f;"><div class="badge ${statusBadge(s.color)}">${s.name}</div>${i>0?`<button class="btn btn-danger btn-icon btn-sm" onclick="WK.removeStatus(${i})"><i class="fa-solid fa-xmark"></i></button>`:'<span class="text-muted fs10">domyślny</span>'}</div>`).join('');
+  },
+  addStatus:async()=>{
+    const name=gv('mst-name'),color=gv('mst-color');
+    if(!name){notify('Podaj nazwę statusu','err');return;}
+    if(!CURRENT_WK.statuses)CURRENT_WK.statuses=JSON.parse(JSON.stringify(DEFAULT_STATUSES));
+    CURRENT_WK.statuses.push({id:uid(),name,color});
+    await WK.save(true);Modals.close();WK.renderStatusesList();notify('Status dodany');
+  },
+  removeStatus:async(idx)=>{CURRENT_WK.statuses.splice(idx,1);await WK.save(true);WK.renderStatusesList();},
+  renderClients:()=>{
+    const el=document.getElementById('wk-clients-grid');if(!el)return;
+    const list=CURRENT_WK?.wk_clients||[];
+    el.innerHTML=list.length?list.map(c=>`<div class="card"><div class="fw7 outfit fs13" style="margin-bottom:5px;">${c.name}</div><div class="text-muted fs12">${c.phone||''}${c.email?' · '+c.email:''}</div>${c.nip?`<div class="text-muted fs11 mt8">NIP: ${c.nip}</div>`:''}${c.notes?`<div class="text-sub fs12 mt8">${c.notes}</div>`:''}</div>`).join(''):emptyState('fa-address-book','Brak klientów — dodaj pierwszego');
+  },
+  addClient:async()=>{
+    const name=gv('wkc-name');if(!name){notify('Podaj imię klienta','err');return;}
+    if(!CURRENT_WK.wk_clients)CURRENT_WK.wk_clients=[];
+    CURRENT_WK.wk_clients.push({id:uid(),name,phone:gv('wkc-phone'),email:gv('wkc-email'),nip:gv('wkc-nip'),notes:gv('wkc-notes')});
+    await WK.save(true);Modals.close();WK.renderClients();notify('Klient dodany');
+  },
+};
+
+// ============================================================
+// CLIENT PROFILE MODULE
+// ============================================================
+const ClientProfile={
+  open:(id)=>{
+    const cl=(CURRENT_WK?.wk_clients||[]).find(x=>x.id===id);if(!cl)return;
+    WK._profClient=cl;
+    // Populate header
+    st('cp-name',cl.name);
+    st('cp-meta',[cl.phone,cl.email].filter(Boolean).join(' · '));
+    // Populate Dane tab
+    sv('cp-edit-name',cl.name||'');sv('cp-edit-phone',cl.phone||'');
+    sv('cp-edit-email',cl.email||'');sv('cp-edit-nip',cl.nip||'');
+    sv('cp-notes',cl.notes||'');
+    // Reset to Dane tab
+    ClientProfile.tab('dane',document.querySelector('#cp-tabs .tab'));
+    Nav.go('wk-client-detail');
+    ClientProfile.renderVehicles();
+    ClientProfile.renderQuotes();
+  },
+  tab:(name,btn)=>{
+    ['dane','pojazdy','wyceny','notatki'].forEach(t=>{
+      const el=document.getElementById('cp-tab-'+t);if(el)el.style.display=t===name?'':'none';
+    });
+    document.querySelectorAll('#cp-tabs .tab').forEach(b=>b.classList.remove('active'));
+    if(btn)btn.classList.add('active');
+  },
+  saveDane:async()=>{
+    const cl=WK._profClient;if(!cl)return;
+    cl.name=gv('cp-edit-name')||cl.name;cl.phone=gv('cp-edit-phone');
+    cl.email=gv('cp-edit-email');cl.nip=gv('cp-edit-nip');
+    st('cp-name',cl.name);st('cp-meta',[cl.phone,cl.email].filter(Boolean).join(' · '));
+    await WK.save(true);notify('Dane zapisane');
+  },
+  saveNotes:async()=>{
+    const cl=WK._profClient;if(!cl)return;
+    cl.notes=gv('cp-notes');await WK.save(true);notify('Notatki zapisane');
+  },
+  renderVehicles:()=>{
+    const cl=WK._profClient;if(!cl)return;
+    const el=document.getElementById('cp-vehicles-list');if(!el)return;
+    const list=cl.vehicles||[];
+    el.innerHTML=list.length?list.map((v,i)=>`
+      <div class="card" style="border-left:3px solid #3ECF8E;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+          <div>
+            <div class="outfit fw8" style="font-size:16px;">${v.make} ${v.model}</div>
+            <div style="font-size:12px;color:#666;margin-top:3px;">${v.year||''}</div>
+          </div>
+          <div style="font-size:14px;font-weight:800;color:var(--gold);background:var(--gold-soft);padding:4px 10px;border-radius:7px;">${v.reg||'Brak rej.'}</div>
+        </div>
+        ${v.vin?`<div style="font-size:11px;color:#444;margin-bottom:4px;">VIN: ${v.vin}</div>`:''}
+        ${v.mileage?`<div style="font-size:12px;color:#666;">Przebieg: <strong style="color:#ccc;">${v.mileage} km</strong></div>`:''}
+        <div style="display:flex;gap:8px;margin-top:12px;">
+          <button class="btn btn-outline btn-sm" onclick="Nav.go('wk-new-quote');setTimeout(()=>{WK.selectClient('${cl.id}');setTimeout(()=>WK.selectVehicle('${v.id}'),200);},150)"><i class="fa-solid fa-plus"></i> Nowa wycena</button>
+          <button class="btn btn-danger btn-sm" onclick="ClientProfile.delVehicle(${i})"><i class="fa-solid fa-trash"></i></button>
+        </div>
+      </div>`).join(''):emptyState('fa-car','Brak pojazdów — dodaj pierwszy');
+  },
+  renderQuotes:()=>{
+    const cl=WK._profClient;if(!cl)return;
+    const el=document.getElementById('cp-quotes-list');if(!el)return;
+    const quotes=(CURRENT_WK?.quotes||[]).filter(q=>q.client_name===cl.name||(cl.phone&&q.client_phone===cl.phone));
+    if(!quotes.length){el.innerHTML=emptyState('fa-file-invoice','Brak wycen dla tego klienta');return;}
+    el.innerHTML=`<div style="border:1px solid #1e1e1e;border-radius:12px;overflow:hidden;">
+      <table style="width:100%;border-collapse:collapse;">
+        <thead><tr style="background:#111;border-bottom:1px solid #222;">
+          <th style="padding:10px 16px;text-align:left;font-size:9px;font-weight:800;color:#444;text-transform:uppercase;">Nr oferty</th>
+          <th style="padding:10px 16px;text-align:left;font-size:9px;font-weight:800;color:#444;text-transform:uppercase;">Pojazd</th>
+          <th style="padding:10px 16px;text-align:left;font-size:9px;font-weight:800;color:#444;text-transform:uppercase;">Data</th>
+          <th style="padding:10px 16px;text-align:right;font-size:9px;font-weight:800;color:#444;text-transform:uppercase;">Wartość</th>
+          <th style="padding:10px 16px;text-align:center;font-size:9px;font-weight:800;color:#444;text-transform:uppercase;">Status</th>
+        </tr></thead>
+        <tbody>${quotes.slice().reverse().map((q,i)=>{const s=WK.getSt(q.status_id);return`<tr style="border-bottom:1px solid #141414;cursor:pointer;${i%2===1?'background:#0d0d0d':''}" onclick="WK.openQuote('${q.id}')">
+          <td style="padding:12px 16px;font-size:11px;font-weight:700;color:#555;font-family:monospace;">OFE/${new Date(q.created).getMonth()+1}/${new Date(q.created).getFullYear()}/${q.id.slice(-6).toUpperCase()}</td>
+          <td style="padding:12px 16px;font-size:13px;color:#ccc;">${q.car_make||''} ${q.car_model||''} ${q.car_reg?`<span style="color:var(--gold);font-size:11px;">${q.car_reg}</span>`:''}</td>
+          <td style="padding:12px 16px;font-size:12px;color:#666;">${new Date(q.created).toLocaleDateString('pl-PL')}</td>
+          <td style="padding:12px 16px;text-align:right;font-size:13px;font-weight:700;color:var(--gold);">${fmtMoney(q.total_brutto)}</td>
+          <td style="padding:12px 16px;text-align:center;"><span class="badge ${statusBadge(s.color)}" style="font-size:10px;">${s.name}</span></td>
+        </tr>`;}).join('')}</tbody>
+      </table>
+    </div>`;
+  },
+  addVehicle:async()=>{
+    const cl=WK._profClient;if(!cl)return;
+    if(!cl.vehicles)cl.vehicles=[];
+    const make=gv('av-make'),model=gv('av-model');
+    if(!make){notify('Podaj markę pojazdu','err');return;}
+    cl.vehicles.push({id:uid(),make,model:model||'',year:gv('av-year'),reg:gv('av-reg'),vin:gv('av-vin'),mileage:gv('av-mileage')});
+    await WK.save(true);Modals.close();ClientProfile.renderVehicles();notify('Pojazd dodany');
+  },
+  delVehicle:async(idx)=>{
+    if(!confirm('Usunąć pojazd?'))return;
+    WK._profClient.vehicles.splice(idx,1);
+    await WK.save(true);ClientProfile.renderVehicles();
+  },
+};
+
+// ============================================================
+// E-COMMERCE MODULE
+// ============================================================
+const EC={
+  renderDashboard:()=>{
+    if(!CURRENT_WK)return;
+    st('ec-company-name',CURRENT_WK.settings?.company_name||CURRENT_WK.name);
+    const days=daysLeft(CURRENT_WK.demo_end);
+    const dBar=document.getElementById('ec-demo-bar');
+    if(CURRENT_WK.status==='demo'&&dBar){dBar.style.display='flex';st('ec-demo-days',days>0?days:'Wygasło');}
+  }
+};
+
+// ============================================================
+// IMPERSONATE (Admin wchodzi jako klient)
+// ============================================================
+const Impersonate={
+  // Zapisuje admina do sessionStorage i loguje jako klient
+  start:(credentials)=>{
+    // Zachowaj admina
+    sessionStorage.setItem('elok_admin_backup',JSON.stringify(USER));
+    // Ustaw tymczasowo credentials klienta i przeloguj
+    sv('l-user',credentials.login);
+    sv('l-pass',credentials.pass);
+    // Pokaż baner po zalogowaniu — flaga
+    sessionStorage.setItem('elok_impersonating','1');
+    // Zaloguj jako klient
+    Auth.loginAs(credentials.login,credentials.pass);
+  },
+  // Wróć do admina
+  exit:()=>{
+    const backup=sessionStorage.getItem('elok_admin_backup');
+    sessionStorage.removeItem('elok_admin_backup');
+    sessionStorage.removeItem('elok_impersonating');
+    // Ukryj baner
+    const bar=document.getElementById('impersonate-bar');if(bar)bar.style.display='none';
+    if(backup){
+      USER=JSON.parse(backup);
+      localStorage.setItem('elok_u',JSON.stringify(USER));
+      UI.init();
+    }else{
+      Auth.logout();
+    }
+  },
+  checkBar:()=>{
+    if(sessionStorage.getItem('elok_impersonating')){
+      const bar=document.getElementById('impersonate-bar');
+      if(bar){bar.style.display='flex';const nm=document.getElementById('imp-client-name');if(nm)nm.innerText=USER.name;}
+    }
+  }
+};
+
+// ============================================================
+// COLOR THEME SYSTEM
+// ============================================================
+const PALETTES=[
+  {name:'Złoto (domyślny)',accent:'#C5A059',accent2:'#8B6B30'},
+  {name:'Niebieski',accent:'#5B8DEF',accent2:'#2E5BC2'},
+  {name:'Zieleń',accent:'#3ECF8E',accent2:'#1E8A5A'},
+  {name:'Fiolet',accent:'#9B6EFF',accent2:'#6B3ECC'},
+  {name:'Czerwony',accent:'#E05252',accent2:'#A02828'},
+  {name:'Biały',accent:'#EEEEEE',accent2:'#AAAAAA'},
+];
+
+const Theme={
+  apply:(accent,accent2)=>{
+    const a2=accent2||Theme.darken(accent);
+    document.documentElement.style.setProperty('--gold',accent);
+    document.documentElement.style.setProperty('--gold2',a2);
+    document.documentElement.style.setProperty('--accent',accent);
+    document.documentElement.style.setProperty('--accent2',a2);
+    document.documentElement.style.setProperty('--gold-soft',Theme.hex2rgba(accent,.08));
+    document.documentElement.style.setProperty('--gold-border',Theme.hex2rgba(accent,.18));
+    document.documentElement.style.setProperty('--accent-soft',Theme.hex2rgba(accent,.08));
+    document.documentElement.style.setProperty('--accent-border',Theme.hex2rgba(accent,.18));
+  },
+  darken:(hex)=>{
+    const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+    return '#'+[r,g,b].map(v=>Math.max(0,Math.floor(v*.6)).toString(16).padStart(2,'0')).join('');
+  },
+  hex2rgba:(hex,a)=>{
+    const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+    return `rgba(${r},${g},${b},${a})`;
+  },
+  load:()=>{
+    if(!CURRENT_WK)return;
+    const accent=CURRENT_WK.settings?.accent;
+    if(accent)Theme.apply(accent,CURRENT_WK.settings?.accent2);
+  }
+};
+
+// ============================================================
+// LIVE SYNC
+// ============================================================
+setInterval(async()=>{
+  if(!USER)return;
+  try{
+    const fd=new FormData();fd.append('action','loadDB');
+    const r=await fetch(API+'?nc='+Date.now(),{method:'POST',body:fd,cache:'no-store'});
+    const nDB=await r.json();
+
+    // Sync team chat
+    if(JSON.stringify(DB.general_chat)!==JSON.stringify(nDB.general_chat)){
+      DB.general_chat=nDB.general_chat;
+      const cv=document.getElementById('view-chat');
+      if(cv&&cv.style.display==='flex')GeneralChat.render();
+    }
+
+    // Workshop sync
+    if(USER.role==='warsztat'||USER.role==='ecommerce'){
+      const fresh=(nDB.saas_clients||[]).find(c=>c.login===USER.login);
+      if(fresh&&CURRENT_WK)Object.assign(CURRENT_WK,fresh);
+    }
+
+    // CRM client: new messages + status updates
+    if(USER.role==='client'){
+      const me=(nDB.clients||[]).find(c=>c.login===USER.login);
+      if(me){
+        const newMsgs=(me.messages||[]).length>(USER.messages||[]).length;
+        if(newMsgs)Push.send('ELOK','Masz nową wiadomość od opiekuna.');
+        if(me.status!==USER.status||me.progress!==USER.progress||newMsgs){
+          USER={...USER,...me,role:'client'};
+          localStorage.setItem('elok_u',JSON.stringify(USER));
+          ClientDash.initDash();
+          const ccv=document.getElementById('view-client-chat');
+          if(ccv&&ccv.style.display==='flex')ClientDash.initChat();
+        }
+      }
+    }
+
+    // Admin/employee: incoming client messages
+    if(USER.role==='admin'||USER.role==='employee'){
+      (nDB.clients||[]).forEach(rc=>{
+        const lc=DB.clients.find(c=>c.id==rc.id);
+        if(lc&&(rc.messages||[]).length>(lc.messages||[]).length){
+          if(USER.login===rc.worker||USER.role==='admin')Push.send('ELOK','Nowa wiadomość od '+rc.name);
+          lc.messages=JSON.parse(JSON.stringify(rc.messages));
+          if(EDIT_ID==rc.id){
+            const dv=document.getElementById('view-detail');
+            if(dv&&dv.style.display==='block'){Detail.curr.messages=JSON.parse(JSON.stringify(rc.messages));Detail.draft.messages=JSON.parse(JSON.stringify(rc.messages));Detail.renderLists();}
+          }
+        }
+      });
+    }
+
+    DB.clients=nDB.clients||[];DB.team=nDB.team||[];
+    DB.archive=nDB.archive||[];DB.trash=nDB.trash||[];
+    DB.general_chat=nDB.general_chat||[];
+    if(nDB.saas_clients)DB.saas_clients=nDB.saas_clients;
+
+  }catch(e){}
+},3000);
+
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&USER)App.loadDB().catch(()=>{});});
+document.addEventListener('DOMContentLoaded',Auth.check);
+</script>
+</body>
+</html>
