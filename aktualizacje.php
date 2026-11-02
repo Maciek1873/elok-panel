@@ -58,7 +58,7 @@ if ($a === 'lista') {
         $list = array(); $err = isset($c['_err']) ? $c['_err'] : '';
         if (!$err) foreach (array_reverse((array)(isset($c['commits']) ? $c['commits'] : array())) as $cm) {
             $msg = trim(strtok((string)$cm['commit']['message'], "\n"));
-            if ($msg === '' || stripos($msg, 'Merge ') === 0 || stripos($msg, 'Panel: ') === 0) continue;
+            if ($msg === '' || stripos($msg, 'Merge ') === 0 || stripos($msg, 'Panel: ') === 0 || stripos($msg, 'Synchronizacja') === 0 || stripos($msg, 'Zatwierdzone w panelu') === 0) continue;
             $list[] = array('msg' => $msg, 'kiedy' => date('d.m H:i', strtotime($cm['commit']['author']['date'])));
         }
         $out[] = array('repo' => $repo, 'nazwa' => $x[0], 'test_url' => $x[1], 'url' => $x[2], 'err' => $err, 'zmiany' => $list,
