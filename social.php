@@ -34,6 +34,9 @@ function meta_call($method, $path, $params = array(), $headers = array(), $url =
     if (isset($j['error'])) {
         $m = isset($j['error']['message']) ? $j['error']['message'] : 'błąd';
         if (isset($j['error']['error_user_msg'])) $m .= ' – ' . $j['error']['error_user_msg'];
+        $ec = isset($j['error']['code']) ? (int)$j['error']['code'] : 0;
+        if ($ec === 190 || $ec === 102 || stripos($m, 'impersonating') !== false || stripos($m, 'access token') !== false || stripos($m, 'session has expired') !== false)
+            return array($j, $code, 'Połączenie z Facebookiem wygasło. W Publikacjach kliknij „zmień”, połącz ponownie i kliknij „Spróbuj ponownie”.');
         return array($j, $code, 'Facebook: ' . $m);
     }
     return array($j, $code, '');
