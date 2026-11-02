@@ -16,6 +16,8 @@ if (!hash_equals(CRON_KEY, $key)) { http_response_code(403); exit('403'); }
 $tylko = PHP_SAPI === 'cli' ? (isset($argv[1]) ? $argv[1] : '') : (isset($_GET['tylko']) ? (string)$_GET['tylko'] : '');
 // publikacje na FB/IG – przy każdym uruchomieniu crona (także co 5 min)
 try { $sr = soc_run(); if ($sr !== 'nic do publikacji') echo date('Y-m-d H:i') . ' | publikacje: ' . $sr . "\n"; } catch (Exception $e) { echo 'publikacje: ' . $e->getMessage() . "\n"; }
+// przypomnienia o konsultacjach ze strony (dzień i godzinę wcześniej)
+try { require_once __DIR__ . '/strona/przypomnienia.php'; $kp = kons_przyp_run(); if ($kp !== '') echo date('Y-m-d H:i') . ' | konsultacje: ' . $kp . "\n"; } catch (Exception $e) { echo 'konsultacje: ' . $e->getMessage() . "\n"; }
 if ($tylko === 'pobieranie') { echo date('Y-m-d H:i') . ' | pobieranie: ' . noc_run(230) . "\n"; exit; }
 $r = run_queue(false);
 setting_set('ostatni_cron', now());
