@@ -136,6 +136,11 @@ function renderNav(badge) {
 }
 var BADGE = 0;
 window.go = function (v) {
+  if (VIEW === 'www_edit' && v !== 'www_edit' && WE.dirty) {
+    window.ask('Niezapisane zmiany', 'Na stronie są zmienione teksty, które nie zostały zapisane. Wyjść bez zapisu?', 'Wyjdź bez zapisu', function () { WE.dirty = false; window.go(v); });
+    if (location.hash !== '#www_edit') history.replaceState(null, '', '#www_edit');
+    return;
+  }
   VIEW = v;
   if (location.hash !== '#' + v) history.replaceState(null, '', '#' + v);
   renderNav(BADGE);
@@ -1844,9 +1849,15 @@ function viewWwwEdit() {
       h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;gap:10px;flex-wrap:wrap"><div class="chips"><a class="chip on" onclick="window.wDev(this,\'100%\')">Komputer</a><a class="chip" onclick="window.wDev(this,\'390px\')">Telefon</a></div><span class="hint" style="margin:0">Enter = koniec edycji tekstu. Linki i przyciski w podglądzie nie działają, żeby dało się je edytować.</span></div>';
       h += '<div class="wfr"><iframe id="w-ifr" src="strona/admin.php?t=podglad&amp;f=' + encodeURIComponent(WE.f) + '" title="Podgląd strony do edycji"></iframe></div>';
       var kp = '';
-      for (i = 0; i < r.kopie.length; i++) kp += '<tr><td>Wersja sprzed zapisu ' + esc(r.kopie[i].kiedy) + '</td><td class="r"><a class="btn sm" onclick="window.wRestore(\'' + esc(r.kopie[i].k) + '\')">Przywróć</a></td></tr>';
-      h += '<div class="card sec"><div class="pad" style="padding-bottom:' + (kp ? '0' : '20px') + '"><h2 class="ct">Historia zmian tej strony</h2><div class="hint">Przed każdym zapisem robię kopię. Możesz wrócić do każdej z 20 ostatnich.</div></div>' + (kp ? '<table class="tbl"><tbody>' + kp + '</tbody></table>' : '') + '</div>';
+      for (i = 0; i < r.kopie.length; i++) kp += wHistRow(r.kopie[i], false);
+      h += '<div class="card sec"><div class="pad" style="padding-bottom:' + (kp ? '0' : '20px') + '"><h2 class="ct">Historia zmian tej strony</h2><div class="hint">Każdy zapis jest tu z opisem, co zmieniono. „Cofnij” przywraca stronę do stanu sprzed tego zapisu, a obecna wersja też trafia do historii, więc nic nie zginie. Trzymam 50 ostatnich zapisów.</div></div>' + (kp ? '<table class="tbl"><tbody>' + kp + '</tbody></table>' : '') + '</div>';
+      h += '<div class="card sec" id="w-all"><div class="pad"><h2 class="ct">Ostatnie zmiany na całej stronie</h2><div class="hint">Wszystkie podstrony razem, od najnowszych.</div><div class="mut" style="margin-top:10px">Ładowanie…</div></div></div>';
       $('main').innerHTML = h; window.wCnt();
+      sapi('j=historia', null, function (x) {
+        var t = '', el = $('w-all'); if (!el) return;
+        for (var j = 0; j < x.h.length; j++) t += wHistRow(x.h[j], true);
+        el.innerHTML = '<div class="pad" style="padding-bottom:' + (t ? '0' : '20px') + '"><h2 class="ct">Ostatnie zmiany na całej stronie</h2><div class="hint">Wszystkie podstrony razem, od najnowszych. Kliknij nazwę strony, żeby ją otworzyć w edytorze.</div>' + (t ? '' : '<div class="mut" style="margin-top:10px">Jeszcze nic nie zapisano.</div>') + '</div>' + (t ? '<table class="tbl"><tbody>' + t + '</tbody></table>' : '');
+      });
     });
   });
 }
@@ -1855,8 +1866,19 @@ window.wSave = function (b) {
   busy(b, true);
   sapi('', { a: 'zapisz', f: WE.f, zm: g.zm, title: val('w-t'), desc: val('w-d') }, function (r) { busy(b, false); WE.dirty = false; toast(r.zmiany ? 'Zapisane – już widać na stronie' : 'Brak zmian'); if (r.zmiany) viewWwwEdit(); }, function () { busy(b, false); });
 };
+function wHistRow(k, all) {
+  var inf = k.info || {}, d = '';
+  if (inf.typ === 'przywrocenie') d = '<div class="mut">Przywrócenie wersji z ' + esc(inf.z || '') + '</div>';
+  else if (inf.zm && inf.zm.length) {
+    for (var i = 0; i < inf.zm.length && i < 4; i++) d += '<div style="margin-top:4px;font-size:14px"><span class="mut" style="text-decoration:line-through">' + esc(inf.zm[i][0].slice(0, 90)) + '</span> <b>→</b> ' + esc(inf.zm[i][1].slice(0, 90)) + '</div>';
+    if (inf.zm.length > 4) d += '<div class="mut" style="font-size:13px;margin-top:4px">i jeszcze ' + (inf.zm.length - 4) + ' zmian</div>';
+  } else d = '<div class="mut" style="font-size:13px">Zapis sprzed włączenia opisów zmian</div>';
+  var name = all ? '<a style="cursor:pointer;text-decoration:underline" onclick="window.wPage(\'' + esc(k.f) + '\')">' + esc(k.nazwa) + '</a> · ' : '';
+  return '<tr><td><b>' + name + 'Zapis ' + esc(k.kiedy) + '</b>' + d + '</td><td class="r" style="vertical-align:top">' + (all ? '' : '<a class="btn sm" onclick="window.wRestore(\'' + esc(k.k) + '\')">Cofnij</a>') + '</td></tr>';
+}
+window.addEventListener('beforeunload', function (e) { if (VIEW === 'www_edit' && WE.dirty) { e.preventDefault(); e.returnValue = ''; } });
 window.wRestore = function (k) {
-  window.ask('Przywrócić wersję?', 'Strona wróci do tej wersji. Obecna też zostanie zapisana w historii, więc nic nie stracisz.', 'Przywróć', function () {
+  window.ask('Cofnąć ten zapis?', 'Strona wróci do stanu sprzed tego zapisu. Obecna wersja też zostanie zapisana w historii, więc nic nie stracisz.', 'Cofnij', function () {
     sapi('', { a: 'przywroc', f: WE.f, k: k }, function () { toast('Przywrócone'); viewWwwEdit(); });
   });
 };
