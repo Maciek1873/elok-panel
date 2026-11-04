@@ -1908,7 +1908,9 @@ function viewWwwKons() {
   sapi('j=kons', null, function (r) {
     var i, h = '<div class="head"><div><h1>Konsultacje</h1><p>Rezerwacje z elok-agency.pl/konsultacja. Każda jest też w Zgłoszeniach. Żeby odwołać i zwolnić termin, daj zgłoszeniu status „Odrzucone”.</p></div></div>';
     var t = '';
-    for (i = 0; i < r.rows.length; i++) { var x = r.rows[i]; t += '<tr><td style="white-space:nowrap"><b>' + esc(x.kiedy) + '</b></td><td>' + esc(x.imie) + '<div class="mut"><a href="mailto:' + esc(x.email) + '">' + esc(x.email) + '</a>' + (x.telefon ? ' · <a href="tel:' + esc(x.telefon.replace(/[^0-9+]/g, '')) + '">' + esc(x.telefon) + '</a>' : '') + '</div>' + (x.opis ? '<div class="mut">' + esc(x.opis.slice(0, 160)) + '</div>' : '') + '</td><td>' + (x.odwolana ? '<span class="pill st-nie">odwołana</span>' : '<span class="pill z-umowione">aktywna</span>') + '</td></tr>'; }
+    for (i = 0; i < r.rows.length; i++) { var x = r.rows[i]; t += '<tr><td style="white-space:nowrap"><b>' + esc(x.kiedy) + '</b></td><td>' + esc(x.imie) + '<div class="mut"><a href="mailto:' + esc(x.email) + '">' + esc(x.email) + '</a>' + (x.telefon ? ' · <a href="tel:' + esc(x.telefon.replace(/[^0-9+]/g, '')) + '">' + esc(x.telefon) + '</a>' : '') + '</div>' + (x.opis ? '<div class="mut">' + esc(x.opis.slice(0, 160)) + '</div>' : '') + '</td><td>' + (x.odwolana ? '<span class="pill st-nie">odwołana</span>' : '<span class="pill z-umowione">aktywna</span>' +
+        '<div style="margin-top:6px">' + (x.forma === 'tel' ? '<span class="pill">telefon</span>' : (x.forma === 'meet' ? '<span class="pill">Google Meet</span>' : '<span class="mut" style="font-size:13px">forma: jeszcze nie wybrał</span>')) + '</div>' +
+        '<a class="btn sm" style="margin-top:8px" onclick="window.wKonsPrzyp(' + (+x.id) + ',this)">' + (+x.przyp1 ? 'Wyślij ponownie' : 'Wyślij teraz') + ': Meet czy telefon?</a>') + '</td></tr>'; }
     h += '<div class="grid g21"><div class="card">' + (t ? '<table class="tbl"><thead><tr><th>Termin</th><th>Kto</th><th>Status</th></tr></thead><tbody>' + t + '</tbody></table>' : '<div class="empty">Brak zaplanowanych konsultacji.</div>') + '</div>';
     h += '<div class="card pad"><h2 class="ct">Ustawienia</h2><label class="f">Stały link do rozmowy (opcjonalnie)</label><input id="w-kl" value="' + esc(r.link) + '" placeholder="https://meet.google.com/abc-defg-hij"><div class="hint">Trafia do maila z potwierdzeniem. Puste = w mailu piszemy, że link wyślesz przed spotkaniem.</div>' +
       '<label class="f">Dni bez konsultacji</label><textarea id="w-kw" rows="3">' + esc(r.wolne) + '</textarea><div class="hint">Daty RRRR-MM-DD po przecinku. Te dni są wyszarzone w kalendarzu. Godziny: pon–pt 9:00–16:30.</div>' +
@@ -1916,6 +1918,11 @@ function viewWwwKons() {
     $('main').innerHTML = h;
   });
 }
+window.wKonsPrzyp = function (id, b) {
+  window.ask('Wysłać maila teraz?', 'Klient dostanie przypomnienie o rozmowie z dwoma przyciskami: Google Meet albo telefon. Jego wybór zobaczysz tutaj i dostaniesz powiadomienie.', 'Wyślij', function () {
+    busy(b, true); sapi('', { a: 'kons_przyp', id: id }, function () { busy(b, false); toast('Wysłane'); viewWwwKons(); }, function () { busy(b, false); });
+  });
+};
 window.wKonsSave = function (b) { busy(b, true); sapi('', { a: 'konsultacje', link: val('w-kl'), wolne: val('w-kw') }, function () { busy(b, false); toast('Zapisane'); }, function () { busy(b, false); }); };
 
 function viewPublikacje() {

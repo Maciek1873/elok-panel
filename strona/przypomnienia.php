@@ -20,10 +20,25 @@ function kp_mail($to, $subject, $tytul, $tresc, $kiedy, $meet, $tel) {
     return send_mail($to, $subject, $html, $txt);
 }
 
+function kp_key($id) { $k = setting('kp_secret'); if ($k === '') { $k = bin2hex(random_bytes(16)); setting_set('kp_secret', $k); } return substr(hash_hmac('sha256', 'r' . (int)$id, $k), 0, 24); }
+function kp_wybor_url($id, $w) { return BASE_URL . '/strona/wybor.php?r=' . (int)$id . '&k=' . kp_key($id) . '&w=' . $w; }
+function kp_btns($id) {
+    $b = function ($url, $t, $dark) { return '<td style="padding:0 8px 8px 0;"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="background:' . ($dark ? '#111111' : '#FFFFFF') . ';border:1px solid #111111;border-radius:10px;"><a href="' . h($url) . '" style="display:inline-block;padding:13px 20px;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:bold;color:' . ($dark ? '#FFFFFF' : '#111111') . ';text-decoration:none;">' . $t . '</a></td></tr></table></td>'; };
+    return '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:14px 0 4px;"><tr>' . $b(kp_wybor_url($id, 'meet'), 'Google Meet', true) . $b(kp_wybor_url($id, 'tel'), 'Rozmowa telefoniczna', false) . '</tr></table>';
+}
+// mail dzień wcześniej: przypomnienie + pytanie, jak woli rozmawiać (Google Meet czy telefon)
+function kp_send1($r, $kiedy, $tel) {
+    $im = explode(' ', trim($r['imie'])); $im = $im[0];
+    $tresc = '<p style="margin:0 0 4px;"><b>Jak woli Pan/Pani porozmawiać?</b> Wystarczy kliknąć jeden przycisk.</p>' . kp_btns($r['id'])
+        . '<p style="margin:10px 0 0;color:#6B675E;font-size:14px;">Google Meet działa w przeglądarce, bez instalowania programów. Przy rozmowie telefonicznej zadzwonimy o umówionej godzinie.</p>';
+    return kp_mail($r['email'], 'Przypomnienie: rozmowa ' . $kiedy, 'Dzień dobry ' . $im . ', przypominamy o naszej rozmowie.', $tresc, $kiedy, '', $tel);
+}
+
 function kons_przyp_run() {
     db()->exec("CREATE TABLE IF NOT EXISTS rezerwacje (id INT AUTO_INCREMENT PRIMARY KEY, termin DATETIME NOT NULL, zgloszenie_id INT NULL, imie VARCHAR(120) NOT NULL DEFAULT '', email VARCHAR(190) NOT NULL DEFAULT '', telefon VARCHAR(60) NOT NULL DEFAULT '', opis TEXT, status VARCHAR(20) NOT NULL DEFAULT 'aktywna', ip VARCHAR(45) NULL, created_at DATETIME NOT NULL, UNIQUE KEY ut (termin)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
     add_col('rezerwacje', 'przyp1', 'TINYINT NOT NULL DEFAULT 0');
     add_col('rezerwacje', 'przyp2', 'TINYINT NOT NULL DEFAULT 0');
+    add_col('rezerwacje', 'forma', "VARCHAR(10) NOT NULL DEFAULT ''");
     $meet = trim(setting('kons_link'));
     $tel = setting('podpis_tel') ?: '455 505 820';
     $D = array('niedziela', 'poniedziałek', 'wtorek', 'środa', 'czwartek', 'piątek', 'sobota');
@@ -37,14 +52,14 @@ function kons_przyp_run() {
         // dzień wcześniej (gdy do rozmowy zostało 3–26 h)
         if (!(int)$r['przyp1'] && $left > 3 * 3600 && time() - strtotime($r['created_at']) < 6 * 3600) { q('UPDATE rezerwacje SET przyp1=1 WHERE id=?', array($r['id'])); }
         elseif (!(int)$r['przyp1'] && $left > 3 * 3600) {
-            $tresc = 'Żeby rozmowa była konkretna, warto mieć pod ręką:<ul style="margin:8px 0 0;padding-left:20px;"><li>co dziś zajmuje Wam najwięcej czasu,</li><li>jakich programów używacie (sklep, faktury, magazyn, kurier),</li><li>ile mniej więcej zamówień lub klientów obsługujecie w miesiącu.</li></ul>' . ($meet === '' ? '<p style="margin:12px 0 0;">Link do rozmowy wyślemy w dniu spotkania.</p>' : '');
-            if (kp_mail($r['email'], 'Przypomnienie: konsultacja ' . $fmt($ts), 'Dzień dobry ' . $im . ', przypominamy o naszej rozmowie.', $tresc, $fmt($ts), $meet, $tel)) $n1++;
+            if (kp_send1($r, $fmt($ts), $tel)) $n1++;
             q('UPDATE rezerwacje SET przyp1=1 WHERE id=?', array($r['id']));
         }
         // godzinę wcześniej
         if (!(int)$r['przyp2'] && $left <= 75 * 60) {
-            if ($meet !== '') kp_mail($r['email'], 'Za godzinę: konsultacja z ELOK', 'Dzień dobry ' . $im . ', widzimy się za około godzinę.', 'Wystarczy kliknąć przycisk powyżej o umówionej godzinie. Działa w przeglądarce, bez instalowania programów.', $fmt($ts), $meet, $tel);
-            push('Konsultacja za godzinę: ' . $r['imie'], date('G:i', $ts) . ($r['telefon'] ? ' · ' . $r['telefon'] : '') . ($r['opis'] ? "\n" . mb_substr($r['opis'], 0, 120) : ''), BASE_URL . '/#zgloszenia');
+            if ($r['forma'] === 'tel') kp_mail($r['email'], 'Za godzinę: rozmowa z ELOK', 'Dzień dobry ' . $im . ', rozmawiamy za około godzinę.', 'Zadzwonimy o umówionej godzinie' . ($r['telefon'] !== '' ? ' na numer <b>' . h($r['telefon']) . '</b>' : '') . '. Wolisz jednak Google Meet? <a href="' . h(kp_wybor_url($r['id'], 'meet')) . '" style="color:#8B6B30;">Kliknij tutaj</a>.', $fmt($ts), '', $tel);
+            elseif ($meet !== '') kp_mail($r['email'], 'Za godzinę: rozmowa z ELOK', 'Dzień dobry ' . $im . ', widzimy się za około godzinę.', 'Wystarczy kliknąć przycisk powyżej o umówionej godzinie. Działa w przeglądarce, bez instalowania programów.', $fmt($ts), $meet, $tel);
+            push('Konsultacja za godzinę: ' . $r['imie'], date('G:i', $ts) . ' · ' . ($r['forma'] === 'tel' ? 'TELEFON ' . $r['telefon'] : ($r['forma'] === 'meet' ? 'Google Meet' : 'forma nie wybrana')) . ($r['opis'] ? "\n" . mb_substr($r['opis'], 0, 120) : ''), BASE_URL . '/#www_kons');
             q('UPDATE rezerwacje SET przyp2=1, przyp1=1 WHERE id=?', array($r['id']));
             $n2++;
         }
