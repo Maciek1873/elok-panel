@@ -4,7 +4,7 @@
 
 var BR = [];          // branże
 var VIEW = '';
-var F = { q: '', branza: 0, status: '', miasto: '', offset: 0, rows: [], total: 0, sel: {}, counts: {}, miasta: [] };
+var F = { q: '', branza: 0, status: '', miasto: '', sort: '', offset: 0, rows: [], total: 0, sel: {}, counts: {}, miasta: [] };
 var ED = { branza: 0, typ: 'pierwszy', data: {}, timer: null };
 
 var ST = {
@@ -291,9 +291,10 @@ function viewFirmy() {
     var h = '<div class="head"><div><h1>Firmy</h1><p id="f-count">&nbsp;</p></div><div class="row">' +
       '<a class="btn" onclick="window.exportCsv()">Eksport CSV</a><a class="btn" onclick="window.importModal()">Importuj</a><a class="btn dark" onclick="window.firmaModal(0)">+ Dodaj firmę</a></div></div>' +
       '<div class="card pad" style="margin-bottom:14px"><div class="row">' +
-      '<input class="grow" id="f-q" placeholder="Szukaj: nazwa, e-mail, miasto, telefon" value="' + esc(F.q) + '" oninput="window.fSearch()">' +
+      '<input class="grow" id="f-q" placeholder="Szukaj: nazwa, e-mail, miasto, telefon (np. 600123456)" value="' + esc(F.q) + '" oninput="window.fSearch()">' +
       '<select id="f-b" style="width:auto;min-width:200px" onchange="window.fFilter()">' + brOptions(F.branza, true) + '</select>' +
-      '<select id="f-m" style="width:auto;min-width:170px" onchange="window.fFilter()"><option value="">Wszystkie miasta</option></select></div>' +
+      '<select id="f-m" style="width:auto;min-width:170px" onchange="window.fFilter()"><option value="">Wszystkie miasta</option></select>' +
+      '<select id="f-s" style="width:auto;min-width:190px" onchange="window.fSort(this.value)"><option value="">Najnowsze dodane</option><option value="wyslane"' + (F.sort === 'wyslane' ? ' selected' : '') + '>Ostatnio wysłane</option><option value="otwarte"' + (F.sort === 'otwarte' ? ' selected' : '') + '>Ostatnio otwarte</option></select></div>' +
       '<div class="chips" id="f-chips" style="margin-top:12px"></div></div>' +
       '<div class="bulk" id="bulk"><b id="bulk-n"></b><span style="flex:1"></span>' +
       '<select id="bk-b"><option value="0">Przenieś do branży…</option>' + brOptions(0, false) + '</select>' +
@@ -309,8 +310,9 @@ var fT = null;
 window.fSearch = function () { clearTimeout(fT); fT = setTimeout(function () { F.q = val('f-q'); F.offset = 0; loadFirmy(); }, 300); };
 window.fFilter = function () { var nb = +val('f-b'); if (nb !== F.branza) F.miasto = ''; else F.miasto = val('f-m'); F.branza = nb; F.offset = 0; loadFirmy(); };
 window.fStatus = function (st) { F.status = st; F.offset = 0; loadFirmy(); };
+window.fSort = function (v) { F.sort = v; F.offset = 0; loadFirmy(); };
 function loadFirmy(more) {
-  api('firmy', { q: F.q, branza: F.branza, status: F.status, miasto: F.miasto || '', offset: more ? F.offset : 0 }, function (r) {
+  api('firmy', { q: F.q, branza: F.branza, status: F.status, miasto: F.miasto || '', sort: F.sort || '', offset: more ? F.offset : 0 }, function (r) {
     F.rows = more ? F.rows.concat(r.rows) : r.rows;
     F.total = r.total; F.offset = r.offset + r.rows.length; F.counts = r.counts; F.miasta = r.miasta;
     renderFirmy();

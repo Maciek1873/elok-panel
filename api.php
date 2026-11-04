@@ -97,7 +97,13 @@ try {
         if (g('status') === 'goracy') $cond[] = array($GOR, array(), true);
         elseif (g('status') && in_array(g('status'), $STATUSY, true)) $cond[] = array('f.status=?', array(g('status')), true);
         if (gs('miasto') !== '') $cond[] = array('f.miasto=?', array(gs('miasto')), false);
-        if (gs('q') !== '') { $s = '%' . gs('q') . '%'; $cond[] = array('(f.nazwa LIKE ? OR f.email LIKE ? OR f.miasto LIKE ? OR f.telefon LIKE ?)', array($s, $s, $s, $s), false); }
+        if (gs('q') !== '') {
+            $s = '%' . gs('q') . '%';
+            // telefon: szukaj po samych cyfrach (bez spacji, myślników, +48), żeby „600 123 456” znalazło „+48600123456”
+            $dg = preg_replace('/\D/', '', gs('q')); if (strlen($dg) > 9 && substr($dg, 0, 2) === '48') $dg = substr($dg, 2);
+            if (strlen($dg) >= 6) $cond[] = array("(f.nazwa LIKE ? OR f.email LIKE ? OR f.miasto LIKE ? OR REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(f.telefon,' ',''),'-',''),'(',''),')',''),'+','') LIKE ?)", array($s, $s, $s, '%' . $dg . '%'), false);
+            else $cond[] = array('(f.nazwa LIKE ? OR f.email LIKE ? OR f.miasto LIKE ? OR f.telefon LIKE ?)', array($s, $s, $s, $s), false);
+        }
         $w = array('1=1'); $p = array(); $wc = array('1=1'); $pc = array();
         foreach ($cond as $c) {
             $w[] = $c[0]; $p = array_merge($p, $c[1]);
@@ -110,7 +116,7 @@ try {
         $total = (int)val("SELECT COUNT(*) FROM firmy f WHERE $where", $p);
         $lim = 100; $off = max(0, (int)g('offset'));
         $rows = all("SELECT f.id,f.nazwa,f.email,f.telefon,f.miasto,f.osoba,f.branza_id,f.status,f.wyslano_at,f.otwarto_at,f.otwarto_last,f.otwarcia,f.przypomnienie_at,f.klik_at,f.zgloszenie_at,f.dodano_at,f.odpisal_at,b.nazwa branza
-            FROM firmy f LEFT JOIN branze b ON b.id=f.branza_id WHERE $where ORDER BY " . (g('status') === 'goracy' ? '(f.klik_at IS NOT NULL) DESC, (f.odpisal_at IS NOT NULL) DESC, f.otwarcia DESC, f.otwarto_last DESC' : 'f.id DESC') . " LIMIT $lim OFFSET $off", $p);
+            FROM firmy f LEFT JOIN branze b ON b.id=f.branza_id WHERE $where ORDER BY " . (g('sort') === 'wyslane' ? "GREATEST(COALESCE(f.wyslano_at,'1970-01-01'),COALESCE(f.przypomnienie_at,'1970-01-01')) DESC, f.id DESC" : (g('sort') === 'otwarte' ? "COALESCE(f.otwarto_last,f.otwarto_at,'1970-01-01') DESC, f.id DESC" : (g('status') === 'goracy' ? '(f.klik_at IS NOT NULL) DESC, (f.odpisal_at IS NOT NULL) DESC, f.otwarcia DESC, f.otwarto_last DESC' : 'f.id DESC'))) . " LIMIT $lim OFFSET $off", $p);
         $miasta = all("SELECT miasto, COUNT(*) n FROM firmy WHERE miasto<>''" . ((int)g('branza') ? ' AND branza_id=' . (int)g('branza') : '') . " GROUP BY miasto ORDER BY n DESC, miasto LIMIT 300");
         out(array('rows' => $rows, 'total' => $total, 'offset' => $off, 'lim' => $lim, 'counts' => $counts, 'miasta' => $miasta));
 
