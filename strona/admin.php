@@ -217,6 +217,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         sa_gh_put(sa_rel($path), $hh, 'przywrócona wersja ' . sa_rel($path));
         echo json_encode(array('ok' => true)); exit;
     }
+    if ($act === 'kons_przyp') { // ręcznie: wyślij teraz przypomnienie z pytaniem Meet czy telefon
+        require_once __DIR__ . '/przypomnienia.php';
+        add_col('rezerwacje', 'forma', "VARCHAR(10) NOT NULL DEFAULT ''"); add_col('rezerwacje', 'przyp1', 'TINYINT NOT NULL DEFAULT 0');
+        $r = one('SELECT * FROM rezerwacje WHERE id=?', array((int)(isset($in['id']) ? $in['id'] : 0)));
+        if (!$r || strtotime($r['termin']) < time()) $fail('Nie ma takiej nadchodzącej konsultacji.');
+        if (!kp_send1($r, st_kiedy(strtotime($r['termin'])), setting('podpis_tel') ?: '455 505 820')) $fail('Nie udało się wysłać maila.');
+        q('UPDATE rezerwacje SET przyp1=1 WHERE id=?', array($r['id']));
+        logi(null, 'strona', 'Przypomnienie Meet/telefon: ' . $r['email']);
+        echo json_encode(array('ok' => true)); exit;
+    }
     if ($act === 'podlaczenia') {
         $v = isset($in['v']) && is_array($in['v']) ? $in['v'] : array();
         foreach ($INTEG as $k => $x) { $s = trim((string)(isset($v[$k]) ? $v[$k] : '')); if ($s !== '' && !preg_match($x[1], $s)) $fail('Sprawdź pole: ' . $x[0]); setting_set('int_' . $k, $s); }
@@ -337,7 +347,8 @@ if ($j === 'podl') {
 }
 if ($j === 'kons') {
     db()->exec("CREATE TABLE IF NOT EXISTS rezerwacje (id INT AUTO_INCREMENT PRIMARY KEY, termin DATETIME NOT NULL, zgloszenie_id INT NULL, imie VARCHAR(120) NOT NULL DEFAULT '', email VARCHAR(190) NOT NULL DEFAULT '', telefon VARCHAR(60) NOT NULL DEFAULT '', opis TEXT, status VARCHAR(20) NOT NULL DEFAULT 'aktywna', ip VARCHAR(45) NULL, created_at DATETIME NOT NULL, UNIQUE KEY ut (termin)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-    $R = all("SELECT r.termin, r.imie, r.email, r.telefon, r.opis, r.zgloszenie_id, z.status zst FROM rezerwacje r LEFT JOIN zgloszenia z ON z.id=r.zgloszenie_id WHERE r.termin>=? ORDER BY r.termin LIMIT 100", array(date('Y-m-d 00:00:00')));
+    add_col('rezerwacje', 'forma', "VARCHAR(10) NOT NULL DEFAULT ''"); add_col('rezerwacje', 'przyp1', 'TINYINT NOT NULL DEFAULT 0');
+    $R = all("SELECT r.id, r.forma, r.przyp1, r.termin, r.imie, r.email, r.telefon, r.opis, r.zgloszenie_id, z.status zst FROM rezerwacje r LEFT JOIN zgloszenia z ON z.id=r.zgloszenie_id WHERE r.termin>=? ORDER BY r.termin LIMIT 100", array(date('Y-m-d 00:00:00')));
     foreach ($R as $k => $r) { $R[$k]['kiedy'] = st_kiedy(strtotime($r['termin'])); $R[$k]['odwolana'] = ($r['zst'] === 'odrzucone' || $r['zst'] === null); }
     jout(array('rows' => $R, 'link' => setting('kons_link'), 'wolne' => str_replace(',', ', ', setting('kons_wolne', '2026-11-11,2026-12-24,2026-12-25,2026-12-26,2026-12-31,2027-01-01,2027-01-06'))));
 }
