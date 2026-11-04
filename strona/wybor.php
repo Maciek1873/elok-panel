@@ -51,7 +51,7 @@ if ($w === 'meet') {
     wb_zapisz($r, 'meet', '', $kiedy);
     wb_page('Dziękujemy, rozmawiamy przez Google Meet', $box . '<p>Godzinę przed rozmową wyślemy maila z przyciskiem do dołączenia. Kamera nie jest potrzebna, wystarczy mikrofon.</p>'
         . ($meet !== '' ? '<p>Link do rozmowy możesz też zapisać już teraz:</p><p><a class="btn" href="' . h($meet) . '">Link do Google Meet</a></p>' : '')
-        . '<p style="font-size:14px;color:#6B675E">Wolisz jednak telefon? <a href="' . h($self) . '&w=tel" style="color:#8B6B30">Kliknij tutaj</a>.</p>');
+        . '<p style="font-size:14px;color:#6B675E">Woli Pan/Pani jednak telefon? <a href="' . h($self) . '&w=tel" style="color:#8B6B30">Kliknij tutaj</a>.</p>');
 }
 if ($w === 'tel') {
     $nr = isset($_POST['tel']) ? mb_substr(trim(preg_replace('/[^0-9+ ()-]/', '', (string)$_POST['tel'])), 0, 30) : '';
@@ -66,4 +66,4 @@ if ($w === 'tel') {
     wb_page('Pod jaki numer zadzwonić?', $box . ($nr !== '' ? '<p style="color:#9E2F1C">Sprawdź numer – powinien mieć co najmniej 9 cyfr.</p>' : '')
         . '<form method="post" action="' . h($self) . '&w=tel"><input name="tel" type="tel" inputmode="tel" autocomplete="tel" placeholder="np. 600 123 456" value="' . h($r['telefon']) . '" required><button class="btn" type="submit">Zapisz numer</button></form>');
 }
-wb_page('Jak wolisz porozmawiać?', $box . '<p><a class="btn" href="' . h($self) . '&w=meet">Google Meet</a> &nbsp; <a class="btn l" href="' . h($self) . '&w=tel">Telefon</a></p>');
+wb_page('Jak woli Pan/Pani porozmawiać?', $box . '<p><a class="btn" href="' . h($self) . '&w=meet">Google Meet</a> &nbsp; <a class="btn l" href="' . h($self) . '&w=tel">Telefon</a></p>');
