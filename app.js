@@ -1845,7 +1845,7 @@ function viewWwwEdit() {
         '<div><label class="f" style="margin-top:0">Tytuł w Google <span class="wcnt" id="w-ct"></span></label><input id="w-t" value="' + esc(r.title) + '" oninput="window.wCnt();window.edChanged()"></div>' +
         '<div><label class="f" style="margin-top:0">Opis w Google <span class="wcnt" id="w-cd"></span></label><input id="w-d" value="' + esc(r.desc) + '" oninput="window.wCnt();window.edChanged()"></div></div>' +
         '<div class="hint">Tytuł: 30–60 znaków, najważniejsza fraza na początku. Opis: 70–155 znaków, zachęta do kliknięcia. Tak to wygląda w Google:</div>' +
-        '<div class="wgp"><div class="u">elok-agency.pl' + (WE.f === 'index.html' ? '' : ' › ' + esc(WE.f.replace('.html', ''))) + '</div><div class="t" id="w-gt"></div><div class="d" id="w-gd"></div></div></div>';
+        '<div class="wgp"><div class="u">elok-agency.pl' + (WE.f === 'index.html' ? '' : ' › ' + esc(WE.f.replace('/index.html', '').replace('.html', ''))) + '</div><div class="t" id="w-gt"></div><div class="d" id="w-gd"></div></div></div>';
       h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;gap:10px;flex-wrap:wrap"><div class="chips"><a class="chip on" onclick="window.wDev(this,\'100%\')">Komputer</a><a class="chip" onclick="window.wDev(this,\'390px\')">Telefon</a></div><span class="hint" style="margin:0">Enter = koniec edycji tekstu. Linki i przyciski w podglądzie nie działają, żeby dało się je edytować.</span></div>';
       h += '<div class="wfr"><iframe id="w-ifr" src="strona/admin.php?t=podglad&amp;f=' + encodeURIComponent(WE.f) + '" title="Podgląd strony do edycji"></iframe></div>';
       var kp = '';
