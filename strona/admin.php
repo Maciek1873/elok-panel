@@ -91,11 +91,26 @@ function sa_apply($html, $zm) {
 function sa_backup($path) {
     $d = __DIR__ . '/kopie'; if (!is_dir($d)) { @mkdir($d, 0755, true); @file_put_contents($d . '/.htaccess', "Require all denied\n"); }
     $b = basename($path, '.html');
-    @copy($path, $d . '/' . $b . '__' . date('Y-m-d_H-i-s') . '.html');
+    $name = $b . '__' . date('Y-m-d_H-i-s') . '.html';
+    @copy($path, $d . '/' . $name);
     $all = glob($d . '/' . $b . '__*.html'); rsort($all);
-    foreach (array_slice($all, 20) as $old) @unlink($old);
+    foreach (array_slice($all, 50) as $old) { @unlink($old); @unlink(substr($old, 0, -5) . '.json'); }
+    return $name;
 }
-function sa_backups($f) { $b = basename($f, '.html'); $all = glob(__DIR__ . '/kopie/' . $b . '__*.html'); rsort($all); return array_slice($all, 0, 20); }
+function sa_backups($f) { $b = basename($f, '.html'); $all = glob(__DIR__ . '/kopie/' . $b . '__*.html'); rsort($all); return array_slice($all, 0, 50); }
+// opis zapisu: co zmieniono (było → jest), zapisany obok kopii sprzed zapisu
+function sa_txt($s) { return trim(preg_replace('/\s+/u', ' ', html_entity_decode(strip_tags((string)$s), ENT_QUOTES, 'UTF-8'))); }
+function sa_diff($html, $zm) {
+    $t = sa_tokens($html); $in = false; $n = 0; $out = array();
+    foreach ($t as $k => $s) {
+        if ($k % 2 === 1) { if (stripos($s, '<body') === 0) $in = true; continue; }
+        if (sa_editable($s, $in)) { if (isset($zm[(string)$n])) { $a = sa_txt($s); $b = sa_txt($zm[(string)$n]); if ($b !== '' && $a !== $b) $out[] = array(mb_substr($a, 0, 300), mb_substr($b, 0, 300)); } $n++; }
+    }
+    return $out;
+}
+function sa_note($backup, $info) { if ($backup) @file_put_contents(__DIR__ . '/kopie/' . substr($backup, 0, -5) . '.json', json_encode($info, JSON_UNESCAPED_UNICODE)); }
+function sa_info($bn) { $f = __DIR__ . '/kopie/' . substr($bn, 0, -5) . '.json'; $j = is_file($f) ? json_decode((string)file_get_contents($f), true) : null; return is_array($j) ? $j : array(); }
+function sa_kiedy($bn) { return preg_match('/__(\d{4})-(\d\d)-(\d\d)_(\d\d)-(\d\d)/', $bn, $m) ? $m[3] . '.' . $m[2] . '.' . $m[1] . ' ' . $m[4] . ':' . $m[5] : ''; }
 function sa_write($path, $html) { $tmp = $path . '.tmp' . mt_rand(); if (@file_put_contents($tmp, $html) === false) return false; return @rename($tmp, $path); }
 
 // ---------- podłączenia: ustawienia.js + kody weryfikacyjne ----------
@@ -177,7 +192,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (preg_match('#<meta name="description" content="[^"]*">#', $h2)) $h2 = preg_replace('#<meta name="description" content="[^"]*">#', '<meta name="description" content="' . $e . '">', $h2, 1); else $h2 = preg_replace('#</title>#', '</title><meta name="description" content="' . $e . '">', $h2, 1);
             $h2 = preg_replace('#<meta property="og:description" content="[^"]*">#', '<meta property="og:description" content="' . $e . '">', $h2, 1); $c++; } }
         if ($h2 === $h) { echo json_encode(array('ok' => true, 'zmiany' => 0)); exit; }
-        sa_backup($path);
+        $diff = sa_diff($h, $zm);
+        if (sa_title($h2) !== sa_title($h)) $diff[] = array('Tytuł w Google: ' . sa_title($h), 'Tytuł w Google: ' . sa_title($h2));
+        if (sa_desc($h2) !== sa_desc($h)) $diff[] = array('Opis w Google: ' . sa_desc($h), 'Opis w Google: ' . sa_desc($h2));
+        sa_note(sa_backup($path), array('typ' => 'zapis', 'zm' => $diff, 'ip' => isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : ''));
         if (!sa_write($path, $h2)) $fail('Nie udało się zapisać pliku (brak uprawnień?).');
         logi(null, 'strona', 'Edycja ' . basename($path) . ' (' . $c . ' zmian)');
         sa_gh_put(basename($path), $h2, 'edycja tekstów ' . basename($path));
@@ -187,7 +205,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $path = sa_file(isset($in['f']) ? $in['f'] : ''); if ($path === '') $fail('Nie ma takiej strony.');
         $k = basename((string)(isset($in['k']) ? $in['k'] : '')); $src = __DIR__ . '/kopie/' . $k;
         if (!preg_match('/^[a-z0-9-]+__[0-9_-]+\.html$/', $k) || strpos($k, basename($path, '.html') . '__') !== 0 || !is_file($src)) $fail('Nie ma takiej kopii.');
-        sa_backup($path); $hh = file_get_contents($src); if (!sa_write($path, $hh)) $fail('Nie udało się przywrócić.');
+        sa_note(sa_backup($path), array('typ' => 'przywrocenie', 'z' => sa_kiedy($k))); $hh = file_get_contents($src); if (!sa_write($path, $hh)) $fail('Nie udało się przywrócić.');
         sa_gh_put(basename($path), $hh, 'przywrócona wersja ' . basename($path));
         echo json_encode(array('ok' => true)); exit;
     }
@@ -296,8 +314,13 @@ if ($j === 'strony') {
 if ($j === 'strona') {
     $path = sa_file(isset($_GET['f']) ? $_GET['f'] : ''); if ($path === '') { echo json_encode(array('ok' => false, 'error' => 'Nie ma takiej strony')); exit; }
     $h = file_get_contents($path); $k = array();
-    foreach (sa_backups(basename($path)) as $b) { $bn = basename($b); if (preg_match('/__(\d{4})-(\d\d)-(\d\d)_(\d\d)-(\d\d)/', $bn, $m)) $k[] = array('k' => $bn, 'kiedy' => $m[3] . '.' . $m[2] . '.' . $m[1] . ' ' . $m[4] . ':' . $m[5]); }
+    foreach (sa_backups(basename($path)) as $b) { $bn = basename($b); $kd = sa_kiedy($bn); if ($kd !== '') $k[] = array('k' => $bn, 'kiedy' => $kd, 'info' => sa_info($bn)); }
     jout(array('f' => basename($path), 'title' => sa_title($h), 'desc' => sa_desc($h), 'kopie' => $k));
+}
+if ($j === 'historia') {
+    $all = glob(__DIR__ . '/kopie/*__*.html'); usort($all, function ($a, $b) { return strcmp(substr(basename($b), strpos(basename($b), '__')), substr(basename($a), strpos(basename($a), '__'))); });
+    $o = array(); foreach (array_slice($all, 0, 60) as $b) { $bn = basename($b); $f = substr($bn, 0, strpos($bn, '__')) . '.html'; $o[] = array('k' => $bn, 'f' => $f, 'nazwa' => pname('/' . $f), 'kiedy' => sa_kiedy($bn), 'info' => sa_info($bn)); }
+    jout(array('h' => $o));
 }
 if ($j === 'podl') {
     $a = array(); foreach ($INTEG as $k => $x) $a[] = array('k' => $k, 'label' => $x[0], 'hint' => $x[2], 'v' => setting('int_' . $k));
