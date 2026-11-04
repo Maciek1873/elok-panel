@@ -26,7 +26,7 @@ function sa_url() { if (ELOK_TEST) return 'https://test.elok-agency.pl'; $u = tr
 function sa_gh_put($file, $content, $msg) {
     $tok = trim(setting('gh_token')); if ($tok === '' || !function_exists('curl_init')) return false;
     $branch = ELOK_TEST ? 'test' : 'main';
-    $url = 'https://api.github.com/repos/Maciek1873/elok-strona/contents/' . rawurlencode($file);
+    $url = 'https://api.github.com/repos/Maciek1873/elok-strona/contents/' . implode('/', array_map('rawurlencode', explode('/', $file)));
     $call = function ($m, $u, $body) use ($tok) {
         $c = curl_init($u); $h = array('Authorization: Bearer ' . $tok, 'Accept: application/vnd.github+json', 'User-Agent: ELOK-Panel', 'X-GitHub-Api-Version: 2022-11-28');
         if ($body !== null) { $h[] = 'Content-Type: application/json'; curl_setopt($c, CURLOPT_POSTFIELDS, json_encode($body)); }
@@ -41,10 +41,17 @@ function sa_gh_put($file, $content, $msg) {
     return $code2 === 200 || $code2 === 201;
 }
 function sa_file($f) {
-    $f = basename((string)$f);
+    $f = ltrim(str_replace('\\', '/', (string)$f), '/');
+    $d = sa_dir(); if ($d === '') return '';
+    // landing page w podkatalogu: <nazwa>/index.html (rozpoznawany po lp.css)
+    if (preg_match('#^([a-z0-9-]+)/index\.html$#', $f, $m)) { $p = $d . '/' . $m[1] . '/index.html'; return (is_file($p) && strpos((string)@file_get_contents($p, false, null, 0, 4000), 'lp.css') !== false) ? $p : ''; }
+    $f = basename($f);
     if (!preg_match('/^[a-z0-9-]+\.html$/', $f) || $f === '404.html' || $f === 'demo.html') return '';
-    $d = sa_dir(); return ($d !== '' && is_file($d . '/' . $f)) ? $d . '/' . $f : '';
+    return is_file($d . '/' . $f) ? $d . '/' . $f : '';
 }
+function sa_rel($path) { $d = sa_dir(); return ($d !== '' && strpos($path, $d . '/') === 0) ? substr($path, strlen($d) + 1) : basename($path); }
+function sa_key($rel) { return str_replace(array('/', '.html'), array('--', ''), $rel); }
+function sa_unkey($k) { return str_replace('--', '/', $k) . '.html'; }
 function sa_pages() {
     $d = sa_dir(); if ($d === '') return array();
     $o = array();
@@ -52,6 +59,7 @@ function sa_pages() {
     usort($o, function ($a, $b) { $w = array('index.html' => 0, 'automatyzacje.html' => 1, 'strony.html' => 2, 'marketing.html' => 3, 'realizacje.html' => 4, 'cennik.html' => 5, 'o-nas.html' => 6, 'kontakt.html' => 7, 'konsultacja.html' => 8);
         $x = isset($w[$a]) ? $w[$a] : (strpos($a, 'realizacja-') === 0 ? 20 : (strpos($a, 'blog') === 0 ? 30 : 40)); $y = isset($w[$b]) ? $w[$b] : (strpos($b, 'realizacja-') === 0 ? 20 : (strpos($b, 'blog') === 0 ? 30 : 40));
         return $x === $y ? strcmp($a, $b) : $x - $y; });
+    foreach (glob($d . '/*/index.html') as $p) { $r = basename(dirname($p)) . '/index.html'; if (sa_file($r) !== '') $o[] = $r; }
     return $o;
 }
 function sa_title($html) { return preg_match('#<title>(.*?)</title>#s', $html, $m) ? html_entity_decode($m[1], ENT_QUOTES, 'UTF-8') : ''; }
@@ -90,14 +98,14 @@ function sa_apply($html, $zm) {
 }
 function sa_backup($path) {
     $d = __DIR__ . '/kopie'; if (!is_dir($d)) { @mkdir($d, 0755, true); @file_put_contents($d . '/.htaccess', "Require all denied\n"); }
-    $b = basename($path, '.html');
+    $b = sa_key(sa_rel($path));
     $name = $b . '__' . date('Y-m-d_H-i-s') . '.html';
     @copy($path, $d . '/' . $name);
     $all = glob($d . '/' . $b . '__*.html'); rsort($all);
     foreach (array_slice($all, 50) as $old) { @unlink($old); @unlink(substr($old, 0, -5) . '.json'); }
     return $name;
 }
-function sa_backups($f) { $b = basename($f, '.html'); $all = glob(__DIR__ . '/kopie/' . $b . '__*.html'); rsort($all); return array_slice($all, 0, 50); }
+function sa_backups($f) { $b = sa_key($f); $all = glob(__DIR__ . '/kopie/' . $b . '__*.html'); rsort($all); return array_slice($all, 0, 50); }
 // opis zapisu: co zmieniono (było → jest), zapisany obok kopii sprzed zapisu
 function sa_txt($s) { return trim(preg_replace('/\s+/u', ' ', html_entity_decode(strip_tags((string)$s), ENT_QUOTES, 'UTF-8'))); }
 function sa_diff($html, $zm) {
@@ -170,7 +178,7 @@ function sa_source($s, $m, $r) {
     if (preg_match('/elok-agency\.pl$/', $r)) return 'Panel / e-mail ELOK';
     return $r;
 }
-$PNAME = array('/index.html' => 'Strona główna', '/automatyzacje.html' => 'Automatyzacje', '/strony.html' => 'Strony i sklepy', '/marketing.html' => 'Marketing', '/realizacje.html' => 'Case studies', '/cennik.html' => 'Cennik', '/o-nas.html' => 'O nas', '/kontakt.html' => 'Kontakt', '/konsultacja.html' => 'Konsultacja', '/blog.html' => 'Blog', '/realizacja-serwis.html' => 'Case: serwis', '/realizacja-sklep.html' => 'Case: sklep', '/realizacja-panel.html' => 'Case: panel', '/polityka-prywatnosci.html' => 'Polityka prywatności');
+$PNAME = array('/index.html' => 'Strona główna', '/strona-dla-firmy/index.html' => 'Landing: strona dla firmy', '/sklep-internetowy/index.html' => 'Landing: sklep internetowy', '/automatyzacja-ai/index.html' => 'Landing: automatyzacja i AI', '/automatyzacje.html' => 'Automatyzacje', '/strony.html' => 'Strony i sklepy', '/marketing.html' => 'Marketing', '/realizacje.html' => 'Case studies', '/cennik.html' => 'Cennik', '/o-nas.html' => 'O nas', '/kontakt.html' => 'Kontakt', '/konsultacja.html' => 'Konsultacja', '/blog.html' => 'Blog', '/realizacja-serwis.html' => 'Case: serwis', '/realizacja-sklep.html' => 'Case: sklep', '/realizacja-panel.html' => 'Case: panel', '/polityka-prywatnosci.html' => 'Polityka prywatności');
 function st_kiedy($ts) { $D = array('nd', 'pon', 'wt', 'śr', 'czw', 'pt', 'sob'); return $D[(int)date('w', $ts)] . ' ' . date('d.m', $ts) . ', ' . date('G:i', $ts); }
 function pname($p) { global $PNAME; return isset($PNAME[$p]) ? $PNAME[$p] : preg_replace('#^/|\.html$#', '', $p); }
 
@@ -197,16 +205,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (sa_desc($h2) !== sa_desc($h)) $diff[] = array('Opis w Google: ' . sa_desc($h), 'Opis w Google: ' . sa_desc($h2));
         sa_note(sa_backup($path), array('typ' => 'zapis', 'zm' => $diff, 'ip' => isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : ''));
         if (!sa_write($path, $h2)) $fail('Nie udało się zapisać pliku (brak uprawnień?).');
-        logi(null, 'strona', 'Edycja ' . basename($path) . ' (' . $c . ' zmian)');
-        sa_gh_put(basename($path), $h2, 'edycja tekstów ' . basename($path));
+        logi(null, 'strona', 'Edycja ' . sa_rel($path) . ' (' . $c . ' zmian)');
+        sa_gh_put(sa_rel($path), $h2, 'edycja tekstów ' . sa_rel($path));
         echo json_encode(array('ok' => true, 'zmiany' => $c)); exit;
     }
     if ($act === 'przywroc') {
         $path = sa_file(isset($in['f']) ? $in['f'] : ''); if ($path === '') $fail('Nie ma takiej strony.');
         $k = basename((string)(isset($in['k']) ? $in['k'] : '')); $src = __DIR__ . '/kopie/' . $k;
-        if (!preg_match('/^[a-z0-9-]+__[0-9_-]+\.html$/', $k) || strpos($k, basename($path, '.html') . '__') !== 0 || !is_file($src)) $fail('Nie ma takiej kopii.');
+        if (!preg_match('/^[a-z0-9-]+__[0-9_-]+\.html$/', $k) || strpos($k, sa_key(sa_rel($path)) . '__') !== 0 || !is_file($src)) $fail('Nie ma takiej kopii.');
         sa_note(sa_backup($path), array('typ' => 'przywrocenie', 'z' => sa_kiedy($k))); $hh = file_get_contents($src); if (!sa_write($path, $hh)) $fail('Nie udało się przywrócić.');
-        sa_gh_put(basename($path), $hh, 'przywrócona wersja ' . basename($path));
+        sa_gh_put(sa_rel($path), $hh, 'przywrócona wersja ' . sa_rel($path));
         echo json_encode(array('ok' => true)); exit;
     }
     if ($act === 'podlaczenia') {
@@ -237,7 +245,7 @@ if ($t === 'podglad') {
     $path = sa_file(isset($_GET['f']) ? $_GET['f'] : ''); if ($path === '') { http_response_code(404); exit('Brak strony'); }
     header('Content-Type: text/html; charset=utf-8');
     $h = sa_annotate(file_get_contents($path));
-    $h = preg_replace('#<script\b[^>]*src="(site|ustawienia)\.js[^"]*"[^>]*></script>#', '', $h);
+    $h = preg_replace('#<script\b[^>]*src="/?(site|ustawienia|lp)\.js[^"]*"[^>]*></script>#', '', $h);
     $h = preg_replace('#<head>#', '<head><base href="' . h(sa_url()) . '/">', $h, 1);
     $css = @file_get_contents(sa_dir() . '/site.css');
     if ($css !== false) $h = preg_replace('#<link rel="stylesheet" href="site\.css[^"]*">#', '<style>' . str_replace(array('\\', '$'), array('\\\\', '\\$'), $css) . '</style>', $h, 1);
@@ -314,12 +322,12 @@ if ($j === 'strony') {
 if ($j === 'strona') {
     $path = sa_file(isset($_GET['f']) ? $_GET['f'] : ''); if ($path === '') { echo json_encode(array('ok' => false, 'error' => 'Nie ma takiej strony')); exit; }
     $h = file_get_contents($path); $k = array();
-    foreach (sa_backups(basename($path)) as $b) { $bn = basename($b); $kd = sa_kiedy($bn); if ($kd !== '') $k[] = array('k' => $bn, 'kiedy' => $kd, 'info' => sa_info($bn)); }
-    jout(array('f' => basename($path), 'title' => sa_title($h), 'desc' => sa_desc($h), 'kopie' => $k));
+    foreach (sa_backups(sa_rel($path)) as $b) { $bn = basename($b); $kd = sa_kiedy($bn); if ($kd !== '') $k[] = array('k' => $bn, 'kiedy' => $kd, 'info' => sa_info($bn)); }
+    jout(array('f' => sa_rel($path), 'title' => sa_title($h), 'desc' => sa_desc($h), 'kopie' => $k));
 }
 if ($j === 'historia') {
     $all = glob(__DIR__ . '/kopie/*__*.html'); usort($all, function ($a, $b) { return strcmp(substr(basename($b), strpos(basename($b), '__')), substr(basename($a), strpos(basename($a), '__'))); });
-    $o = array(); foreach (array_slice($all, 0, 60) as $b) { $bn = basename($b); $f = substr($bn, 0, strpos($bn, '__')) . '.html'; $o[] = array('k' => $bn, 'f' => $f, 'nazwa' => pname('/' . $f), 'kiedy' => sa_kiedy($bn), 'info' => sa_info($bn)); }
+    $o = array(); foreach (array_slice($all, 0, 60) as $b) { $bn = basename($b); $f = sa_unkey(substr($bn, 0, strpos($bn, '__'))); $o[] = array('k' => $bn, 'f' => $f, 'nazwa' => pname('/' . $f), 'kiedy' => sa_kiedy($bn), 'info' => sa_info($bn)); }
     jout(array('h' => $o));
 }
 if ($j === 'podl') {
