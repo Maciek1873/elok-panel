@@ -13,10 +13,10 @@ function kp_mail($to, $subject, $tytul, $tresc, $kiedy, $meet, $tel) {
         . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F7F4EC;border-radius:12px;margin:8px 0 6px;"><tr><td style="padding:14px 18px;"><div style="font-size:12px;letter-spacing:1px;color:#8B6B30;font-weight:bold;text-transform:uppercase;">Termin</div><div style="font-size:18px;font-weight:bold;">' . h($kiedy) . '</div></td></tr></table>'
         . $btn
         . '<div style="font-size:15px;line-height:1.6;color:#3A3832;margin-top:16px;">' . $tresc . '</div>'
-        . '<div style="font-size:14px;line-height:1.6;color:#3A3832;margin-top:16px;">Zmiana terminu: odpisz na tę wiadomość albo zadzwoń: <b>' . h($tel) . '</b>.</div>'
+        . '<div style="font-size:14px;line-height:1.6;color:#3A3832;margin-top:16px;">Zmiana terminu? Wystarczy odpisać na tę wiadomość albo zadzwonić: <b>' . h($tel) . '</b>.</div>'
         . '<div style="font-size:14px;color:#3A3832;margin-top:20px;">Do usłyszenia,<br><b>Zespół ELOK</b><br><a href="https://elok-agency.pl" style="color:#8B6B30;">elok-agency.pl</a></div>'
         . '</td></tr></table></td></tr></table></body></html>';
-    $txt = $tytul . "\n\nTermin: " . $kiedy . "\n" . ($meet !== '' ? "Link do rozmowy: " . $meet . "\n" : '') . "\n" . strip_tags(str_replace(array('<br>', '</li>'), "\n", $tresc)) . "\n\nZmiana terminu: odpisz lub zadzwoń " . $tel . "\n\nZespół ELOK\nhttps://elok-agency.pl";
+    $txt = $tytul . "\n\nTermin: " . $kiedy . "\n" . ($meet !== '' ? "Link do rozmowy: " . $meet . "\n" : '') . "\n" . strip_tags(str_replace(array('<br>', '</li>'), "\n", $tresc)) . "\n\nZmiana terminu? Wystarczy odpisać albo zadzwonić: " . $tel . "\n\nZespół ELOK\nhttps://elok-agency.pl";
     return send_mail($to, $subject, $html, $txt);
 }
 
@@ -24,7 +24,7 @@ function kp_note($zid, $txt) { if (!$zid) return; $z = one('SELECT notatka FROM 
 function kp_key($id) { $k = setting('kp_secret'); if ($k === '') { $k = bin2hex(random_bytes(16)); setting_set('kp_secret', $k); } return substr(hash_hmac('sha256', 'r' . (int)$id, $k), 0, 24); }
 function kp_wybor_url($id, $w) { return BASE_URL . '/strona/wybor.php?r=' . (int)$id . '&k=' . kp_key($id) . '&w=' . $w; }
 function kp_btns($id) {
-    $b = function ($url, $t, $dark) { return '<td style="padding:0 8px 8px 0;"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="background:' . ($dark ? '#111111' : '#FFFFFF') . ';border:1px solid #111111;border-radius:10px;"><a href="' . h($url) . '" style="display:inline-block;padding:13px 20px;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:bold;color:' . ($dark ? '#FFFFFF' : '#111111') . ';text-decoration:none;">' . $t . '</a></td></tr></table></td>'; };
+    $b = function ($url, $t, $dark) { return '<td style="padding:0 8px 8px 0;"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="background:' . ($dark ? '#111111' : '#FFFFFF') . ';border:1px solid #111111;border-radius:10px;"><a href="' . h($url) . '" style="display:inline-block;padding:13px 20px;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:bold;color:' . ($dark ? '#FFFFFF' : '#111111') . ';text-decoration:none;white-space:nowrap;">' . $t . '</a></td></tr></table></td>'; };
     return '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:14px 0 4px;"><tr>' . $b(kp_wybor_url($id, 'meet'), 'Google Meet', true) . $b(kp_wybor_url($id, 'tel'), 'Rozmowa telefoniczna', false) . '</tr></table>';
 }
 // mail dzień wcześniej: przypomnienie + pytanie, jak woli rozmawiać (Google Meet czy telefon)
@@ -32,7 +32,7 @@ function kp_send1($r, $kiedy, $tel) {
     $im = explode(' ', trim($r['imie'])); $im = $im[0];
     $tresc = '<p style="margin:0 0 4px;"><b>Jak woli Pan/Pani porozmawiać?</b> Wystarczy kliknąć jeden przycisk.</p>' . kp_btns($r['id'])
         . '<p style="margin:10px 0 0;color:#6B675E;font-size:14px;">Google Meet działa w przeglądarce, bez instalowania programów. Przy rozmowie telefonicznej zadzwonimy o umówionej godzinie.</p>';
-    $ok = kp_mail($r['email'], 'Przypomnienie: rozmowa ' . $kiedy, 'Dzień dobry ' . $im . ', przypominamy o naszej rozmowie.', $tresc, $kiedy, '', $tel);
+    $ok = kp_mail($r['email'], 'Przypomnienie: rozmowa ' . $kiedy, 'Dzień dobry, przypominamy o naszej rozmowie.', $tresc, $kiedy, '', $tel);
     kp_note($r['zgloszenie_id'], ($ok ? 'wysłano' : 'BŁĄD wysyłki') . ' przypomnienie z pytaniem Meet czy telefon');
     return $ok;
 }
@@ -61,8 +61,8 @@ function kons_przyp_run() {
         // godzinę wcześniej
         if (!(int)$r['przyp2'] && $left <= 75 * 60) {
             kp_note($r['zgloszenie_id'], 'wysłano przypomnienie godzinę przed (' . ($r['forma'] === 'tel' ? 'telefon' : 'link do Meet') . ')');
-            if ($r['forma'] === 'tel') kp_mail($r['email'], 'Za godzinę: rozmowa z ELOK', 'Dzień dobry ' . $im . ', rozmawiamy za około godzinę.', 'Zadzwonimy o umówionej godzinie' . ($r['telefon'] !== '' ? ' na numer <b>' . h($r['telefon']) . '</b>' : '') . '. Wolisz jednak Google Meet? <a href="' . h(kp_wybor_url($r['id'], 'meet')) . '" style="color:#8B6B30;">Kliknij tutaj</a>.', $fmt($ts), '', $tel);
-            elseif ($meet !== '') kp_mail($r['email'], 'Za godzinę: rozmowa z ELOK', 'Dzień dobry ' . $im . ', widzimy się za około godzinę.', 'Wystarczy kliknąć przycisk powyżej o umówionej godzinie. Działa w przeglądarce, bez instalowania programów.', $fmt($ts), $meet, $tel);
+            if ($r['forma'] === 'tel') kp_mail($r['email'], 'Za godzinę: rozmowa z ELOK', 'Dzień dobry, rozmawiamy za około godzinę.', 'Zadzwonimy o umówionej godzinie' . ($r['telefon'] !== '' ? ' na numer <b>' . h($r['telefon']) . '</b>' : '') . '. Woli Pan/Pani jednak Google Meet? <a href="' . h(kp_wybor_url($r['id'], 'meet')) . '" style="color:#8B6B30;">Kliknij tutaj</a>.', $fmt($ts), '', $tel);
+            elseif ($meet !== '') kp_mail($r['email'], 'Za godzinę: rozmowa z ELOK', 'Dzień dobry, widzimy się za około godzinę.', 'Wystarczy kliknąć przycisk powyżej o umówionej godzinie. Działa w przeglądarce, bez instalowania programów.', $fmt($ts), $meet, $tel);
             push('Konsultacja za godzinę: ' . $r['imie'], date('G:i', $ts) . ' · ' . ($r['forma'] === 'tel' ? 'TELEFON ' . $r['telefon'] : ($r['forma'] === 'meet' ? 'Google Meet' : 'forma nie wybrana')) . ($r['opis'] ? "\n" . mb_substr($r['opis'], 0, 120) : ''), BASE_URL . '/#www_kons');
             q('UPDATE rezerwacje SET przyp2=1, przyp1=1 WHERE id=?', array($r['id']));
             $n2++;
