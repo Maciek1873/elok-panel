@@ -348,7 +348,7 @@ if ($j === 'podl') {
 if ($j === 'kons') {
     db()->exec("CREATE TABLE IF NOT EXISTS rezerwacje (id INT AUTO_INCREMENT PRIMARY KEY, termin DATETIME NOT NULL, zgloszenie_id INT NULL, imie VARCHAR(120) NOT NULL DEFAULT '', email VARCHAR(190) NOT NULL DEFAULT '', telefon VARCHAR(60) NOT NULL DEFAULT '', opis TEXT, status VARCHAR(20) NOT NULL DEFAULT 'aktywna', ip VARCHAR(45) NULL, created_at DATETIME NOT NULL, UNIQUE KEY ut (termin)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
     add_col('rezerwacje', 'forma', "VARCHAR(10) NOT NULL DEFAULT ''"); add_col('rezerwacje', 'przyp1', 'TINYINT NOT NULL DEFAULT 0');
-    $R = all("SELECT r.id, r.forma, r.przyp1, r.termin, r.imie, r.email, r.telefon, r.opis, r.zgloszenie_id, z.status zst FROM rezerwacje r LEFT JOIN zgloszenia z ON z.id=r.zgloszenie_id WHERE r.termin>=? ORDER BY r.termin LIMIT 100", array(date('Y-m-d 00:00:00')));
+    $R = all("SELECT r.id, r.forma, r.przyp1, r.przyp2, r.termin, r.imie, r.email, r.telefon, r.opis, r.zgloszenie_id, z.status zst FROM rezerwacje r LEFT JOIN zgloszenia z ON z.id=r.zgloszenie_id WHERE r.termin>=? ORDER BY r.termin LIMIT 100", array(date('Y-m-d 00:00:00')));
     foreach ($R as $k => $r) { $R[$k]['kiedy'] = st_kiedy(strtotime($r['termin'])); $R[$k]['odwolana'] = ($r['zst'] === 'odrzucone' || $r['zst'] === null); }
     jout(array('rows' => $R, 'link' => setting('kons_link'), 'wolne' => str_replace(',', ', ', setting('kons_wolne', '2026-11-11,2026-12-24,2026-12-25,2026-12-26,2026-12-31,2027-01-01,2027-01-06'))));
 }

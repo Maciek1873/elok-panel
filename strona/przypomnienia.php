@@ -20,6 +20,7 @@ function kp_mail($to, $subject, $tytul, $tresc, $kiedy, $meet, $tel) {
     return send_mail($to, $subject, $html, $txt);
 }
 
+function kp_note($zid, $txt) { if (!$zid) return; $z = one('SELECT notatka FROM zgloszenia WHERE id=?', array($zid)); if ($z) q('UPDATE zgloszenia SET notatka=? WHERE id=?', array(trim($z['notatka'] . "\n" . date('d.m H:i') . ' – mail: ' . $txt), $zid)); }
 function kp_key($id) { $k = setting('kp_secret'); if ($k === '') { $k = bin2hex(random_bytes(16)); setting_set('kp_secret', $k); } return substr(hash_hmac('sha256', 'r' . (int)$id, $k), 0, 24); }
 function kp_wybor_url($id, $w) { return BASE_URL . '/strona/wybor.php?r=' . (int)$id . '&k=' . kp_key($id) . '&w=' . $w; }
 function kp_btns($id) {
@@ -31,7 +32,9 @@ function kp_send1($r, $kiedy, $tel) {
     $im = explode(' ', trim($r['imie'])); $im = $im[0];
     $tresc = '<p style="margin:0 0 4px;"><b>Jak woli Pan/Pani porozmawiać?</b> Wystarczy kliknąć jeden przycisk.</p>' . kp_btns($r['id'])
         . '<p style="margin:10px 0 0;color:#6B675E;font-size:14px;">Google Meet działa w przeglądarce, bez instalowania programów. Przy rozmowie telefonicznej zadzwonimy o umówionej godzinie.</p>';
-    return kp_mail($r['email'], 'Przypomnienie: rozmowa ' . $kiedy, 'Dzień dobry ' . $im . ', przypominamy o naszej rozmowie.', $tresc, $kiedy, '', $tel);
+    $ok = kp_mail($r['email'], 'Przypomnienie: rozmowa ' . $kiedy, 'Dzień dobry ' . $im . ', przypominamy o naszej rozmowie.', $tresc, $kiedy, '', $tel);
+    kp_note($r['zgloszenie_id'], ($ok ? 'wysłano' : 'BŁĄD wysyłki') . ' przypomnienie z pytaniem Meet czy telefon');
+    return $ok;
 }
 
 function kons_przyp_run() {
@@ -57,6 +60,7 @@ function kons_przyp_run() {
         }
         // godzinę wcześniej
         if (!(int)$r['przyp2'] && $left <= 75 * 60) {
+            kp_note($r['zgloszenie_id'], 'wysłano przypomnienie godzinę przed (' . ($r['forma'] === 'tel' ? 'telefon' : 'link do Meet') . ')');
             if ($r['forma'] === 'tel') kp_mail($r['email'], 'Za godzinę: rozmowa z ELOK', 'Dzień dobry ' . $im . ', rozmawiamy za około godzinę.', 'Zadzwonimy o umówionej godzinie' . ($r['telefon'] !== '' ? ' na numer <b>' . h($r['telefon']) . '</b>' : '') . '. Wolisz jednak Google Meet? <a href="' . h(kp_wybor_url($r['id'], 'meet')) . '" style="color:#8B6B30;">Kliknij tutaj</a>.', $fmt($ts), '', $tel);
             elseif ($meet !== '') kp_mail($r['email'], 'Za godzinę: rozmowa z ELOK', 'Dzień dobry ' . $im . ', widzimy się za około godzinę.', 'Wystarczy kliknąć przycisk powyżej o umówionej godzinie. Działa w przeglądarce, bez instalowania programów.', $fmt($ts), $meet, $tel);
             push('Konsultacja za godzinę: ' . $r['imie'], date('G:i', $ts) . ' · ' . ($r['forma'] === 'tel' ? 'TELEFON ' . $r['telefon'] : ($r['forma'] === 'meet' ? 'Google Meet' : 'forma nie wybrana')) . ($r['opis'] ? "\n" . mb_substr($r['opis'], 0, 120) : ''), BASE_URL . '/#www_kons');
