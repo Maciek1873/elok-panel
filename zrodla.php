@@ -475,14 +475,14 @@ function noc_run($budget) {
         $left = (int)val("SELECT COUNT(*) FROM szukaj WHERE status IN('czeka','czeka_www')");
         if ($left > 0) {
             list($n, $left, $err) = sz_step();
-            if ($err) { $info = $err; if (stripos($err, 'limit') !== false || stripos($err, 'za dużo') !== false || stripos($err, 'blokuje') !== false) break; $j['bledy'] = (isset($j['bledy']) ? $j['bledy'] : 0) + 1; if ($j['bledy'] > 20) { $j['on'] = 0; $j['koniec'] = now(); $j['info'] = 'Zatrzymano – powtarzające się błędy: ' . $err; noc_save_run($j); push('⚠️ Pobieranie zatrzymane', $err); break; } }
+            if ($err) { $info = $err; if (stripos($err, 'limit') !== false || stripos($err, 'za dużo') !== false || stripos($err, 'blokuje') !== false) break; $j['bledy'] = (isset($j['bledy']) ? $j['bledy'] : 0) + 1; if ($j['bledy'] > 20) { $j['on'] = 0; $j['koniec'] = now(); $j['info'] = 'Zatrzymano – powtarzające się błędy: ' . $err; noc_save_run($j); push('Pobieranie zatrzymane', $err); break; } }
             continue;
         }
         if ((int)$j['wi'] >= count($woj)) {
             $j['on'] = 0; $j['koniec'] = now(); $c = noc_counts($j);
             $j['info'] = 'Gotowe – przeszukano wszystkie województwa.';
             noc_save_run($j);
-            push('✅ Pobieranie zakończone', 'Nowych firm: ' . $c['wszystkie'] . ' · z mailem: ' . $c['gotowe'], BASE_URL);
+            push('Pobieranie zakończone', 'Nowych firm: ' . $c['wszystkie'] . ' · z mailem: ' . $c['gotowe'], BASE_URL);
             break;
         }
         $w = $woj[(int)$j['wi']];
@@ -528,7 +528,7 @@ function noc_run($budget) {
     if ((int)date('G') >= 7 && setting('noc_raport') !== date('Y-m-d') && !empty($j['start']) && strtotime($j['start']) < strtotime(date('Y-m-d 07:00:00'))) {
         setting_set('noc_raport', date('Y-m-d'));
         $c = noc_counts($j);
-        push('☀️ Nocne pobieranie', 'Nowych firm: ' . $c['wszystkie'] . ' · z mailem: ' . $c['gotowe'] . (!empty($j['on']) ? ' · trwa dalej (' . $woj[min((int)$j['wi'], count($woj) - 1)] . ')' : ''), BASE_URL);
+        push('Nocne pobieranie', 'Nowych firm: ' . $c['wszystkie'] . ' · z mailem: ' . $c['gotowe'] . (!empty($j['on']) ? ' · trwa dalej (' . $woj[min((int)$j['wi'], count($woj) - 1)] . ')' : ''), BASE_URL);
     }
     val("SELECT RELEASE_LOCK('elok_noc')");
     return 'ok ' . round(microtime(true) - $t0) . ' s' . ($info ? ' | ' . $info : '');

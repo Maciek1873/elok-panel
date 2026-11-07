@@ -30,7 +30,7 @@ if (isset($_GET['ev'])) {
             // powiadomienie o wejściu (max 30 dziennie, żeby nie zasypać telefonu)
             if ($ev === 'wejscie' && setting('land_push', '1') === '1') {
                 $today = (int)val("SELECT COUNT(*) FROM landing_log WHERE akcja='wejscie' AND created_at>=CURDATE()");
-                if ($today <= 30) push('👀 Wejście z ' . $ZR[$z], 'Ktoś otworzył Twój landing (dziś: ' . $today . ').', BASE_URL . '/#zgloszenia');
+                if ($today <= 30) push('Wejście z ' . $ZR[$z], 'Ktoś otworzył Twój landing (dziś: ' . $today . ').', BASE_URL . '/#zgloszenia');
             }
         }
     }
@@ -67,7 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 array($firma, $pre['osoba'], $isMail ? '' : $k, $isMail ? $k : '', $pre['firma'], '', 'nowe', 'Źródło: ' . $ZR[$z] . ' (landing /start)', $ip, now(), $z));
             logi(null, 'zgloszenie', $ZR[$z] . ': ' . $pre['osoba'] . ' ' . $k);
             $link = BASE_URL . '/#zgloszenia';
-            push('🔥 Zgłoszenie z ' . $ZR[$z] . ': ' . $pre['osoba'], trim($k . "\n" . $pre['firma']), $link);
+            push('Zgłoszenie z ' . $ZR[$z] . ': ' . $pre['osoba'], trim($k . "\n" . $pre['firma']), $link);
             notify_owner('Nowe zgłoszenie z ' . $ZR[$z] . ': ' . $pre['osoba'], array('Źródło' => $ZR[$z], 'Imię' => $pre['osoba'], 'Kontakt' => $k, 'Czym się zajmuje' => $pre['firma']), $link);
         }
         $sent = true;

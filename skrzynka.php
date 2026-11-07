@@ -131,5 +131,5 @@ function mb_handle($hdr, $body, $self, &$res) {
     q('UPDATE firmy SET odpisal_at=COALESCE(odpisal_at, ?) WHERE id=?', array(now(), $fi['id']));
     logi($fi['id'], 'odpowiedz', mb_substr($subj, 0, 200));
     $res['odpowiedzi']++;
-    push('💬 Odpisał: ' . $fi['nazwa'], ($subj !== '' ? $subj . "\n" : '') . 'Sprawdź skrzynkę ' . setting('nadawca_email') . ' i oznacz firmę w panelu.', BASE_URL);
+    push('Odpisał: ' . $fi['nazwa'], ($subj !== '' ? $subj . "\n" : '') . 'Sprawdź skrzynkę ' . setting('nadawca_email') . ' i oznacz firmę w panelu.', BASE_URL);
 }

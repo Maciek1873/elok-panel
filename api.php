@@ -912,8 +912,8 @@ try {
 
     case 'push_test':
         require_once __DIR__ . '/webpush.php';
-        $n = wp_send_all('Test ELOK', 'Powiadomienia działają 👍');
-        $nt = push_ntfy('Test ELOK', 'Powiadomienia działają 👍');
+        $n = wp_send_all('Test ELOK', 'Powiadomienia działają.');
+        $nt = push_ntfy('Test ELOK', 'Powiadomienia działają.');
         if (!$n && !$nt) fail('Nie udało się wysłać – włącz powiadomienia na telefonie przyciskiem powyżej');
         out(array('urzadzenia' => $n));
 
@@ -929,7 +929,7 @@ try {
         if (!preg_match('~^https://~', $ep) || strlen($ep) > 700 || strlen(wp_b64d($pk)) !== 65 || strlen(wp_b64d($au)) < 16) fail('Złe dane subskrypcji');
         q('DELETE FROM push_subs WHERE endpoint=?', array($ep));
         q('INSERT INTO push_subs(endpoint,p256dh,auth,urzadzenie,created_at) VALUES(?,?,?,?,?)', array($ep, $pk, $au, mb_substr((string)g('urzadzenie'), 0, 120), now()));
-        $code = wp_send_one(array('endpoint' => $ep, 'p256dh' => $pk, 'auth' => $au), json_encode(array('title' => 'ELOK', 'body' => 'Powiadomienia włączone na tym urządzeniu 👍', 'url' => BASE_URL), JSON_UNESCAPED_UNICODE));
+        $code = wp_send_one(array('endpoint' => $ep, 'p256dh' => $pk, 'auth' => $au), json_encode(array('title' => 'ELOK', 'body' => 'Powiadomienia włączone na tym urządzeniu ', 'url' => BASE_URL), JSON_UNESCAPED_UNICODE));
         out(array('ile' => (int)val('SELECT COUNT(*) FROM push_subs'), 'kod' => $code));
 
     case 'push_unsub':

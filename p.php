@@ -99,7 +99,7 @@ if ($a === 'tak') {
                 }
                 $branza = $f ? (string)val('SELECT nazwa FROM branze WHERE id=?', array($f['branza_id'])) : '';
                 $link = BASE_URL . '/#zgloszenia';
-                push('🔥 Zgłoszenie: ' . $firma, trim($osoba . ' · ' . $tel . ($kiedy !== '' ? "\nDzwonić: " . $kiedy : '') . "\n" . $co), $link);
+                push('Zgłoszenie: ' . $firma, trim($osoba . ' · ' . $tel . ($kiedy !== '' ? "\nDzwonić: " . $kiedy : '') . "\n" . $co), $link);
                 notify_owner('Nowe zgłoszenie: ' . $firma, array('Firma' => $firma, 'Osoba' => $osoba, 'Telefon' => $tel, 'E-mail' => $email, 'Branża' => $branza, 'Kiedy dzwonić' => $kiedy, 'Czym się zajmują' => $czym, 'Co usprawnić' => $co), $link);
                 // potwierdzenie do firmy
                 $tpl = tpl_for($f ? $f['branza_id'] : 0, 'potwierdzenie');

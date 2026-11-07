@@ -30,7 +30,7 @@ if ((int)date('G') >= 7 && setting('kontakt_push') !== date('Y-m-d')) {
     $due = all("SELECT firma, telefon, kontakt_co, kontakt_data FROM zgloszenia WHERE kontakt_data IS NOT NULL AND kontakt_data<=CURDATE() AND status NOT IN('klient','odrzucone') ORDER BY kontakt_data");
     if ($due) {
         $m = array(); foreach ($due as $d) $m[] = '• ' . $d['firma'] . ($d['telefon'] ? ' (' . $d['telefon'] . ')' : '') . ($d['kontakt_co'] ? ' – ' . $d['kontakt_co'] : '') . ($d['kontakt_data'] < date('Y-m-d') ? ' [zaległe]' : '');
-        push('📅 Dziś do kontaktu: ' . count($due), implode("\n", $m), BASE_URL);
+        push('Dziś do kontaktu: ' . count($due), implode("\n", $m), BASE_URL);
     }
 }
 $noc = noc_get();

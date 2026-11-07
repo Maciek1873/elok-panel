@@ -161,7 +161,7 @@ function soc_run_inner($onlyId) {
         }
         // TikTok – przypomnienie z opisem (publikujesz ręcznie)
         if ($p['tt'] && $p['tt_status'] === '') {
-            push('🎵 Dziś na TikToka: ' . $tag, mb_substr((string)$p['opis'], 0, 900), BASE_URL . '/#publikacje');
+            push('Dziś na TikToka: ' . $tag, mb_substr((string)$p['opis'], 0, 900), BASE_URL . '/#publikacje');
             $p['tt_status'] = 'przypomniano';
             q("UPDATE social_posty SET tt_status='przypomniano' WHERE id=?", array($p['id']));
         }
@@ -171,8 +171,8 @@ function soc_run_inner($onlyId) {
             $err = ($p['fb'] && $p['fb_status'] === 'blad') || ($p['ig'] && $p['ig_status'] === 'blad');
             q('UPDATE social_posty SET stan=? WHERE id=?', array($err ? 'blad' : 'opublikowany', $p['id']));
             $ok = array(); if ($p['fb'] && $p['fb_status'] === 'gotowe') $ok[] = 'Facebook'; if ($p['ig'] && $p['ig_status'] === 'gotowe') $ok[] = 'Instagram';
-            if ($err) push('⚠️ Publikacja z błędem: ' . $tag, trim(($p['fb_err'] ? 'FB: ' . $p['fb_err'] . "\n" : '') . ($p['ig_err'] ? 'IG: ' . $p['ig_err'] : '')), BASE_URL . '/#publikacje');
-            elseif ($ok) push('✅ Opublikowano: ' . $tag, implode(' + ', $ok), BASE_URL . '/#publikacje');
+            if ($err) push('Publikacja z błędem: ' . $tag, trim(($p['fb_err'] ? 'FB: ' . $p['fb_err'] . "\n" : '') . ($p['ig_err'] ? 'IG: ' . $p['ig_err'] : '')), BASE_URL . '/#publikacje');
+            elseif ($ok) push('Opublikowano: ' . $tag, implode(' + ', $ok), BASE_URL . '/#publikacje');
         }
     }
     return $log ? implode(', ', $log) : 'nic do publikacji';
