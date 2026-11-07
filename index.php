@@ -152,6 +152,15 @@ label.f{display:block;font-size:12px;font-weight:600;color:#5E5A51;margin:12px 0
 .chip.off{text-decoration:line-through;opacity:.6}
 .chip.add{border-style:dashed;color:var(--ink2)}
 .nav a.ext{margin-top:14px;border:1px dashed var(--line)}
+.nav a.m-more,#msheet{display:none}
+#msheet.open{display:block;position:fixed;inset:0;z-index:60;background:rgba(23,20,14,.45)}
+#msheet .ms-in{position:absolute;left:0;right:0;bottom:0;background:var(--card,#fff);border-radius:22px 22px 0 0;padding:16px 16px calc(18px + env(safe-area-inset-bottom));max-height:85vh;overflow:auto}
+#msheet .ms-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;font-size:17px}
+#msheet .ms-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+#msheet .ms-grid a{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 6px;border-radius:14px;background:var(--bg);text-decoration:none;color:var(--ink);font-size:13px;font-weight:600;text-align:center;position:relative;cursor:pointer}
+#msheet .ms-grid a.on{background:var(--ink);color:#fff}
+#msheet .ms-grid svg{width:22px;height:22px}
+#msheet .bdg{position:absolute;top:6px;right:10px;background:var(--gold);color:#fff;font-size:11px;font-weight:700;border-radius:20px;padding:1px 7px}
 
 /* edytor bloków */
 .pvcol{position:sticky;top:16px;align-self:start}
@@ -274,6 +283,9 @@ input[type=checkbox]{width:17px;height:17px;accent-color:var(--ink);cursor:point
   .g2,.g2f{grid-template-columns:1fr}
   .g5{grid-template-columns:1fr 1fr}
   .nav a.ext{margin-top:0;border:0}
+  .nav a.m-hide{display:none}
+  .nav a.m-more{display:flex}
+  .nav a span:not(.bdg){max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .row>select{width:100%!important}
   .ed{grid-template-columns:1fr}
   .zg{grid-template-columns:1fr;gap:10px}
