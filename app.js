@@ -1964,7 +1964,7 @@ function pbRender() {
     var p = PB.rows[i], ed = p.stan === 'szkic' || p.stan === 'zaplanowany' || p.stan === 'blad';
     var errs = (p.fb_err ? '<div class="mut" style="color:var(--err);font-size:12.5px">FB: ' + esc(p.fb_err) + '</div>' : '') + (p.ig_err ? '<div class="mut" style="color:var(--err);font-size:12.5px">IG: ' + esc(p.ig_err) + '</div>' : '');
     var act = '';
-    if (p.plik) act += '<a class="btn sm" href="' + esc(p.url) + '" download="' + esc(pbFname(p)) + '">' + ic('download', 13) + ' Pobierz filmik</a> ';
+    if (p.plik) act += '<a class="btn sm" onclick="window.pbDl(' + p.id + ')">' + ic('download', 13) + ' Pobierz filmik</a> ';
     if (p.opis) act += '<a class="btn sm" onclick="window.pbCopy(' + p.id + ')">Kopiuj opis</a> ';
     if (p.tt && p.tt_status !== 'gotowe' && p.plik) act += '<a class="btn sm" onclick="window.pbTt(' + p.id + ',1)">TikTok wrzucony ✓</a> ';
     if (p.stan === 'w_toku') act += '<a class="btn sm" onclick="window.pbCheck(' + p.id + ',this)">Sprawdź status</a> ';
@@ -2003,7 +2003,7 @@ window.pbView = function (id) {
     '<div style="flex:1;min-width:220px"><div class="mut" style="font-size:12.5px">Kiedy</div><div class="b1" style="margin-bottom:10px">' + esc(pbWhen(p.kiedy)) + ' · ' + esc(PBS[p.stan] || p.stan) + '</div>' +
     '<div class="mut" style="font-size:12.5px">Gdzie</div><div style="margin-bottom:10px">' + gdzie + '</div>' +
     '<div class="mut" style="font-size:12.5px">Opis</div><div style="white-space:pre-line;background:#F7F5EF;border-radius:12px;padding:12px 14px;font-size:14px;max-height:340px;overflow:auto">' + esc(p.opis || '(brak opisu)') + '</div></div></div>';
-  var foot = '<a class="btn" onclick="window.closeModal()">Zamknij</a>' + (p.plik ? '<a class="btn" href="' + esc(p.url) + '" download="' + esc(pbFname(p)) + '">' + ic('download', 14) + ' Pobierz filmik</a>' : '') + (p.opis ? '<a class="btn" onclick="window.pbCopy(' + p.id + ')">Kopiuj opis</a>' : '') + (ed ? '<a class="btn dark" onclick="window.closeModal();window.pbEdit(' + p.id + ')">Edytuj</a>' : '');
+  var foot = '<a class="btn" onclick="window.closeModal()">Zamknij</a>' + (p.plik ? '<a class="btn" onclick="window.pbDl(' + p.id + ')">' + ic('download', 14) + ' Pobierz filmik</a>' : '') + (p.opis ? '<a class="btn" onclick="window.pbCopy(' + p.id + ')">Kopiuj opis</a>' : '') + (ed ? '<a class="btn dark" onclick="window.closeModal();window.pbEdit(' + p.id + ')">Edytuj</a>' : '');
   window.openModal(p.tytul || 'Podgląd publikacji', b, foot, true);
 };
 function pbFname(p) { var t = String(p.tytul || 'elok-filmik').replace(/[^0-9A-Za-z_-]+/g, '-').replace(/^-+|-+$/g, '') || 'elok-filmik'; return t + '.' + (String(p.plik).split('.').pop() || 'mp4'); }
@@ -2263,9 +2263,36 @@ window.pbCheck = function (id, btn) { busy(btn, true); api('soc_odswiez', { id: 
 window.pbRetry = function (id, btn) { busy(btn, true); api('soc_ponow', { id: id }, function (r) { toast(r.info); viewPublikacje(); }, function () { busy(btn, false); }); };
 window.pbCopy = function (id) {
   var p = pbFind(id); if (!p) return;
-  var t = document.createElement('textarea'); t.value = p.opis || ''; document.body.appendChild(t); t.select();
-  try { document.execCommand('copy'); toast('Opis skopiowany'); } catch (e) { toast('Nie udało się skopiować', 'err'); }
-  document.body.removeChild(t);
+  var txt = p.opis || '';
+  function old() {
+    var t = document.createElement('textarea'); t.value = txt; t.setAttribute('readonly', ''); t.style.position = 'fixed'; t.style.top = '0'; t.style.opacity = '0'; document.body.appendChild(t);
+    t.focus(); t.select(); try { t.setSelectionRange(0, txt.length); } catch (e) { }
+    var ok = false; try { ok = document.execCommand('copy'); } catch (e) { }
+    document.body.removeChild(t); toast(ok ? 'Opis skopiowany' : 'Nie udało się skopiować', ok ? '' : 'err');
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(function () { toast('Opis skopiowany'); }, old); else old();
+};
+// Pobieranie filmiku. Na telefonie (aplikacja z ekranu głównego) zwykły link otwiera plik na cały ekran bez możliwości powrotu,
+// dlatego używamy okna „Udostępnij” systemu: tam jest „Zapisz wideo”, a panel zostaje otwarty.
+window.pbDl = function (id) {
+  var p = pbFind(id); if (!p || !p.url) return;
+  var name = pbFname(p), can = false;
+  try { can = !!(navigator.share && navigator.canShare && window.File && navigator.canShare({ files: [new File(['x'], 'a.mp4', { type: 'video/mp4' })] })); } catch (e) { can = false; }
+  if (!can) { var a = document.createElement('a'); a.href = p.url; a.download = name; document.body.appendChild(a); a.click(); document.body.removeChild(a); return; }
+  window.openModal('Zapisz filmik', '<div id="dl-st" class="mut" style="font-size:14.5px;line-height:1.6">Przygotowuję filmik…</div>',
+    '<a class="btn" onclick="window.closeModal()">Zamknij</a>' + (p.opis ? '<a class="btn" onclick="window.pbCopy(' + p.id + ')">Kopiuj opis</a>' : '') + '<a class="btn dark" id="dl-go" style="opacity:.45;pointer-events:none">' + ic('download', 14) + ' Zapisz filmik</a>');
+  var x = new XMLHttpRequest(); x.open('GET', p.url); x.responseType = 'blob';
+  x.onprogress = function (e) { if (e.lengthComputable && $('dl-st')) $('dl-st').textContent = 'Przygotowuję filmik… ' + Math.round(e.loaded * 100 / e.total) + '%'; };
+  x.onload = function () {
+    if (!$('dl-go')) return;
+    if (x.status !== 200) { $('dl-st').innerHTML = 'Nie udało się pobrać filmiku. Spróbuj jeszcze raz.'; return; }
+    var f = new File([x.response], name, { type: 'video/mp4' }), go = $('dl-go');
+    $('dl-st').innerHTML = 'Gotowe. Kliknij <b>„Zapisz filmik”</b> i wybierz <b>„Zapisz wideo”</b> – trafi do Zdjęć. Opis skopiujesz przyciskiem obok.';
+    go.style.opacity = ''; go.style.pointerEvents = '';
+    go.onclick = function () { navigator.share({ files: [f] }).then(function () { toast('Gotowe'); }, function () { }); };
+  };
+  x.onerror = function () { if ($('dl-st')) $('dl-st').innerHTML = 'Brak połączenia – spróbuj jeszcze raz.'; };
+  x.send();
 };
 window.pbIgRefresh = function (a) { api('meta_odswiez_ig', {}, function (r) { toast(r.ig ? 'Instagram podpięty: @' + r.ig : 'Nadal nie widzę Instagrama przy tej stronie'); viewPublikacje(); }); };
 window.pbConnect = function () {
