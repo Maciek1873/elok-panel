@@ -1659,7 +1659,7 @@ window.pushStatus = function () {
       if (!reg) return null; return reg.pushManager.getSubscription();
     }).then(function (sub) {
       var tu = sub && Notification.permission === 'granted';
-      el.innerHTML = (tu ? '✅ <b>Włączone na tym urządzeniu.</b> ' : (Notification.permission === 'denied' ? '⛔ Zablokowane w ustawieniach telefonu (Ustawienia → Powiadomienia → ELOK). ' : 'Wyłączone na tym urządzeniu. ')) + 'Urządzeń z powiadomieniami: ' + r.ile + '.';
+      el.innerHTML = (tu ? '<b>Włączone na tym urządzeniu.</b> ' : (Notification.permission === 'denied' ? 'Zablokowane w ustawieniach telefonu (Ustawienia → Powiadomienia → ELOK). ' : 'Wyłączone na tym urządzeniu. ')) + 'Urządzeń z powiadomieniami: ' + r.ile + '.';
       if ($('push-on')) $('push-on').textContent = tu ? 'Włącz ponownie' : 'Włącz na tym urządzeniu';
     }).catch(function () { el.textContent = 'Urządzeń z powiadomieniami: ' + r.ile + '.'; });
   }, function () { el.textContent = 'Nie udało się sprawdzić powiadomień.'; });
