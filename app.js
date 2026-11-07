@@ -1954,7 +1954,9 @@ function pbRender() {
     var p = PB.rows[i], ed = p.stan === 'szkic' || p.stan === 'zaplanowany' || p.stan === 'blad';
     var errs = (p.fb_err ? '<div class="mut" style="color:var(--err);font-size:12.5px">FB: ' + esc(p.fb_err) + '</div>' : '') + (p.ig_err ? '<div class="mut" style="color:var(--err);font-size:12.5px">IG: ' + esc(p.ig_err) + '</div>' : '');
     var act = '';
-    if (p.tt && p.tt_status !== 'gotowe' && p.plik) act += '<a class="btn sm" href="' + esc(p.url) + '" download>' + ic('download', 13) + ' Wideo</a> <a class="btn sm" onclick="window.pbCopy(' + p.id + ')">Kopiuj opis</a> <a class="btn sm" onclick="window.pbTt(' + p.id + ',1)">TikTok wrzucony ✓</a> ';
+    if (p.plik) act += '<a class="btn sm" href="' + esc(p.url) + '" download="' + esc(pbFname(p)) + '">' + ic('download', 13) + ' Pobierz filmik</a> ';
+    if (p.opis) act += '<a class="btn sm" onclick="window.pbCopy(' + p.id + ')">Kopiuj opis</a> ';
+    if (p.tt && p.tt_status !== 'gotowe' && p.plik) act += '<a class="btn sm" onclick="window.pbTt(' + p.id + ',1)">TikTok wrzucony ✓</a> ';
     if (p.stan === 'w_toku') act += '<a class="btn sm" onclick="window.pbCheck(' + p.id + ',this)">Sprawdź status</a> ';
     if (p.stan === 'blad') act += '<a class="btn sm dark" onclick="window.pbRetry(' + p.id + ',this)">Spróbuj ponownie</a> ';
     if (ed) act += '<a class="btn sm" onclick="window.pbEdit(' + p.id + ')">Edytuj</a> ';
@@ -1991,9 +1993,10 @@ window.pbView = function (id) {
     '<div style="flex:1;min-width:220px"><div class="mut" style="font-size:12.5px">Kiedy</div><div class="b1" style="margin-bottom:10px">' + esc(pbWhen(p.kiedy)) + ' · ' + esc(PBS[p.stan] || p.stan) + '</div>' +
     '<div class="mut" style="font-size:12.5px">Gdzie</div><div style="margin-bottom:10px">' + gdzie + '</div>' +
     '<div class="mut" style="font-size:12.5px">Opis</div><div style="white-space:pre-line;background:#F7F5EF;border-radius:12px;padding:12px 14px;font-size:14px;max-height:340px;overflow:auto">' + esc(p.opis || '(brak opisu)') + '</div></div></div>';
-  var foot = '<a class="btn" onclick="window.closeModal()">Zamknij</a>' + (p.opis ? '<a class="btn" onclick="window.pbCopy(' + p.id + ')">Kopiuj opis</a>' : '') + (ed ? '<a class="btn dark" onclick="window.closeModal();window.pbEdit(' + p.id + ')">Edytuj</a>' : '');
+  var foot = '<a class="btn" onclick="window.closeModal()">Zamknij</a>' + (p.plik ? '<a class="btn" href="' + esc(p.url) + '" download="' + esc(pbFname(p)) + '">' + ic('download', 14) + ' Pobierz filmik</a>' : '') + (p.opis ? '<a class="btn" onclick="window.pbCopy(' + p.id + ')">Kopiuj opis</a>' : '') + (ed ? '<a class="btn dark" onclick="window.closeModal();window.pbEdit(' + p.id + ')">Edytuj</a>' : '');
   window.openModal(p.tytul || 'Podgląd publikacji', b, foot, true);
 };
+function pbFname(p) { var t = String(p.tytul || 'elok-filmik').replace(/[^0-9A-Za-z_-]+/g, '-').replace(/^-+|-+$/g, '') || 'elok-filmik'; return t + '.' + (String(p.plik).split('.').pop() || 'mp4'); }
 function pbFind(id) { for (var i = 0; i < PB.rows.length; i++) if (+PB.rows[i].id === +id) return PB.rows[i]; return null; }
 window.pbNew = function () { PB.ed = { id: 0, tytul: '', opis: '', plik: '', url: '', kiedy: '', fb: 1, ig: 1, tt: 1 }; pbModal(); };
 window.pbEdit = function (id) { var p = pbFind(id); if (!p) return; PB.ed = { id: p.id, tytul: p.tytul, opis: p.opis, plik: p.plik, url: p.url, kiedy: p.kiedy, fb: +p.fb, ig: +p.ig, tt: +p.tt }; pbModal(); };
@@ -2069,13 +2072,15 @@ window.pbBulk = function () {
   PBB = { files: [], opisy: [], plan: [] };
   var d = new Date(); d.setDate(d.getDate() + 1);
   var ds = d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
-  var b = '<div class="mut" style="font-size:13.5px;line-height:1.6">Wybierz <b>wszystkie filmiki naraz</b> i <b>plik TXT z opisami</b>. Panel dopasuje opis do filmiku po numerze (np. <code>elok-tiktok-11.mp4</code> ↔ <code>=== 11 ===</code>) i rozplanuje je po kolei – w kolejności z pliku TXT.</div>' +
+  var b = '<div class="mut" style="font-size:13.5px;line-height:1.6">Najprościej: wybierz <b>jeden plik ZIP</b> z filmikami i plikiem TXT z opisami. Albo wybierz filmiki i plik TXT osobno. Panel dopasuje opis do filmiku po numerze (np. <code>elok-tiktok-11.mp4</code> ↔ <code>=== 11 ===</code>) i rozplanuje je po kolei – w kolejności z pliku TXT.</div>' +
     '<label>1. Skąd filmiki</label><div class="row" style="gap:18px;flex-wrap:wrap;margin-bottom:6px">' +
-    '<label style="display:flex;gap:8px;align-items:center;margin:0;font-weight:600"><input type="radio" name="pbb-src" style="width:auto" checked onchange="window.pbbSrc(0)"> Z dysku (trzymasz stronę otwartą)</label>' +
+    '<label style="display:flex;gap:8px;align-items:center;margin:0;font-weight:600"><input type="radio" name="pbb-src" style="width:auto" checked onchange="window.pbbSrc(2)"> Jeden plik ZIP</label>' +
+    '<label style="display:flex;gap:8px;align-items:center;margin:0;font-weight:600"><input type="radio" name="pbb-src" style="width:auto" onchange="window.pbbSrc(0)"> Osobne pliki z dysku</label>' +
     '<label style="display:flex;gap:8px;align-items:center;margin:0;font-weight:600"><input type="radio" name="pbb-src" style="width:auto" onchange="window.pbbSrc(1)"> Z serwera (wrzucone FileZillą)</label></div>' +
-    '<div id="pbb-src0"><input type="file" id="pbb-v" multiple accept="video/mp4,video/quicktime,.mp4,.mov" onchange="window.pbbFiles(this)"></div>' +
+    '<div id="pbb-src2"><input type="file" id="pbb-z" accept=".zip,application/zip,application/x-zip-compressed" onchange="window.pbbZip(this)"><div id="pbb-zi" class="mut" style="font-size:13px;margin-top:6px"></div></div>' +
+    '<div id="pbb-src0" style="display:none"><input type="file" id="pbb-v" multiple accept="video/mp4,video/quicktime,.mp4,.mov" onchange="window.pbbFiles(this)"></div>' +
     '<div id="pbb-src1" style="display:none"><div class="mut" style="font-size:13px;line-height:1.6">Wrzuć filmiki FileZillą do folderu panelu <code>uploads/social/wrzuc/</code> (FileZilla wgrywa w tle – możesz robić co innego). Potem kliknij „Odśwież”.</div><a class="btn sm" style="margin-top:6px" onclick="window.pbbInbox()">Odśwież listę z serwera</a> <span id="pbb-inb" class="mut" style="font-size:13px"></span></div>' +
-    '<label>2. Plik TXT z opisami</label><input type="file" id="pbb-t" accept=".txt,text/plain" onchange="window.pbbTxt(this)">' +
+    '<div id="pbb-txt" style="display:none"><label>2. Plik TXT z opisami</label><input type="file" id="pbb-t" accept=".txt,text/plain" onchange="window.pbbTxt(this)"></div>' +
     '<div class="row" style="gap:12px;flex-wrap:wrap"><div style="flex:1;min-width:150px"><label>Pierwszy dzień</label><input type="date" id="pbb-d" value="' + ds + '" onchange="window.pbbPlan()"></div>' +
     '<div style="flex:1;min-width:110px"><label>Godzina</label><input type="time" id="pbb-h" value="19:00" onchange="window.pbbPlan()"></div>' +
     '<div style="flex:1;min-width:110px"><label>Co ile dni</label><input type="number" id="pbb-n" value="1" min="1" max="14" onchange="window.pbbPlan()"></div></div>' +
@@ -2086,7 +2091,63 @@ window.pbBulk = function () {
     '<div id="pbb-prev" style="margin-top:14px"></div>';
   window.openModal('Dodaj wiele publikacji naraz', b, '<a class="btn" onclick="window.closeModal()">Anuluj</a><a class="btn dark" id="pbb-go" onclick="window.pbbGo(this)">Wgraj i zaplanuj</a>', true);
 };
-window.pbbSrc = function (k) { $('pbb-src0').style.display = k ? 'none' : ''; $('pbb-src1').style.display = k ? '' : 'none'; PBB.files = []; if (k) window.pbbInbox(); else window.pbbPlan(); };
+window.pbbSrc = function (k) {
+  $('pbb-src0').style.display = k === 0 ? '' : 'none'; $('pbb-src1').style.display = k === 1 ? '' : 'none'; $('pbb-src2').style.display = k === 2 ? '' : 'none'; $('pbb-txt').style.display = k === 2 ? 'none' : '';
+  PBB.files = []; PBB.opisy = []; if (k === 1) window.pbbInbox(); else window.pbbPlan();
+};
+// ---------- rozpakowanie ZIP w przeglądarce (bez bibliotek) ----------
+function pbRd(blob, a, b, cb) { var r = new FileReader(); r.onload = function () { cb(new DataView(r.result), r.result); }; r.onerror = function () { cb(null); }; r.readAsArrayBuffer(blob.slice(a, b)); }
+function pbUtf(u8) { try { return new TextDecoder('utf-8').decode(u8); } catch (e) { var s = ''; for (var i = 0; i < u8.length; i++) s += String.fromCharCode(u8[i]); return s; } }
+function pbZip(f, cb) {
+  pbRd(f, Math.max(0, f.size - 65557), f.size, function (dv) {
+    if (!dv) { cb('Nie mogę odczytać pliku ZIP'); return; }
+    var i, eo = -1; for (i = dv.byteLength - 22; i >= 0; i--) if (dv.getUint32(i, true) === 0x06054b50) { eo = i; break; }
+    if (eo < 0) { cb('To nie jest plik ZIP'); return; }
+    var n = dv.getUint16(eo + 10, true), cdSize = dv.getUint32(eo + 12, true), cdOff = dv.getUint32(eo + 16, true);
+    pbRd(f, cdOff, cdOff + cdSize, function (cd, buf) {
+      if (!cd) { cb('Nie mogę odczytać pliku ZIP'); return; }
+      var p = 0, list = [], k;
+      for (k = 0; k < n; k++) {
+        if (p + 46 > cd.byteLength || cd.getUint32(p, true) !== 0x02014b50) { cb('Plik ZIP jest uszkodzony'); return; }
+        var nl = cd.getUint16(p + 28, true), xl = cd.getUint16(p + 30, true), cl = cd.getUint16(p + 32, true);
+        list.push({ name: pbUtf(new Uint8Array(buf, p + 46, nl)), meth: cd.getUint16(p + 10, true), cs: cd.getUint32(p + 20, true), lo: cd.getUint32(p + 42, true) });
+        p += 46 + nl + xl + cl;
+      }
+      var out = [], j = 0;
+      function nx() {
+        if (j >= list.length) { cb(null, out); return; }
+        var e = list[j++], base = e.name.split('/').pop();
+        if (!base || /^__MACOSX\//.test(e.name) || /^\._/.test(base) || /^\./.test(base)) { nx(); return; }
+        pbRd(f, e.lo, e.lo + 30, function (lh) {
+          if (!lh || lh.getUint32(0, true) !== 0x04034b50) { cb('Plik ZIP jest uszkodzony'); return; }
+          var ds = e.lo + 30 + lh.getUint16(26, true) + lh.getUint16(28, true), raw = f.slice(ds, ds + e.cs);
+          if (e.meth === 0) { out.push({ name: base, blob: raw }); nx(); return; }
+          if (e.meth !== 8) { cb('Nieznany rodzaj kompresji w ZIP (' + base + ')'); return; }
+          if (!window.DecompressionStream || !raw.stream) { cb('Ta przeglądarka nie rozpakuje tego ZIP-a – zaktualizuj ją albo wybierz pliki osobno'); return; }
+          new Response(raw.stream().pipeThrough(new DecompressionStream('deflate-raw'))).blob().then(function (b) { out.push({ name: base, blob: b }); nx(); }, function () { cb('Nie mogę rozpakować ' + base); });
+        });
+      }
+      nx();
+    });
+  });
+}
+window.pbbZip = function (inp) {
+  var f = inp.files && inp.files[0]; if (!f) return;
+  PBB.files = []; PBB.opisy = []; $('pbb-zi').textContent = 'Rozpakowuję…'; window.pbbPlan();
+  pbZip(f, function (err, list) {
+    if (err) { $('pbb-zi').textContent = ''; toast(err, 'err'); return; }
+    var txt = null, i;
+    for (i = 0; i < list.length; i++) {
+      var nm = list[i].name, ext = (nm.split('.').pop() || '').toLowerCase();
+      if (ext === 'mp4' || ext === 'mov') PBB.files.push(new File([list[i].blob], nm, { type: ext === 'mov' ? 'video/quicktime' : 'video/mp4' }));
+      else if (ext === 'txt' && !txt) txt = list[i].blob;
+    }
+    PBB.files.sort(function (a, b) { return a.name < b.name ? -1 : 1; });
+    function done() { $('pbb-zi').textContent = 'W ZIP-ie: ' + PBB.files.length + ' filmików' + (txt ? ', opisy: ' + PBB.opisy.length : ', brak pliku TXT z opisami'); window.pbbPlan(); }
+    if (!txt) { done(); return; }
+    var r = new FileReader(); r.onload = function () { PBB.opisy = pbParseTxt(r.result); done(); }; r.onerror = done; r.readAsText(txt, 'UTF-8');
+  });
+};
 window.pbbInbox = function () {
   $('pbb-inb').textContent = 'Sprawdzam…';
   api('soc_inbox', {}, function (r) {
@@ -2109,11 +2170,11 @@ window.pbbPlan = function () {
   for (i = 0; i < rest.length; i++) plan.push({ n: rest[i], f: byNum[rest[i]], opis: '' });
   for (i = 0; i < PBB.files.length; i++) if (pbNum(PBB.files[i].name) === null) plan.push({ n: null, f: PBB.files[i], opis: '' });
   var d0 = val('pbb-d'), hh = val('pbb-h') || '19:00', step = Math.max(1, parseInt(val('pbb-n'), 10) || 1), j = 0;
-  // już dodane w panelu (po numerze w tytule) – pomijamy, ale zostawiamy im ich dzień w kolejce
+  // już dodane w panelu (ten sam tytuł = nazwa pliku) – pomijamy, ale zostawiamy im ich dzień w kolejce
   var have = {};
-  for (i = 0; i < PB.rows.length; i++) { var rn = pbNum(PB.rows[i].tytul); if (rn !== null && PB.rows[i].stan !== 'blad') have[rn] = PB.rows[i]; }
+  for (i = 0; i < PB.rows.length; i++) if (PB.rows[i].stan !== 'blad') have[String(PB.rows[i].tytul).toLowerCase()] = PB.rows[i];
   for (i = 0; i < plan.length; i++) {
-    plan[i].jest = plan[i].n !== null && have[plan[i].n] ? have[plan[i].n] : null;
+    plan[i].jest = plan[i].f && have[plan[i].f.name.replace(/\.[^.]+$/, '').toLowerCase()] || null;
     if (!plan[i].f && !plan[i].jest) { plan[i].kiedy = ''; continue; }
     var d = new Date(d0 + 'T' + hh + ':00'); d.setDate(d.getDate() + j * step); j++;
     plan[i].kiedy = d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2) + ' ' + hh + ':00';
