@@ -19,7 +19,7 @@ function default_templates() {
         'text' => 'Nowa, w pełni zautomatyzowana strona: ceny i stany u dostawcy na żywo, duże wyceny przez wklejenie listy numerów, panel zamówień z aplikacją na telefon. Jedno kliknięcie zamawia części u dostawcy, a faktury wystawiają się same.');
     $end = array('t' => 'tekst', 'text' => 'Chętnie w 15 minut pokażę, jak to działa. Rozmowa jest bezpłatna i do niczego nie zobowiązuje – nawet jeśli nie podejmiemy współpracy, może jakaś rada się przyda.');
     $nolink = array('t' => 'tekst', 'text' => 'Wolą Państwo nie klikać w linki? Wystarczy odpisać na tego maila albo zadzwonić: {moj_telefon}.');
-    $btn = array('t' => 'przycisk', 'text' => 'Umów bezpłatną rozmowę', 'sub' => 'Krótki formularz – zajmie 30 sekund. Oddzwonię w ciągu 1 dnia roboczego.');
+    $btn = array('t' => 'przycisk', 'text' => 'Umów bezpłatną rozmowę', 'sub' => 'Krótki formularz – zajmie 30 sekund. Odezwę się w ciągu 24 godzin.');
     $mk = function ($temat, $blocks) { return array('temat' => $temat, 'bloki' => $blocks, 'nadtytul' => '', 'naglowek' => '', 'tresc' => '', 'przycisk' => ''); };
     $first = function ($intro, $box) use ($mk, $end, $btn, $nolink) {
         return $mk('Pytanie do {firma}', array(array('t' => 'tekst', 'text' => "Dzień dobry,\n\n" . $intro), $box, $end, $btn, $nolink));
@@ -47,11 +47,11 @@ function default_templates() {
         ));
     };
     $confirm = $mk('Dziękuję – zadzwonię', array(
-        array('t' => 'tekst', 'text' => "Dzień dobry,\n\ndziękuję za zgłoszenie! Zadzwonię w ciągu 1 dnia roboczego albo w terminie, który Państwo wybrali."),
+        array('t' => 'tekst', 'text' => "Dzień dobry,\n\ndziękuję za zgłoszenie! Odezwę się w ciągu 24 godzin albo w terminie, który Państwo wybrali."),
         array('t' => 'korzysci', 'text' => "Ok. 15 minut | Telefonicznie albo online – jak Państwu wygodniej.\nBezpłatnie i bez zobowiązań | Opowiedzą Państwo, jak pracujecie, a ja powiem, co da się uprościć.\nKonkretnie | Dostaną Państwo propozycję z zakresem i ceną."),
         array('t' => 'tekst', 'text' => 'Gdyby było pilniej, proszę dzwonić: {moj_telefon}'),
     ));
-    return array(
+    return array_merge(ask_sets($mk, $confirm), array(
         'Warsztaty samochodowe' => array(
             'pierwszy' => $first("mam na imię {imie}, w ELOK robimy automatyzacje dla warsztatów. Sam też prowadzę warsztat, więc wiem, ile czasu schodzi na wyceny, telefony i papiery.", $ws),
             'przypomnienie' => $remind('automatyzacji wycen i faktur w warsztacie'),
@@ -111,7 +111,7 @@ function default_templates() {
             'przypomnienie2' => $last('automatyzacji w Państwa firmie'),
             'potwierdzenie' => $confirm,
         ),
-    );
+    ));
 }
 
 // zapis szablonu (upsert) z blokami
@@ -127,7 +127,7 @@ function default_template_for($branza_nazwa, $typ) {
     $n = mb_strtolower(trim($branza_nazwa));
     foreach ($all as $name => $set) if (mb_strtolower($name) === $n) return $set[$typ];
     if (mb_strpos($n, 'uk ') === 0 || mb_strpos($n, 'uk–') === 0 || mb_strpos($n, 'uk -') === 0 || mb_strpos($n, '(uk)') !== false) return $all['UK – Garages'][$typ];
-    $keys = array('hurt' => 'Hurtownie części', 'częśc' => 'Sklepy z częściami samochodowymi', 'czesc' => 'Sklepy z częściami samochodowymi', 'internet' => 'Sklepy internetowe', 'stacj' => 'Stacje kontroli pojazdów', 'skp' => 'Stacje kontroli pojazdów', 'diagnost' => 'Stacje kontroli pojazdów', 'warsztat' => 'Warsztaty samochodowe', 'hurt' => 'Hurtownie części', 'sklep' => 'Sklepy WooCommerce / Shopify', 'woo' => 'Sklepy WooCommerce / Shopify', 'shopify' => 'Sklepy WooCommerce / Shopify', 'allegro' => 'Sprzedawcy Allegro');
+    $keys = array('salon' => 'Salony beauty i fryzjerskie', 'fryzj' => 'Salony beauty i fryzjerskie', 'kosmet' => 'Salony beauty i fryzjerskie', 'beauty' => 'Salony beauty i fryzjerskie', 'fizjo' => 'Gabinety fizjoterapii', 'rachunk' => 'Biura rachunkowe', 'księg' => 'Biura rachunkowe', 'hurt' => 'Hurtownie części', 'częśc' => 'Sklepy z częściami samochodowymi', 'czesc' => 'Sklepy z częściami samochodowymi', 'internet' => 'Sklepy internetowe', 'stacj' => 'Stacje kontroli pojazdów', 'skp' => 'Stacje kontroli pojazdów', 'diagnost' => 'Stacje kontroli pojazdów', 'warsztat' => 'Warsztaty samochodowe', 'hurt' => 'Hurtownie części', 'sklep' => 'Sklepy WooCommerce / Shopify', 'woo' => 'Sklepy WooCommerce / Shopify', 'shopify' => 'Sklepy WooCommerce / Shopify', 'allegro' => 'Sprzedawcy Allegro');
     foreach ($keys as $k => $name) if (mb_strpos($n, $k) !== false) return $all[$name][$typ];
     return $all['Inne firmy'][$typ];
 }
@@ -160,7 +160,7 @@ function sklepy_migrate() {
 
 // Angielskie maile dla brytyjskich warsztatów (branża z językiem "en")
 function uk_templates($mk, $btn) {
-    $b = $btn; $b['text'] = 'Book a free call'; $b['sub'] = "Short form – takes 30 seconds. I'll call you back within 1 working day.";
+    $b = $btn; $b['text'] = 'Book a free call'; $b['sub'] = "Short form – takes 30 seconds. I'll get back to you within 24 hours.";
     $nolink = array('t' => 'tekst', 'text' => 'Prefer not to click links? Just reply to this email.');
     $first = $mk('Quick question for {firma}', array(
         array('t' => 'tekst', 'text' => "Hi,\n\nwe come from the automotive trade, so we know how much of a garage's day goes on admin – looking up parts, building quotes, chasing customers and paperwork.\n\nAt ELOK we build simple automations for independent garages – from one small fix that saves an hour a day to a complete job management system."),
@@ -182,7 +182,7 @@ function uk_templates($mk, $btn) {
         array('t' => 'tekst', 'text' => "Prefer not to click links? Just reply to this email.\n\nEither way – thanks for your time and all the best!"),
     ));
     $confirm = $mk("Thank you – I'll be in touch", array(
-        array('t' => 'tekst', 'text' => "Hi,\n\nthank you for your request! I'll call you within 1 working day or at the time you chose."),
+        array('t' => 'tekst', 'text' => "Hi,\n\nthank you for your request! I'll get back to you within 24 hours or at the time you chose."),
         array('t' => 'korzysci', 'text' => "About 15 minutes | By phone or video call – whatever suits you.\nFree, no obligation | You tell me how you work, and I'll suggest what can be simplified.\nStraight to the point | You'll get a proposal with scope and price."),
         array('t' => 'tekst', 'text' => "If it's urgent, call me on {moj_telefon}."),
     ));
@@ -199,4 +199,40 @@ function uk_migrate() {
         foreach (array('pierwszy', 'przypomnienie', 'przypomnienie2', 'potwierdzenie') as $t) save_template($id, $t, default_template_for('UK – Garages', $t));
     }
     setting_set('uk_dodane', '1');
+}
+
+// Krótkie maile-pytania (bez oferty, bez przycisku): prosimy o zgodę na przesłanie informacji, klient odpisuje „tak” albo „nie”.
+function ask_templates($mk, $confirm, $temat, $intro, $o_czym) {
+    $t = function ($x) { return array('t' => 'tekst', 'text' => $x); };
+    return array(
+        'pierwszy' => $mk($temat, array($t("Dzień dobry,\n\nmam na imię {imie}, jestem z ELOK. " . $intro . "\n\nCzy mogę przesłać kilka zdań, jak to działa i ile kosztuje? Wystarczy odpisać „tak”.\n\nJeśli to nie temat dla Państwa, proszę odpisać „nie” – więcej nie napiszę."))),
+        'przypomnienie' => $mk('Re: ' . $temat, array($t("Dzień dobry,\n\nwracam krótko do pytania sprzed kilku dni w sprawie " . $o_czym . ".\n\nCzy mogę przesłać kilka zdań, jak to działa i ile kosztuje? Wystarczy odpisać „tak” albo „nie”."))),
+        'przypomnienie2' => $mk('Ostatnia wiadomość ode mnie', array($t("Dzień dobry,\n\nto ostatnia wiadomość ode mnie w sprawie " . $o_czym . ", nie chcę zaśmiecać skrzynki.\n\nGdyby temat był kiedyś aktualny, wystarczy odpisać na tego maila albo zadzwonić: {moj_telefon}.\n\nPozdrawiam i powodzenia!"))),
+        'potwierdzenie' => $confirm,
+    );
+}
+function ask_sets($mk, $confirm) {
+    return array(
+        'Salony beauty i fryzjerskie' => ask_templates($mk, $confirm, 'Krótkie pytanie do {firma}',
+            'Robimy dla salonów rezerwacje online i automatyczne przypomnienia o wizycie dla klientów. Mniej telefonów w trakcie zabiegu i mniej wizyt, na które nikt nie przychodzi.',
+            'rezerwacji online i przypomnień o wizytach'),
+        'Gabinety fizjoterapii' => ask_templates($mk, $confirm, 'Krótkie pytanie do {firma}',
+            'Robimy dla gabinetów zapisy online i automatyczne przypomnienia o wizycie dla pacjentów. Mniej telefonów w trakcie zabiegu i mniej pustych terminów.',
+            'zapisów online i przypomnień o wizytach'),
+        'Biura rachunkowe' => ask_templates($mk, $confirm, 'Krótkie pytanie do {firma}',
+            'Robimy dla biur rachunkowych automaty, które same przypominają klientom o dokumentach i zbierają je w jednym miejscu. Mniej gonienia klientów pod koniec miesiąca.',
+            'automatycznego zbierania dokumentów od klientów'),
+    );
+}
+// Jednorazowo dodaje branże: salony beauty, fizjoterapia, biura rachunkowe (z krótkimi mailami-pytaniami)
+function gabinety_migrate() {
+    if (setting('gabinety_dodane') === '1') return;
+    $have = array(); foreach (all('SELECT nazwa FROM branze') as $b) $have[mb_strtolower($b['nazwa'])] = 1;
+    foreach (array('Salony beauty i fryzjerskie', 'Gabinety fizjoterapii', 'Biura rachunkowe') as $n) {
+        if (isset($have[mb_strtolower($n)])) continue;
+        q('INSERT INTO branze(nazwa,aktywna,kolejnosc) VALUES(?,1,?)', array($n, (int)val('SELECT COALESCE(MAX(kolejnosc),0)+1 FROM branze')));
+        $id = (int)db()->lastInsertId();
+        foreach (array('pierwszy', 'przypomnienie', 'przypomnienie2', 'potwierdzenie') as $t) save_template($id, $t, default_template_for($n, $t));
+    }
+    setting_set('gabinety_dodane', '1');
 }
