@@ -88,7 +88,11 @@ $email = st_p('email', 190);
 $tel = st_p('telefon', 60);
 $opis = st_p('opis', 3000);
 if ($imie === '') st_err('Wpisz imię i nazwisko.');
-if (!filter_var($email, FILTER_VALIDATE_EMAIL)) st_err('Wpisz poprawny adres e-mail.');
+if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    // landing: wystarczy sam telefon
+    if ($a === 'kontakt' && strlen(preg_replace('/\D/', '', $tel)) >= 9) $email = '';
+    else st_err($a === 'kontakt' ? 'Wpisz numer telefonu albo adres e-mail.' : 'Wpisz poprawny adres e-mail.');
+}
 
 st_migrate();
 $n = (int)val('SELECT COUNT(*) FROM zgloszenia WHERE ip=? AND created_at>=?', array($ip, date('Y-m-d H:i:s', time() - 3600)));
@@ -99,8 +103,8 @@ $link = BASE_URL . '/#zgloszenia';
 if ($a === 'kontakt') {
     q('INSERT INTO zgloszenia(firma_id,firma,osoba,telefon,email,czym,co,status,notatka,ip,created_at,zrodlo) VALUES(NULL,?,?,?,?,?,?,?,?,?,?,?)',
         array(st_p('firma', 255) ?: $imie, $imie, $tel, $email, '', $opis, 'nowe', 'Źródło: formularz na elok-agency.pl', $ip, now(), 'strona'));
-    logi(null, 'zgloszenie', 'Strona: ' . $imie . ' ' . $email);
-    push('Zapytanie ze strony: ' . $imie, trim($email . "\n" . mb_substr($opis, 0, 120)), $link);
+    logi(null, 'zgloszenie', 'Strona: ' . $imie . ' ' . ($email ?: $tel));
+    push('Zapytanie ze strony: ' . $imie, trim(($email ?: 'tel. ' . $tel) . "\n" . mb_substr($opis, 0, 120)), $link);
     notify_owner('Nowe zapytanie ze strony: ' . $imie, array('Imię' => $imie, 'E-mail' => $email, 'Telefon' => $tel, 'Wiadomość' => $opis), $link);
     st_ok();
 }
