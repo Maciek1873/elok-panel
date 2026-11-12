@@ -202,11 +202,12 @@ function uk_migrate() {
 }
 
 // Krótkie maile-pytania (bez oferty, bez przycisku): prosimy o zgodę na przesłanie informacji, klient odpisuje „tak” albo „nie”.
+// Zawsze: co robimy (automatyzacje, strony, marketing) + co konkretnie widzimy u nich do zautomatyzowania.
 function ask_templates($mk, $confirm, $temat, $intro, $o_czym) {
     $t = function ($x) { return array('t' => 'tekst', 'text' => $x); };
     return array(
-        'pierwszy' => $mk($temat, array($t("Dzień dobry,\n\nmam na imię {imie}, jestem z ELOK. " . $intro . "\n\nCzy mogę przesłać kilka zdań, jak to działa i ile kosztuje? Wystarczy odpisać „tak”.\n\nJeśli to nie temat dla Państwa, proszę odpisać „nie” – więcej nie napiszę."))),
-        'przypomnienie' => $mk('Re: ' . $temat, array($t("Dzień dobry,\n\nwracam krótko do pytania sprzed kilku dni w sprawie " . $o_czym . ".\n\nCzy mogę przesłać kilka zdań, jak to działa i ile kosztuje? Wystarczy odpisać „tak” albo „nie”."))),
+        'pierwszy' => $mk($temat, array($t("Dzień dobry,\n\nmam na imię {imie}, jestem z ELOK. Robimy dla firm automatyzacje, strony internetowe i marketing.\n\n" . $intro . "\n\nCzy mogę przesłać kilka zdań, jak to mogłoby wyglądać u Państwa i ile kosztuje? Wystarczy odpisać „tak”.\n\nJeśli to nie temat dla Państwa, proszę odpisać „nie” – więcej nie napiszę."))),
+        'przypomnienie' => $mk('Re: ' . $temat, array($t("Dzień dobry,\n\nwracam krótko do pytania sprzed kilku dni w sprawie " . $o_czym . ".\n\nCzy mogę przesłać kilka zdań, jak to mogłoby wyglądać u Państwa i ile kosztuje? Wystarczy odpisać „tak” albo „nie”."))),
         'przypomnienie2' => $mk('Ostatnia wiadomość ode mnie', array($t("Dzień dobry,\n\nto ostatnia wiadomość ode mnie w sprawie " . $o_czym . ", nie chcę zaśmiecać skrzynki.\n\nGdyby temat był kiedyś aktualny, wystarczy odpisać na tego maila albo zadzwonić: {moj_telefon}.\n\nPozdrawiam i powodzenia!"))),
         'potwierdzenie' => $confirm,
     );
@@ -224,30 +225,30 @@ function ask_sets($mk, $confirm) {
     $ost = function ($o) { return "Dzień dobry,\n\nto ostatnia wiadomość ode mnie w sprawie " . $o . ", nie chcę zaśmiecać skrzynki.\n\nGdyby temat był kiedyś aktualny, wystarczy odpisać na tego maila albo zadzwonić: {moj_telefon}.\n\nPozdrawiam i powodzenia!"; };
     return array(
         'Salony beauty i fryzjerskie' => ask_templates($mk, $confirm, 'Krótkie pytanie do {firma}',
-            'Robimy dla salonów rezerwacje online i automatyczne przypomnienia o wizycie dla klientów. Mniej telefonów w trakcie zabiegu i mniej wizyt, na które nikt nie przychodzi.',
-            'rezerwacji online i przypomnień o wizytach'),
+            "W salonie od razu widzimy kilka rzeczy, które mogą dziać się same: rezerwacje online, przypomnienia o wizycie dla klientów, zaproszenie na kolejną wizytę po kilku tygodniach i reklamy, które przyprowadzają klientów z okolicy.",
+            'automatyzacji w salonie'),
         'Gabinety fizjoterapii' => ask_templates($mk, $confirm, 'Krótkie pytanie do {firma}',
-            'Robimy dla gabinetów zapisy online i automatyczne przypomnienia o wizycie dla pacjentów. Mniej telefonów w trakcie zabiegu i mniej pustych terminów.',
-            'zapisów online i przypomnień o wizytach'),
+            "W gabinecie od razu widzimy kilka rzeczy, które mogą dziać się same: zapisy online, przypomnienia o wizycie dla pacjentów, zaproszenie na kontrolę po zakończonej terapii i strona, z której pacjenci z okolicy łatwo Państwa znajdą.",
+            'automatyzacji w gabinecie'),
         // A – pytanie wprost
         'Biura rachunkowe' => ask_templates($mk, $confirm, 'Krótkie pytanie do {firma}',
-            'Robimy dla biur rachunkowych automaty, które same przypominają klientom o dokumentach i zbierają je w jednym miejscu. Mniej gonienia klientów pod koniec miesiąca.',
-            'automatycznego zbierania dokumentów od klientów'),
+            "W biurze rachunkowym od razu widzimy kilka rzeczy, które mogą dziać się same: przypomnienia dla klientów o dokumentach, zbieranie faktur w jednym miejscu, przygotowanie danych pod KSeF i miesięczne podsumowania dla klientów.",
+            'automatyzacji w biurze rachunkowym'),
         // B – pytanie o problem
         'Firmy remontowe i instalatorzy' => set3($mk, $confirm, 'Zapytania o wycenę w {firma}',
-            "Dzień dobry,\n\nile zapytań o wycenę ucieka Państwu, bo telefon dzwoni akurat wtedy, kiedy jesteście na budowie?\n\nJestem {imie} z ELOK. Robimy dla firm remontowych i instalatorów proste strony z formularzem wyceny. Klient opisuje zlecenie i dodaje zdjęcia, a Państwo dostają to od razu na telefon i odpisują, kiedy mają chwilę.\n\nCzy mogę przesłać kilka zdań, jak to wygląda i ile kosztuje? Wystarczy odpisać „tak”.\n\n" . $nie,
-            "Dzień dobry,\n\nwracam krótko do pytania o zapytania o wycenę, które uciekają w trakcie pracy.\n\nCzy mogę przesłać kilka zdań, jak to działa i ile kosztuje? Wystarczy odpisać „tak” albo „nie”.",
-            $ost('formularza wyceny dla Państwa firmy')),
+            "Dzień dobry,\n\nile zapytań o wycenę ucieka Państwu, bo telefon dzwoni akurat wtedy, kiedy jesteście na budowie?\n\nJestem {imie} z ELOK. Robimy dla firm automatyzacje, strony internetowe i marketing. U firm remontowych i instalatorów najczęściej widzimy do zrobienia: stronę z formularzem wyceny (klient opisuje zlecenie i dodaje zdjęcia, a Państwo dostają to od razu na telefon), przypomnienia o terminach dla klientów i faktury bez przepisywania.\n\nCzy mogę przesłać kilka zdań, jak to mogłoby wyglądać u Państwa i ile kosztuje? Wystarczy odpisać „tak”.\n\n" . $nie,
+            "Dzień dobry,\n\nwracam krótko do pytania o zapytania o wycenę, które uciekają w trakcie pracy.\n\nCzy mogę przesłać kilka zdań, jak to mogłoby wyglądać u Państwa i ile kosztuje? Wystarczy odpisać „tak” albo „nie”.",
+            $ost('automatyzacji i strony dla Państwa firmy')),
         // C – od przedsiębiorcy do przedsiębiorcy
         'Szkoły jazdy' => set3($mk, $confirm, 'Zapisy i przypomnienia w {firma}',
-            "Dzień dobry,\n\nnazywam się {imie}. Sam prowadzę firmę usługową, warsztat samochodowy, i wiem, ile dnia zjadają telefony, umawianie terminów i przypominanie klientom.\n\nDlatego w ELOK robimy dla małych firm automaty, które załatwiają to same. W szkole jazdy to np. zapisy na kurs przez stronę, przypomnienia o jazdach dla kursantów i przypomnienia o płatnościach.\n\nCzy mogę przesłać kilka zdań, jak to wygląda i ile kosztuje? Wystarczy odpisać „tak”.\n\n" . $nie,
-            "Dzień dobry,\n\npisałem kilka dni temu jako przedsiębiorca do przedsiębiorcy, w sprawie zapisów online i przypomnień dla kursantów.\n\nCzy mogę przesłać kilka zdań, jak to działa i ile kosztuje? Wystarczy odpisać „tak” albo „nie”.",
-            $ost('zapisów online i przypomnień dla kursantów')),
+            "Dzień dobry,\n\nnazywam się {imie}. Sam prowadzę firmę usługową, warsztat samochodowy, i wiem, ile dnia zjadają telefony, terminy i przypominanie klientom.\n\nW ELOK robimy dla firm automatyzacje, strony internetowe i marketing. W szkole jazdy widzimy np.: zapisy na kurs przez stronę, przypomnienia o jazdach i płatnościach dla kursantów, grafik instruktorów w jednym miejscu i reklamy, które przyprowadzają kursantów z okolicy.\n\nCzy mogę przesłać kilka zdań, jak to mogłoby wyglądać u Państwa i ile kosztuje? Wystarczy odpisać „tak”.\n\n" . $nie,
+            "Dzień dobry,\n\npisałem kilka dni temu jako przedsiębiorca do przedsiębiorcy, w sprawie zapisów online i przypomnień dla kursantów.\n\nCzy mogę przesłać kilka zdań, jak to mogłoby wyglądać u Państwa i ile kosztuje? Wystarczy odpisać „tak” albo „nie”.",
+            $ost('automatyzacji w szkole jazdy')),
         // D – bardzo krótki
         'Stolarnie i meble na wymiar' => set3($mk, $confirm, 'Wyceny mebli',
-            "Dzień dobry,\n\nczy wyceny mebli robią Państwo ręcznie, po kilku telefonach i zdjęciach od klienta?\n\nRobimy formularz wyceny na stronę: klient wpisuje wymiary, dodaje zdjęcia i budżet, a Państwo dostają wszystko na telefon w jednym miejscu.\n\nPrzesłać kilka zdań, jak to działa i ile kosztuje? Wystarczy odpisać „tak” albo „nie”.",
-            "Dzień dobry,\n\nkrótko wracam do formularza wyceny mebli. Przesłać kilka zdań? Wystarczy „tak” albo „nie”.",
-            $ost('formularza wyceny mebli')),
+            "Dzień dobry,\n\nczy wyceny mebli robią Państwo ręcznie, po kilku telefonach i zdjęciach od klienta?\n\nW ELOK robimy automatyzacje, strony internetowe i marketing. U Państwa zaczęlibyśmy od formularza wyceny na stronie (wymiary, zdjęcia i budżet prosto na telefon) i ofert wysyłanych do klienta automatycznie.\n\nPrzesłać kilka zdań, jak to mogłoby wyglądać i ile kosztuje? Wystarczy odpisać „tak” albo „nie”.",
+            "Dzień dobry,\n\nkrótko wracam do wycen mebli. Przesłać kilka zdań? Wystarczy „tak” albo „nie”.",
+            $ost('automatyzacji wycen mebli')),
     );
 }
 // Jednorazowo dodaje branże do testu 4 stylów (po 40 maili dziennie, razem z przypomnieniami).
@@ -265,6 +266,16 @@ function test4_migrate() {
     }
     setting_set('test4_dodane', '1');
 }
+// Jednorazowo nadpisuje teksty maili w branżach testowych (wersja 2: automatyzacje + strony + marketing)
+function test4_teksty2() {
+    if (setting('test4_teksty2') === '1') return;
+    foreach (array('Biura rachunkowe', 'Firmy remontowe i instalatorzy', 'Szkoły jazdy', 'Stolarnie i meble na wymiar', 'Salony beauty i fryzjerskie', 'Gabinety fizjoterapii') as $n) {
+        $id = (int)val('SELECT id FROM branze WHERE nazwa=?', array($n));
+        if ($id) foreach (array('pierwszy', 'przypomnienie', 'przypomnienie2') as $t) save_template($id, $t, default_template_for($n, $t));
+    }
+    setting_set('test4_teksty2', '1');
+}
+
 // Jednorazowo dodaje branże: salony beauty, fizjoterapia, biura rachunkowe (z krótkimi mailami-pytaniami)
 function gabinety_migrate() {
     if (setting('gabinety_dodane') === '1') return;
