@@ -20,11 +20,11 @@ function form_defaults() {
         ),
         'dzien_opcje' => "Obojętnie\nPoniedziałek\nWtorek\nŚroda\nCzwartek\nPiątek",
         'kiedy_opcje' => "Obojętnie, w godzinach pracy\nRano (8:00–10:00)\nPrzed południem (10:00–12:00)\nPo południu (12:00–15:00)\nPóźnym popołudniem (15:00–18:00)",
-        'przycisk' => 'Wyślij – oddzwonię w 1 dzień roboczy',
+        'przycisk' => 'Wyślij – odezwę się w ciągu 24 godzin',
         'nota' => 'Dane wykorzystamy tylko do kontaktu w sprawie tej rozmowy. Wymagane pola oznaczone *.',
         'podpis' => 1,
         'dzieki_tytul' => 'Dziękuję!',
-        'dzieki_tekst' => "Zgłoszenie dotarło. Zadzwonię w ciągu 1 dnia roboczego.\n\nPotwierdzenie wysłałem na {email}.",
+        'dzieki_tekst' => "Zgłoszenie dotarło. Odezwę się w ciągu 24 godzin.\n\nPotwierdzenie wysłałem na {email}.",
     );
 }
 function form_defaults_en() {
@@ -45,11 +45,11 @@ function form_defaults_en() {
         ),
         'dzien_opcje' => "Any day\nMonday\nTuesday\nWednesday\nThursday\nFriday",
         'kiedy_opcje' => "Any time during working hours\nMorning (8–10am)\nLate morning (10am–12pm)\nAfternoon (12–3pm)\nLate afternoon (3–6pm)",
-        'przycisk' => "Send – I'll call you back within 1 working day",
+        'przycisk' => "Send – I'll get back to you within 24 hours",
         'nota' => 'We will only use your details to contact you about this call. Fields marked * are required.',
         'podpis' => 1,
         'dzieki_tytul' => 'Thank you!',
-        'dzieki_tekst' => "Your request has arrived. I'll call you within 1 working day.\n\nA confirmation has been sent to {email}.",
+        'dzieki_tekst' => "Your request has arrived. I'll get back to you within 24 hours.\n\nA confirmation has been sent to {email}.",
     );
 }
 function form_cfg($override = null, $lang = 'pl') {
