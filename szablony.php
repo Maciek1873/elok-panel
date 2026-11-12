@@ -127,7 +127,7 @@ function default_template_for($branza_nazwa, $typ) {
     $n = mb_strtolower(trim($branza_nazwa));
     foreach ($all as $name => $set) if (mb_strtolower($name) === $n) return $set[$typ];
     if (mb_strpos($n, 'uk ') === 0 || mb_strpos($n, 'uk–') === 0 || mb_strpos($n, 'uk -') === 0 || mb_strpos($n, '(uk)') !== false) return $all['UK – Garages'][$typ];
-    $keys = array('salon' => 'Salony beauty i fryzjerskie', 'fryzj' => 'Salony beauty i fryzjerskie', 'kosmet' => 'Salony beauty i fryzjerskie', 'beauty' => 'Salony beauty i fryzjerskie', 'fizjo' => 'Gabinety fizjoterapii', 'rachunk' => 'Biura rachunkowe', 'księg' => 'Biura rachunkowe', 'hurt' => 'Hurtownie części', 'częśc' => 'Sklepy z częściami samochodowymi', 'czesc' => 'Sklepy z częściami samochodowymi', 'internet' => 'Sklepy internetowe', 'stacj' => 'Stacje kontroli pojazdów', 'skp' => 'Stacje kontroli pojazdów', 'diagnost' => 'Stacje kontroli pojazdów', 'warsztat' => 'Warsztaty samochodowe', 'hurt' => 'Hurtownie części', 'sklep' => 'Sklepy WooCommerce / Shopify', 'woo' => 'Sklepy WooCommerce / Shopify', 'shopify' => 'Sklepy WooCommerce / Shopify', 'allegro' => 'Sprzedawcy Allegro');
+    $keys = array('remont' => 'Firmy remontowe i instalatorzy', 'instal' => 'Firmy remontowe i instalatorzy', 'budow' => 'Firmy remontowe i instalatorzy', 'szkoł' => 'Szkoły jazdy', 'jazd' => 'Szkoły jazdy', 'stolar' => 'Stolarnie i meble na wymiar', 'mebl' => 'Stolarnie i meble na wymiar', 'salon' => 'Salony beauty i fryzjerskie', 'fryzj' => 'Salony beauty i fryzjerskie', 'kosmet' => 'Salony beauty i fryzjerskie', 'beauty' => 'Salony beauty i fryzjerskie', 'fizjo' => 'Gabinety fizjoterapii', 'rachunk' => 'Biura rachunkowe', 'księg' => 'Biura rachunkowe', 'hurt' => 'Hurtownie części', 'częśc' => 'Sklepy z częściami samochodowymi', 'czesc' => 'Sklepy z częściami samochodowymi', 'internet' => 'Sklepy internetowe', 'stacj' => 'Stacje kontroli pojazdów', 'skp' => 'Stacje kontroli pojazdów', 'diagnost' => 'Stacje kontroli pojazdów', 'warsztat' => 'Warsztaty samochodowe', 'hurt' => 'Hurtownie części', 'sklep' => 'Sklepy WooCommerce / Shopify', 'woo' => 'Sklepy WooCommerce / Shopify', 'shopify' => 'Sklepy WooCommerce / Shopify', 'allegro' => 'Sprzedawcy Allegro');
     foreach ($keys as $k => $name) if (mb_strpos($n, $k) !== false) return $all[$name][$typ];
     return $all['Inne firmy'][$typ];
 }
@@ -211,7 +211,17 @@ function ask_templates($mk, $confirm, $temat, $intro, $o_czym) {
         'potwierdzenie' => $confirm,
     );
 }
+// Zestaw z gotowych tekstów: pierwszy + 2 przypomnienia + potwierdzenie
+function set3($mk, $confirm, $temat, $first, $r1, $r2) {
+    $t = function ($x) { return array(array('t' => 'tekst', 'text' => $x)); };
+    return array('pierwszy' => $mk($temat, $t($first)), 'przypomnienie' => $mk('Re: ' . $temat, $t($r1)), 'przypomnienie2' => $mk('Ostatnia wiadomość ode mnie', $t($r2)), 'potwierdzenie' => $confirm);
+}
+// Test 4 stylów maila (każda branża ma inny styl):
+// A „Pytanie wprost” – biura rachunkowe, B „Pytanie o problem” – firmy remontowe,
+// C „Od przedsiębiorcy” – szkoły jazdy, D „Bardzo krótki” – stolarnie
 function ask_sets($mk, $confirm) {
+    $nie = "Jeśli to nie temat dla Państwa, proszę odpisać „nie” – więcej nie napiszę.";
+    $ost = function ($o) { return "Dzień dobry,\n\nto ostatnia wiadomość ode mnie w sprawie " . $o . ", nie chcę zaśmiecać skrzynki.\n\nGdyby temat był kiedyś aktualny, wystarczy odpisać na tego maila albo zadzwonić: {moj_telefon}.\n\nPozdrawiam i powodzenia!"; };
     return array(
         'Salony beauty i fryzjerskie' => ask_templates($mk, $confirm, 'Krótkie pytanie do {firma}',
             'Robimy dla salonów rezerwacje online i automatyczne przypomnienia o wizycie dla klientów. Mniej telefonów w trakcie zabiegu i mniej wizyt, na które nikt nie przychodzi.',
@@ -219,10 +229,41 @@ function ask_sets($mk, $confirm) {
         'Gabinety fizjoterapii' => ask_templates($mk, $confirm, 'Krótkie pytanie do {firma}',
             'Robimy dla gabinetów zapisy online i automatyczne przypomnienia o wizycie dla pacjentów. Mniej telefonów w trakcie zabiegu i mniej pustych terminów.',
             'zapisów online i przypomnień o wizytach'),
+        // A – pytanie wprost
         'Biura rachunkowe' => ask_templates($mk, $confirm, 'Krótkie pytanie do {firma}',
             'Robimy dla biur rachunkowych automaty, które same przypominają klientom o dokumentach i zbierają je w jednym miejscu. Mniej gonienia klientów pod koniec miesiąca.',
             'automatycznego zbierania dokumentów od klientów'),
+        // B – pytanie o problem
+        'Firmy remontowe i instalatorzy' => set3($mk, $confirm, 'Zapytania o wycenę w {firma}',
+            "Dzień dobry,\n\nile zapytań o wycenę ucieka Państwu, bo telefon dzwoni akurat wtedy, kiedy jesteście na budowie?\n\nJestem {imie} z ELOK. Robimy dla firm remontowych i instalatorów proste strony z formularzem wyceny. Klient opisuje zlecenie i dodaje zdjęcia, a Państwo dostają to od razu na telefon i odpisują, kiedy mają chwilę.\n\nCzy mogę przesłać kilka zdań, jak to wygląda i ile kosztuje? Wystarczy odpisać „tak”.\n\n" . $nie,
+            "Dzień dobry,\n\nwracam krótko do pytania o zapytania o wycenę, które uciekają w trakcie pracy.\n\nCzy mogę przesłać kilka zdań, jak to działa i ile kosztuje? Wystarczy odpisać „tak” albo „nie”.",
+            $ost('formularza wyceny dla Państwa firmy')),
+        // C – od przedsiębiorcy do przedsiębiorcy
+        'Szkoły jazdy' => set3($mk, $confirm, 'Zapisy i przypomnienia w {firma}',
+            "Dzień dobry,\n\nnazywam się {imie}. Sam prowadzę firmę usługową, warsztat samochodowy, i wiem, ile dnia zjadają telefony, umawianie terminów i przypominanie klientom.\n\nDlatego w ELOK robimy dla małych firm automaty, które załatwiają to same. W szkole jazdy to np. zapisy na kurs przez stronę, przypomnienia o jazdach dla kursantów i przypomnienia o płatnościach.\n\nCzy mogę przesłać kilka zdań, jak to wygląda i ile kosztuje? Wystarczy odpisać „tak”.\n\n" . $nie,
+            "Dzień dobry,\n\npisałem kilka dni temu jako przedsiębiorca do przedsiębiorcy, w sprawie zapisów online i przypomnień dla kursantów.\n\nCzy mogę przesłać kilka zdań, jak to działa i ile kosztuje? Wystarczy odpisać „tak” albo „nie”.",
+            $ost('zapisów online i przypomnień dla kursantów')),
+        // D – bardzo krótki
+        'Stolarnie i meble na wymiar' => set3($mk, $confirm, 'Wyceny mebli',
+            "Dzień dobry,\n\nczy wyceny mebli robią Państwo ręcznie, po kilku telefonach i zdjęciach od klienta?\n\nRobimy formularz wyceny na stronę: klient wpisuje wymiary, dodaje zdjęcia i budżet, a Państwo dostają wszystko na telefon w jednym miejscu.\n\nPrzesłać kilka zdań, jak to działa i ile kosztuje? Wystarczy odpisać „tak” albo „nie”.",
+            "Dzień dobry,\n\nkrótko wracam do formularza wyceny mebli. Przesłać kilka zdań? Wystarczy „tak” albo „nie”.",
+            $ost('formularza wyceny mebli')),
     );
+}
+// Jednorazowo dodaje branże do testu 4 stylów (po 40 maili dziennie, razem z przypomnieniami).
+// Salony i fizjoterapia dodają się wyłączone – można je włączyć w panelu.
+function test4_migrate() {
+    if (setting('test4_dodane') === '1') return;
+    add_col('branze', 'limit_dzienny', 'INT NOT NULL DEFAULT 0');
+    $have = array(); foreach (all('SELECT nazwa FROM branze') as $b) $have[mb_strtolower($b['nazwa'])] = 1;
+    $list = array('Biura rachunkowe' => 1, 'Firmy remontowe i instalatorzy' => 1, 'Szkoły jazdy' => 1, 'Stolarnie i meble na wymiar' => 1, 'Salony beauty i fryzjerskie' => 0, 'Gabinety fizjoterapii' => 0);
+    foreach ($list as $n => $on) {
+        if (isset($have[mb_strtolower($n)])) { if ($on) q('UPDATE branze SET aktywna=1, limit_dzienny=40 WHERE nazwa=?', array($n)); continue; }
+        q('INSERT INTO branze(nazwa,aktywna,kolejnosc,limit_dzienny) VALUES(?,?,?,?)', array($n, $on, (int)val('SELECT COALESCE(MAX(kolejnosc),0)+1 FROM branze'), $on ? 40 : 0));
+        $id = (int)db()->lastInsertId();
+        foreach (array('pierwszy', 'przypomnienie', 'przypomnienie2', 'potwierdzenie') as $t) save_template($id, $t, default_template_for($n, $t));
+    }
+    setting_set('test4_dodane', '1');
 }
 // Jednorazowo dodaje branże: salony beauty, fizjoterapia, biura rachunkowe (z krótkimi mailami-pytaniami)
 function gabinety_migrate() {
