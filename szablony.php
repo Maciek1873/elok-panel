@@ -221,7 +221,7 @@ function set3($mk, $confirm, $temat, $first, $r1, $r2) {
 // A „Wprost” – biura rachunkowe, B „Pytanie o problem” – firmy remontowe,
 // C „Od przedsiębiorcy” – szkoły jazdy, D „Bardzo krótki” – stolarnie
 function ask_sets($mk, $confirm) {
-    $kto = "Jestem {imie} z ELOK, robimy dla małych firm automatyzacje, strony internetowe i marketing.";
+    $kto = "Jestem {imie} z ELOK, robimy dla firm automatyzacje, strony internetowe i marketing.";
     $rozm = "Chętnie zadzwonię na 15 minut, zerknę na Państwa stronę i podpowiem, co bym u Państwa usprawnił. Bezpłatnie i bez zobowiązań. Nawet jeśli nic z tego nie wyjdzie, zostanie Państwu kilka konkretnych pomysłów.";
     $r1 = function ($o) { return "Dzień dobry,\n\nwracam do mojego maila sprzed kilku dni w sprawie " . $o . ".\n\nPropozycja jest aktualna: 15 minut rozmowy, zerknę na Państwa stronę i podpowiem, co można usprawnić. Bezpłatnie.\n\nWystarczy odpisać, kiedy mogę zadzwonić."; };
     $r2 = "Dzień dobry,\n\nto już ostatni mail ode mnie, nie będę zaśmiecał skrzynki.\n\nGdyby kiedyś przydała się rozmowa o stronie albo o tym, jak uprościć pracę w firmie, wystarczy odpisać albo zadzwonić: {moj_telefon}.\n\nPozdrawiam i powodzenia!";
@@ -242,7 +242,7 @@ function ask_sets($mk, $confirm) {
             $r1('zapytań o wycenę'), $r2),
         // C – od przedsiębiorcy
         'Szkoły jazdy' => set3($mk, $confirm, 'Pytanie do {firma}',
-            "Dzień dobry,\n\nnazywam się {imie}. Sam prowadzę warsztat samochodowy, więc wiem, jak to jest, kiedy pół dnia schodzi na telefony, terminy i pilnowanie, kto już zapłacił.\n\nW ELOK robimy dla małych firm automatyzacje, strony internetowe i marketing. Szkoła jazdy ma bardzo podobne problemy, tylko zamiast klientów są kursanci i jazdy.\n\nChętnie zadzwonię, zobaczę Państwa stronę i podpowiem, co da się uprościć. Rozmowa jest bezpłatna i do niczego nie zobowiązuje, a jak się Państwo nie zdecydują, to przynajmniej wiedza zostanie.\n\nProszę dać znać, kiedy mogę zadzwonić.",
+            "Dzień dobry,\n\nnazywam się {imie}. Sam prowadzę warsztat samochodowy, więc wiem, jak to jest, kiedy pół dnia schodzi na telefony, terminy i pilnowanie, kto już zapłacił.\n\nW ELOK robimy dla firm automatyzacje, strony internetowe i marketing. Szkoła jazdy ma bardzo podobne problemy, tylko zamiast klientów są kursanci i jazdy.\n\nChętnie zadzwonię, zobaczę Państwa stronę i podpowiem, co da się uprościć. Rozmowa jest bezpłatna i do niczego nie zobowiązuje, a jak się Państwo nie zdecydują, to przynajmniej wiedza zostanie.\n\nProszę dać znać, kiedy mogę zadzwonić.",
             $r1('zapisów i terminów w szkole jazdy'), $r2),
         // D – bardzo krótki
         'Stolarnie i meble na wymiar' => set3($mk, $confirm, 'Wyceny mebli',
@@ -268,12 +268,12 @@ function test4_migrate() {
 }
 // Jednorazowo nadpisuje teksty maili w branżach testowych (wersja 2: automatyzacje + strony + marketing)
 function test4_teksty2() {
-    if (setting('test4_teksty3') === '1') return;
+    if (setting('test4_teksty4') === '1') return;
     foreach (array('Biura rachunkowe', 'Firmy remontowe i instalatorzy', 'Szkoły jazdy', 'Stolarnie i meble na wymiar', 'Salony beauty i fryzjerskie', 'Gabinety fizjoterapii') as $n) {
         $id = (int)val('SELECT id FROM branze WHERE nazwa=?', array($n));
         if ($id) foreach (array('pierwszy', 'przypomnienie', 'przypomnienie2') as $t) save_template($id, $t, default_template_for($n, $t));
     }
-    setting_set('test4_teksty3', '1');
+    setting_set('test4_teksty4', '1');
 }
 
 // Jednorazowo dodaje branże: salony beauty, fizjoterapia, biura rachunkowe (z krótkimi mailami-pytaniami)
