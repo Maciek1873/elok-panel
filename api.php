@@ -56,7 +56,7 @@ try {
         out(array());
     }
     if (!logged_in()) fail('Zaloguj się', array('login' => true));
-    if (empty($_SESSION['mig_v16'])) { migrate(); sz_migrate(); skp_migrate(); sklepy_migrate(); uk_migrate(); test4_migrate(); test4_teksty2(); $_SESSION['mig_v16'] = 1; }
+    if (empty($_SESSION['mig_v17'])) { migrate(); sz_migrate(); skp_migrate(); sklepy_migrate(); uk_migrate(); test4_migrate(); test4_teksty2(); $_SESSION['mig_v17'] = 1; }
 
     switch ($a) {
     case 'logout':

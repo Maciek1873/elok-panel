@@ -217,38 +217,38 @@ function set3($mk, $confirm, $temat, $first, $r1, $r2) {
     $t = function ($x) { return array(array('t' => 'tekst', 'text' => $x)); };
     return array('pierwszy' => $mk($temat, $t($first)), 'przypomnienie' => $mk('Re: ' . $temat, $t($r1)), 'przypomnienie2' => $mk('Ostatnia wiadomość ode mnie', $t($r2)), 'potwierdzenie' => $confirm);
 }
-// Test 4 stylów maila (każda branża ma inny styl):
-// A „Pytanie wprost” – biura rachunkowe, B „Pytanie o problem” – firmy remontowe,
+// Test 4 stylów maila (każda branża ma inny styl), pisane po ludzku, kończą się propozycją bezpłatnej rozmowy:
+// A „Wprost” – biura rachunkowe, B „Pytanie o problem” – firmy remontowe,
 // C „Od przedsiębiorcy” – szkoły jazdy, D „Bardzo krótki” – stolarnie
 function ask_sets($mk, $confirm) {
-    $nie = "Jeśli to nie temat dla Państwa, proszę odpisać „nie” – więcej nie napiszę.";
-    $ost = function ($o) { return "Dzień dobry,\n\nto ostatnia wiadomość ode mnie w sprawie " . $o . ", nie chcę zaśmiecać skrzynki.\n\nGdyby temat był kiedyś aktualny, wystarczy odpisać na tego maila albo zadzwonić: {moj_telefon}.\n\nPozdrawiam i powodzenia!"; };
+    $kto = "Jestem {imie} z ELOK, robimy dla małych firm automatyzacje, strony internetowe i marketing.";
+    $rozm = "Chętnie zadzwonię na 15 minut, zerknę na Państwa stronę i podpowiem, co bym u Państwa usprawnił. Bezpłatnie i bez zobowiązań. Nawet jeśli nic z tego nie wyjdzie, zostanie Państwu kilka konkretnych pomysłów.";
+    $r1 = function ($o) { return "Dzień dobry,\n\nwracam do mojego maila sprzed kilku dni w sprawie " . $o . ".\n\nPropozycja jest aktualna: 15 minut rozmowy, zerknę na Państwa stronę i podpowiem, co można usprawnić. Bezpłatnie.\n\nWystarczy odpisać, kiedy mogę zadzwonić."; };
+    $r2 = "Dzień dobry,\n\nto już ostatni mail ode mnie, nie będę zaśmiecał skrzynki.\n\nGdyby kiedyś przydała się rozmowa o stronie albo o tym, jak uprościć pracę w firmie, wystarczy odpisać albo zadzwonić: {moj_telefon}.\n\nPozdrawiam i powodzenia!";
     return array(
-        'Salony beauty i fryzjerskie' => ask_templates($mk, $confirm, 'Krótkie pytanie do {firma}',
-            "W salonie od razu widzimy kilka rzeczy, które mogą dziać się same: rezerwacje online, przypomnienia o wizycie dla klientów, zaproszenie na kolejną wizytę po kilku tygodniach i reklamy, które przyprowadzają klientów z okolicy.",
-            'automatyzacji w salonie'),
-        'Gabinety fizjoterapii' => ask_templates($mk, $confirm, 'Krótkie pytanie do {firma}',
-            "W gabinecie od razu widzimy kilka rzeczy, które mogą dziać się same: zapisy online, przypomnienia o wizycie dla pacjentów, zaproszenie na kontrolę po zakończonej terapii i strona, z której pacjenci z okolicy łatwo Państwa znajdą.",
-            'automatyzacji w gabinecie'),
-        // A – pytanie wprost
-        'Biura rachunkowe' => ask_templates($mk, $confirm, 'Krótkie pytanie do {firma}',
-            "W biurze rachunkowym od razu widzimy kilka rzeczy, które mogą dziać się same: przypomnienia dla klientów o dokumentach, zbieranie faktur w jednym miejscu, przygotowanie danych pod KSeF i miesięczne podsumowania dla klientów.",
-            'automatyzacji w biurze rachunkowym'),
+        'Salony beauty i fryzjerskie' => set3($mk, $confirm, 'Pytanie do {firma}',
+            "Dzień dobry,\n\n" . lcfirst($kto) . "\n\nW salonach często wygląda to tak, że telefon dzwoni w trakcie zabiegu, a część klientów zapomina o wizycie. Da się to ustawić tak, żeby rezerwacje i przypomnienia szły same.\n\n" . $rozm . "\n\nProszę dać znać, kiedy mogę zadzwonić.",
+            $r1('rezerwacji i przypomnień w salonie'), $r2),
+        'Gabinety fizjoterapii' => set3($mk, $confirm, 'Pytanie do {firma}',
+            "Dzień dobry,\n\n" . lcfirst($kto) . "\n\nW gabinetach często wygląda to tak, że telefon dzwoni w trakcie zabiegu, a część pacjentów zapomina o wizycie. Da się to ustawić tak, żeby zapisy i przypomnienia szły same.\n\n" . $rozm . "\n\nProszę dać znać, kiedy mogę zadzwonić.",
+            $r1('zapisów i przypomnień w gabinecie'), $r2),
+        // A – wprost
+        'Biura rachunkowe' => set3($mk, $confirm, 'Pytanie do {firma}',
+            "Dzień dobry,\n\n" . lcfirst($kto) . "\n\nPewnie znają Państwo ten koniec miesiąca: część klientów spóźnia się z dokumentami, faktury przychodzą mailem, SMS-em i w reklamówce, a potem trzeba wszystkich gonić. Sporą część tego da się ustawić tak, żeby działo się samo.\n\n" . $rozm . "\n\nProszę dać znać, kiedy mogę zadzwonić.",
+            $r1('dokumentów od klientów biura'), $r2),
         // B – pytanie o problem
-        'Firmy remontowe i instalatorzy' => set3($mk, $confirm, 'Zapytania o wycenę w {firma}',
-            "Dzień dobry,\n\nile zapytań o wycenę ucieka Państwu, bo telefon dzwoni akurat wtedy, kiedy jesteście na budowie?\n\nJestem {imie} z ELOK. Robimy dla firm automatyzacje, strony internetowe i marketing. U firm remontowych i instalatorów najczęściej widzimy do zrobienia: stronę z formularzem wyceny (klient opisuje zlecenie i dodaje zdjęcia, a Państwo dostają to od razu na telefon), przypomnienia o terminach dla klientów i faktury bez przepisywania.\n\nCzy mogę przesłać kilka zdań, jak to mogłoby wyglądać u Państwa i ile kosztuje? Wystarczy odpisać „tak”.\n\n" . $nie,
-            "Dzień dobry,\n\nwracam krótko do pytania o zapytania o wycenę, które uciekają w trakcie pracy.\n\nCzy mogę przesłać kilka zdań, jak to mogłoby wyglądać u Państwa i ile kosztuje? Wystarczy odpisać „tak” albo „nie”.",
-            $ost('automatyzacji i strony dla Państwa firmy')),
-        // C – od przedsiębiorcy do przedsiębiorcy
-        'Szkoły jazdy' => set3($mk, $confirm, 'Zapisy i przypomnienia w {firma}',
-            "Dzień dobry,\n\nnazywam się {imie}. Sam prowadzę firmę usługową, warsztat samochodowy, i wiem, ile dnia zjadają telefony, terminy i przypominanie klientom.\n\nW ELOK robimy dla firm automatyzacje, strony internetowe i marketing. W szkole jazdy widzimy np.: zapisy na kurs przez stronę, przypomnienia o jazdach i płatnościach dla kursantów, grafik instruktorów w jednym miejscu i reklamy, które przyprowadzają kursantów z okolicy.\n\nCzy mogę przesłać kilka zdań, jak to mogłoby wyglądać u Państwa i ile kosztuje? Wystarczy odpisać „tak”.\n\n" . $nie,
-            "Dzień dobry,\n\npisałem kilka dni temu jako przedsiębiorca do przedsiębiorcy, w sprawie zapisów online i przypomnień dla kursantów.\n\nCzy mogę przesłać kilka zdań, jak to mogłoby wyglądać u Państwa i ile kosztuje? Wystarczy odpisać „tak” albo „nie”.",
-            $ost('automatyzacji w szkole jazdy')),
+        'Firmy remontowe i instalatorzy' => set3($mk, $confirm, 'Zapytania o wycenę',
+            "Dzień dobry,\n\nile razy dzwoni klient z pytaniem o wycenę, a Państwo akurat są na budowie i nie mogą odebrać? Często taki klient już nie oddzwania, tylko dzwoni do kolejnej firmy.\n\n" . $kto . " Da się to ustawić tak, żeby klient sam opisał zlecenie na stronie i dorzucił zdjęcia, a Państwo dostali to na telefon i odpisali, jak będzie chwila.\n\nMogę zadzwonić na kwadrans, przejrzeć Państwa stronę i powiedzieć, co bym zmienił. Za darmo i bez zobowiązań, a kilka pomysłów zostanie niezależnie od decyzji.\n\nKiedy będzie Państwu wygodnie porozmawiać?",
+            $r1('zapytań o wycenę'), $r2),
+        // C – od przedsiębiorcy
+        'Szkoły jazdy' => set3($mk, $confirm, 'Pytanie do {firma}',
+            "Dzień dobry,\n\nnazywam się {imie}. Sam prowadzę warsztat samochodowy, więc wiem, jak to jest, kiedy pół dnia schodzi na telefony, terminy i pilnowanie, kto już zapłacił.\n\nW ELOK robimy dla małych firm automatyzacje, strony internetowe i marketing. Szkoła jazdy ma bardzo podobne problemy, tylko zamiast klientów są kursanci i jazdy.\n\nChętnie zadzwonię, zobaczę Państwa stronę i podpowiem, co da się uprościć. Rozmowa jest bezpłatna i do niczego nie zobowiązuje, a jak się Państwo nie zdecydują, to przynajmniej wiedza zostanie.\n\nProszę dać znać, kiedy mogę zadzwonić.",
+            $r1('zapisów i terminów w szkole jazdy'), $r2),
         // D – bardzo krótki
         'Stolarnie i meble na wymiar' => set3($mk, $confirm, 'Wyceny mebli',
-            "Dzień dobry,\n\nczy wyceny mebli robią Państwo ręcznie, po kilku telefonach i zdjęciach od klienta?\n\nW ELOK robimy automatyzacje, strony internetowe i marketing. U Państwa zaczęlibyśmy od formularza wyceny na stronie (wymiary, zdjęcia i budżet prosto na telefon) i ofert wysyłanych do klienta automatycznie.\n\nPrzesłać kilka zdań, jak to mogłoby wyglądać i ile kosztuje? Wystarczy odpisać „tak” albo „nie”.",
-            "Dzień dobry,\n\nkrótko wracam do wycen mebli. Przesłać kilka zdań? Wystarczy „tak” albo „nie”.",
-            $ost('automatyzacji wycen mebli')),
+            "Dzień dobry,\n\nrobią Państwo wyceny mebli ręcznie, po kilku telefonach i zdjęciach od klienta?\n\n" . $kto . " Chętnie zadzwonię na kilka minut, zerknę na Państwa stronę i podpowiem, jak to uprościć. Bezpłatnie i bez zobowiązań.\n\nKiedy mogę zadzwonić?",
+            "Dzień dobry,\n\nkrótko wracam do wycen mebli. Zadzwonić na kilka minut? Wystarczy odpisać, kiedy pasuje.",
+            $r2),
     );
 }
 // Jednorazowo dodaje branże do testu 4 stylów (po 40 maili dziennie, razem z przypomnieniami).
@@ -268,12 +268,12 @@ function test4_migrate() {
 }
 // Jednorazowo nadpisuje teksty maili w branżach testowych (wersja 2: automatyzacje + strony + marketing)
 function test4_teksty2() {
-    if (setting('test4_teksty2') === '1') return;
+    if (setting('test4_teksty3') === '1') return;
     foreach (array('Biura rachunkowe', 'Firmy remontowe i instalatorzy', 'Szkoły jazdy', 'Stolarnie i meble na wymiar', 'Salony beauty i fryzjerskie', 'Gabinety fizjoterapii') as $n) {
         $id = (int)val('SELECT id FROM branze WHERE nazwa=?', array($n));
         if ($id) foreach (array('pierwszy', 'przypomnienie', 'przypomnienie2') as $t) save_template($id, $t, default_template_for($n, $t));
     }
-    setting_set('test4_teksty2', '1');
+    setting_set('test4_teksty3', '1');
 }
 
 // Jednorazowo dodaje branże: salony beauty, fizjoterapia, biura rachunkowe (z krótkimi mailami-pytaniami)
