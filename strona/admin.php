@@ -138,6 +138,8 @@ function sa_sync() {
     global $INTEG, $VERIF;
     $d = sa_dir(); if ($d === '') return 'Nie znaleziono folderu strony.';
     $cfg = array(); foreach ($INTEG as $k => $x) $cfg[$k] = setting('int_' . $k);
+    // promocja dla pierwszych klientów na landingach
+    $cfg['promo'] = (int)setting('promo_miejsca', '0'); $cfg['promoMax'] = (int)setting('promo_max', '5'); $cfg['promoRabat'] = (int)setting('promo_rabat', '50');
     $js = "// Generowane przez panel ELOK (Strona → Podłączenia). Nie edytuj ręcznie.\nwindow.ELOK_CFG=" . json_encode($cfg, JSON_UNESCAPED_SLASHES) . ";\n";
     if (@file_get_contents($d . '/ustawienia.js') !== $js && @file_put_contents($d . '/ustawienia.js', $js) === false) return 'Brak prawa zapisu w folderze strony.';
     $err = '';
@@ -233,6 +235,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         foreach ($VERIF as $k => $x) { $s = trim((string)(isset($v[$k]) ? $v[$k] : '')); if (preg_match('/content="([^"]+)"/', $s, $m)) $s = $m[1]; if ($s !== '' && !preg_match($x[1], $s)) $fail('Sprawdź pole: ' . $x[0]); setting_set('ver_' . $k, $s); }
         $e = sa_sync(); if ($e !== '') $fail($e);
         echo json_encode(array('ok' => true)); exit;
+    }
+    if ($act === 'promo') {
+        $max = max(1, min(50, (int)(isset($in['max']) ? $in['max'] : 5)));
+        $left = max(0, min($max, (int)(isset($in['left']) ? $in['left'] : 0)));
+        $rab = max(5, min(90, (int)(isset($in['rabat']) ? $in['rabat'] : 50)));
+        setting_set('promo_max', (string)$max); setting_set('promo_miejsca', (string)$left); setting_set('promo_rabat', (string)$rab);
+        $e = sa_sync(); if ($e !== '') $fail($e);
+        logi(null, 'strona', 'Promocja: ' . $left . '/' . $max . ' miejsc, -' . $rab . '%');
+        echo json_encode(array('ok' => true, 'left' => $left, 'max' => $max, 'rabat' => $rab)); exit;
     }
     if ($act === 'konsultacje') {
         $l = trim((string)(isset($in['link']) ? $in['link'] : '')); if ($l !== '' && !preg_match('#^https://#', $l)) $fail('Link musi zaczynać się od https://');
@@ -343,7 +354,7 @@ if ($j === 'historia') {
 if ($j === 'podl') {
     $a = array(); foreach ($INTEG as $k => $x) $a[] = array('k' => $k, 'label' => $x[0], 'hint' => $x[2], 'v' => setting('int_' . $k));
     $b = array(); foreach ($VERIF as $k => $x) $b[] = array('k' => $k, 'label' => $x[0], 'hint' => $x[2], 'v' => setting('ver_' . $k));
-    jout(array('integ' => $a, 'verif' => $b, 'url' => sa_url()));
+    jout(array('integ' => $a, 'verif' => $b, 'url' => sa_url(), 'promo' => array('left' => (int)setting('promo_miejsca', '0'), 'max' => (int)setting('promo_max', '5'), 'rabat' => (int)setting('promo_rabat', '50'))));
 }
 if ($j === 'kons') {
     db()->exec("CREATE TABLE IF NOT EXISTS rezerwacje (id INT AUTO_INCREMENT PRIMARY KEY, termin DATETIME NOT NULL, zgloszenie_id INT NULL, imie VARCHAR(120) NOT NULL DEFAULT '', email VARCHAR(190) NOT NULL DEFAULT '', telefon VARCHAR(60) NOT NULL DEFAULT '', opis TEXT, status VARCHAR(20) NOT NULL DEFAULT 'aktywna', ip VARCHAR(45) NULL, created_at DATETIME NOT NULL, UNIQUE KEY ut (termin)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");

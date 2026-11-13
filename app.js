@@ -1899,6 +1899,15 @@ window.wRestore = function (k) {
 function viewWwwPodl() {
   sapi('j=podl', null, function (r) {
     var i, h = '<div class="head"><div><h1>Podłączenia</h1><p>Wklej identyfikatory – strona sama doda kody. Pole puste = narzędzie wyłączone. Gdy coś jest wpisane, na stronie pokaże się baner zgody na cookies (wymaga tego prawo).</p></div><a class="btn gold" onclick="window.wPodlSave(this)">Zapisz i wgraj na stronę</a></div>';
+    var P = r.promo || { left: 0, max: 5, rabat: 50 };
+    h += '<div class="card pad" style="margin-bottom:16px"><h2 class="ct">Promocja dla pierwszych klientów</h2>' +
+      '<p class="mut" style="margin:0 0 12px">Na landingach (strona, sklep, automatyzacje) pokazuje się rabat i licznik wolnych miejsc. Gdy ktoś skorzysta, zmniejsz liczbę. 0 = promocja wyłączona.</p>' +
+      '<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end">' +
+      '<div><label class="f">Zostało miejsc</label><div style="display:flex;gap:6px;align-items:center"><a class="btn sm" onclick="window.wPromoStep(-1)">-</a><input id="pr-left" type="number" min="0" style="width:80px;text-align:center" value="' + (+P.left) + '"><a class="btn sm" onclick="window.wPromoStep(1)">+</a></div></div>' +
+      '<div><label class="f">Miejsc łącznie</label><input id="pr-max" type="number" min="1" style="width:90px" value="' + (+P.max) + '"></div>' +
+      '<div><label class="f">Rabat %</label><input id="pr-rab" type="number" min="5" max="90" style="width:90px" value="' + (+P.rabat) + '"></div>' +
+      '<a class="btn dark" onclick="window.wPromoSave(this)">Zapisz promocję</a></div>' +
+      '<div class="hint" style="margin-top:10px">Na stronie: „-' + (+P.rabat) + '% dla ' + (+P.max) + ' pierwszych firm. ' + (+P.left > 0 ? 'Zostało: ' + (+P.left) : 'promocja wyłączona') + '”. Ceny na landingach przeliczają się same.</div></div>';
     h += '<div class="grid g2"><div class="card pad"><h2 class="ct">Statystyki i reklamy</h2>';
     for (i = 0; i < r.integ.length; i++) h += '<label class="f">' + esc(r.integ[i].label) + '</label><input class="w-iv" data-k="' + r.integ[i].k + '" value="' + esc(r.integ[i].v) + '" autocomplete="off" spellcheck="false"><div class="hint">' + r.integ[i].hint + '</div>';
     h += '<div class="note">Rezerwacja konsultacji wysyła się jako konwersja: w Meta „Schedule”, w Google „generate_lead” (+ konwersja Ads), w TikToku „SubmitForm”. Reklamy same uczą się szukać ludzi, którzy rezerwują.</div></div>';
@@ -1908,6 +1917,11 @@ function viewWwwPodl() {
     $('main').innerHTML = h;
   });
 }
+window.wPromoStep = function (d) { var e = $('pr-left'), m = +$('pr-max').value || 5; e.value = Math.max(0, Math.min(m, (+e.value || 0) + d)); };
+window.wPromoSave = function (b) {
+  busy(b, true);
+  sapi('', { a: 'promo', left: +$('pr-left').value || 0, max: +$('pr-max').value || 5, rabat: +$('pr-rab').value || 50 }, function (r) { busy(b, false); toast(r.left > 0 ? 'Zapisane: zostało ' + r.left + ' z ' + r.max : 'Promocja wyłączona'); viewWwwPodl(); }, function () { busy(b, false); });
+};
 window.wPodlSave = function (b) {
   var v = {}, L = document.querySelectorAll('.w-iv'); for (var i = 0; i < L.length; i++) v[L[i].getAttribute('data-k')] = L[i].value;
   busy(b, true); sapi('', { a: 'podlaczenia', v: v }, function () { busy(b, false); toast('Zapisane – kody są już na stronie'); }, function () { busy(b, false); });
