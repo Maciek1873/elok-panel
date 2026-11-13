@@ -226,9 +226,9 @@ function ask_sets($mk, $confirm) {
     $r1 = function ($o) { return "Dzień dobry,\n\nwracam do mojego maila sprzed kilku dni w sprawie " . $o . ".\n\nPropozycja jest aktualna: 15 minut rozmowy, zerknę na Państwa stronę i podpowiem, co można usprawnić. Bezpłatnie.\n\nWystarczy odpisać, kiedy mogę zadzwonić."; };
     $r2 = "Dzień dobry,\n\nto już ostatni mail ode mnie, nie będę zaśmiecał skrzynki.\n\nGdyby kiedyś przydała się rozmowa o stronie, reklamie albo o tym, jak uprościć pracę w firmie, wystarczy odpisać albo zadzwonić: {moj_telefon}.\n\nPozdrawiam i powodzenia!";
     return array(
-        'Salony beauty i fryzjerskie' => set3($mk, $confirm, 'Pytanie do {firma}',
-            "Dzień dobry,\n\njestem {imie} z ELOK i piszę w sprawie rezerwacji. W salonach często wygląda to tak, że telefon dzwoni w trakcie zabiegu, a część klientów zapomina o wizycie. Da się to ustawić tak, żeby rezerwacje i przypomnienia szły same.\n\n" . $rozm . "\n\nProszę dać znać, kiedy mogę zadzwonić.",
-            $r1('rezerwacji i przypomnień w salonie'), $r2),
+        'Salony beauty i fryzjerskie' => set3($mk, $confirm, 'Wolne okienka w {firma}',
+            "Dzień dobry,\n\nzdarza się Państwu, że ktoś rano odwoła wizytę i w grafiku robi się dziura, której nie ma kim zapełnić?\n\nJestem {imie} z ELOK. Ustawiamy salonom automatyzacje, które same pilnują grafiku. Gdy zwolni się termin, stali klienci dostają SMS: „Jutro o 14:00 zwolniło się miejsce na manicure, umówić?”. Do tego przypomnienie o kolejnej wizycie po kilku tygodniach, np. przy koloryzacji, i wiadomość do osób, które dawno nie były.\n\nChętnie zadzwonię na 15 minut, zerknę na Państwa stronę i podpowiem, co da się zrobić u Państwa. Bezpłatnie i bez zobowiązań, a kilka pomysłów zostanie niezależnie od decyzji.\n\nProszę dać znać, kiedy mogę zadzwonić.",
+            $r1('wolnych okienek w grafiku'), $r2),
         'Gabinety fizjoterapii' => set3($mk, $confirm, 'Pytanie do {firma}',
             "Dzień dobry,\n\njestem {imie} z ELOK i piszę w sprawie zapisów. W gabinetach często wygląda to tak, że telefon dzwoni w trakcie zabiegu, a część pacjentów zapomina o wizycie. Da się to ustawić tak, żeby zapisy i przypomnienia szły same.\n\n" . $rozm . "\n\nProszę dać znać, kiedy mogę zadzwonić.",
             $r1('zapisów i przypomnień w gabinecie'), $r2),
@@ -268,12 +268,13 @@ function test4_migrate() {
 }
 // Jednorazowo nadpisuje teksty maili w branżach testowych (wersja 2: automatyzacje + strony + marketing)
 function test4_teksty2() {
-    if (setting('test4_teksty5') === '1') return;
+    if (setting('test4_teksty6') === '1') return;
     foreach (array('Biura rachunkowe', 'Firmy remontowe i instalatorzy', 'Szkoły jazdy', 'Stolarnie i meble na wymiar', 'Salony beauty i fryzjerskie', 'Gabinety fizjoterapii') as $n) {
         $id = (int)val('SELECT id FROM branze WHERE nazwa=?', array($n));
         if ($id) foreach (array('pierwszy', 'przypomnienie', 'przypomnienie2') as $t) save_template($id, $t, default_template_for($n, $t));
     }
-    setting_set('test4_teksty5', '1');
+    q("UPDATE branze SET aktywna=1, limit_dzienny=IF(limit_dzienny=0,40,limit_dzienny) WHERE nazwa='Salony beauty i fryzjerskie'");
+    setting_set('test4_teksty6', '1');
 }
 
 // Jednorazowo dodaje branże: salony beauty, fizjoterapia, biura rachunkowe (z krótkimi mailami-pytaniami)
