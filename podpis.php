@@ -22,13 +22,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $in = json_decode(file_get_contents('php://input'), true); if (!is_array($in)) $in = array();
     $s = function ($k, $max = 120) use ($in) { return mb_substr(trim(isset($in[$k]) ? (string)$in[$k] : ''), 0, $max); };
     try {
+        um_migrate_if();
         $u = um_by_token($t);
         if (!$u || !empty($u['_expired'])) pod_json(array('ok' => false, 'error' => 'Link jest nieaktywny albo wygasł. Poproś o nowy link.'));
+        $a = isset($_GET['a']) ? (string)$_GET['a'] : '';
+        // telefon po zeskanowaniu QR: zapis podpisu
+        if ($a === 'rys_zapisz') {
+            um_rys_save($u, isset($in['r']) ? (string)$in['r'] : '', isset($in['png']) ? (string)$in['png'] : '');
+            pod_json(array('ok' => true));
+        }
+        if ($a === 'rys_status') pod_json(array('ok' => true, 'png' => um_rys_status($u, $_SESSION['pod_n'])));
         $osoba = array('imie' => $s('imie', 80), 'nazwisko' => $s('nazwisko', 80), 'funkcja' => $s('funkcja', 120));
         if ($osoba['imie'] === '' || $osoba['nazwisko'] === '' || $osoba['funkcja'] === '') pod_json(array('ok' => false, 'error' => 'Podaj imię, nazwisko i funkcję.'));
         if (empty($in['upr']) || empty($in['akc'])) pod_json(array('ok' => false, 'error' => 'Zaznacz oba oświadczenia.'));
-        $a = isset($_GET['a']) ? (string)$_GET['a'] : '';
+        if ($a === 'rys_start') {
+            $raw = um_rys_start($u, $_SESSION['pod_n']);
+            um_log($u['id'], 'podpis_start', 'Rozpoczęto składanie podpisu (' . trim($osoba['imie'] . ' ' . $osoba['nazwisko']) . ')');
+            pod_json(array('ok' => true, 'r' => $raw, 'url' => um_link($t) . '&r=' . $raw));
+        }
         if ($a === 'kod') {
+            if (!um_rys_done($u)) pod_json(array('ok' => false, 'error' => 'Najpierw złóż podpis (przycisk „Podpisz”).'));
             $mail = um_send_code($u);
             pod_json(array('ok' => true, 'email' => $mail));
         }
@@ -41,6 +54,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (db()->inTransaction()) db()->rollBack();
         pod_json(array('ok' => false, 'error' => $e->getMessage()));
     }
+}
+
+// ---------- TELEFON: strona do podpisu palcem (po zeskanowaniu QR) ----------
+if (isset($_GET['r']) && !isset($_GET['pdf'])) {
+    um_migrate_if();
+    $u = um_by_token($t);
+    $r = ($u && empty($u['_expired'])) ? um_rys_get($u, (string)$_GET['r']) : null;
+    header('Content-Type: text/html; charset=utf-8');
+    $k = $r ? json_decode((string)$u['klient_json'], true) : array();
+    ?><!DOCTYPE html><html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"><meta name="robots" content="noindex,nofollow"><title>Podpis · ELOK</title><link rel="icon" href="ikona_elok.png?v=2">
+<style>*{box-sizing:border-box}html,body{margin:0;height:100%;background:#F5F4F0;color:#151515;font-family:Inter,-apple-system,Segoe UI,Arial,sans-serif;-webkit-font-smoothing:antialiased;overscroll-behavior:none}
+.w{display:flex;flex-direction:column;height:100%;padding:14px 14px calc(14px + env(safe-area-inset-bottom))}.logo{font-weight:800;font-size:22px;letter-spacing:-1px}.logo span{color:#C5A059}
+h1{font-size:18px;margin:10px 0 2px}.m{color:#8A867C;font-size:13px}.pad{flex:1;min-height:200px;margin:12px 0;background:#fff;border:2px dashed #D9D2C2;border-radius:16px;position:relative}
+.pad canvas{position:absolute;inset:0;width:100%;height:100%;border-radius:16px}.pad .ln{position:absolute;left:8%;right:8%;bottom:28%;border-top:1px solid #CFC8B8;pointer-events:none}.pad .hint{position:absolute;left:0;right:0;bottom:calc(28% - 26px);text-align:center;color:#B9B4A8;font-size:13px;pointer-events:none}
+.row{display:flex;gap:10px}.b{flex:1;height:52px;border-radius:13px;border:1px solid #E7E4DC;background:#fff;font:inherit;font-weight:700;font-size:16px}.b.d{background:#151515;color:#fff;border-color:#151515}.b[disabled]{opacity:.35}
+.done{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}.ic{width:64px;height:64px;border-radius:50%;background:#EAF5EE;color:#2E7D4F;font-size:30px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-bottom:12px}.err{color:#B3261E;font-weight:600;font-size:14px;min-height:18px}
+@media (orientation:landscape) and (max-height:500px){.pad{min-height:150px}h1{display:none}}</style></head><body><div class="w">
+<div class="logo">ELOK<span>.</span></div>
+<?php if (!$r): ?><div class="done"><div class="ic" style="background:#F3EFEF;color:#8A5A5A">!</div><b>Kod QR wygasł albo został już użyty</b><p class="m">Wróć do komputera i kliknij „Podpisz” jeszcze raz.</p></div>
+<?php elseif ($r['done_at']): ?><div class="done"><div class="ic">&#10003;</div><b>Podpis zapisany</b><p class="m">Wróć do komputera i dokończ akceptację kodem z maila.</p></div>
+<?php else: ?>
+<h1>Podpisz palcem</h1><div class="m">Umowa nr <?= h($u['numer']) ?> · <?= h(isset($k['nazwa']) ? $k['nazwa'] : '') ?>. Najlepiej obróć telefon poziomo.</div>
+<div class="pad" id="pad"><canvas id="cv"></canvas><div class="ln"></div><div class="hint">podpis</div></div>
+<div class="err" id="err"></div>
+<div class="row"><button class="b" onclick="P.clear()">Wyczyść</button><button class="b d" id="ok" disabled onclick="zapisz()">Zatwierdź podpis</button></div>
+<div id="fin" class="done" style="display:none"><div class="ic">&#10003;</div><b>Podpis zapisany</b><p class="m">Wróć do komputera – zobaczysz tam swój podpis.<br>Teraz potwierdzisz akceptację kodem z maila.</p></div>
+<script src="podpis_pad.js?v=<?= (int)@filemtime(__DIR__ . '/podpis_pad.js') ?>"></script>
+<script>
+var P=SigPad(document.getElementById('cv')),N=<?= json_encode($_SESSION['pod_n']) ?>,T=<?= json_encode($t) ?>,R=<?= json_encode((string)$_GET['r']) ?>;
+P.onchange=function(){document.getElementById('ok').disabled=!P.ok();};
+function zapisz(){var b=document.getElementById('ok');b.disabled=true;b.textContent='Zapisuję…';
+ var x=new XMLHttpRequest();x.open('POST','podpis.php?t='+encodeURIComponent(T)+'&a=rys_zapisz');x.setRequestHeader('Content-Type','application/json');x.setRequestHeader('X-Pod',N);
+ x.onload=function(){var r={};try{r=JSON.parse(x.responseText);}catch(e){}if(!r.ok){document.getElementById('err').textContent=r.error||'Błąd – spróbuj ponownie.';b.disabled=false;b.textContent='Zatwierdź podpis';return;}
+  ['pad','err'].forEach(function(i){document.getElementById(i).style.display='none';});document.querySelector('.row').style.display='none';document.querySelector('h1').style.display='none';document.getElementById('fin').style.display='flex';};
+ x.onerror=function(){document.getElementById('err').textContent='Brak internetu – spróbuj ponownie.';b.disabled=false;b.textContent='Zatwierdź podpis';};
+ x.send(JSON.stringify({r:R,png:P.png()}));}
+</script>
+<?php endif; ?>
+</div></body></html><?php
+    exit;
 }
 
 // ---------- PDF ----------
@@ -96,6 +149,10 @@ input[type=text]:focus{border-color:var(--gold);background:#fff;box-shadow:0 0 0
 .chk{display:flex;gap:12px;align-items:flex-start;margin-top:14px;padding:14px;border:1px solid var(--line);border-radius:12px;cursor:pointer;background:#FCFBF9}
 .chk input{width:20px;height:20px;margin-top:2px;accent-color:var(--ink);flex-shrink:0}
 .hint{font-size:13px;color:var(--mut);margin-top:10px}
+.sig{display:none;margin-top:14px;padding:14px;border:1px solid var(--line);border-radius:12px;background:#FCFBF9;align-items:center;gap:16px;flex-wrap:wrap}.sig.on{display:flex}.sig img{height:70px;max-width:280px;background:#fff;border-radius:8px;padding:4px 10px;border:1px solid var(--line)}.sig-l{font-weight:700;font-size:13px;color:#5E5A51}
+.ovl{display:none;position:fixed;inset:0;background:rgba(21,21,21,.5);z-index:50;align-items:center;justify-content:center;padding:16px}.ovl.on{display:flex}.ovl-in{background:#fff;border-radius:20px;padding:24px;max-width:520px;width:100%;text-align:center}.ovl h2{font-size:19px;margin:0 0 6px}
+.qr{display:inline-block;padding:12px;background:#fff;border:1px solid var(--line);border-radius:14px;margin:12px 0 8px}.qr img,.qr svg{display:block;width:220px;height:220px}.o-alt{margin-top:14px;font-size:13px}.o-alt a{color:var(--gold-d)}
+.pad{position:relative;height:220px;border:2px dashed #D9D2C2;border-radius:14px;background:#fff}.pad canvas{position:absolute;inset:0;width:100%;height:100%;border-radius:14px}.pad .ln{position:absolute;left:8%;right:8%;bottom:30%;border-top:1px solid #CFC8B8;pointer-events:none}
 .code{display:none;margin-top:18px;padding:18px;border-radius:14px;background:#F7F1E3}
 .code input{max-width:220px;font-size:24px;letter-spacing:8px;text-align:center;font-weight:700}
 .err{color:var(--err);font-weight:600;margin-top:12px;display:none}
@@ -142,10 +199,12 @@ input[type=text]:focus{border-color:var(--gold);background:#fff;box-shadow:0 0 0
     </div>
     <label class="chk"><input type="checkbox" id="p-upr"><span>Jestem uprawniony/uprawniona do reprezentowania <?= um_dot('<b>' . h(isset($k['nazwa']) ? $k['nazwa'] : '') . '</b>') ?></span></label>
     <label class="chk"><input type="checkbox" id="p-akc"><span>Zapoznałem/zapoznałam się z treścią umowy nr <?= h($u['numer']) ?> i ją akceptuję.</span></label>
-    <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-      <button class="btn dark" id="b-kod" disabled onclick="podKod()">Wyślij kod na e-mail</button>
+    <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center" id="r-btns">
+      <button class="btn dark" id="b-pod" disabled onclick="podStart()">Podpisz</button>
       <span class="hint" id="h-scroll" style="margin:0">Przycisk włączy się po przewinięciu umowy do końca i wypełnieniu pól.</span>
     </div>
+    <div class="sig" id="sig"><div class="sig-l">Twój podpis</div><img id="sig-img" alt="Podpis"><a href="#" onclick="podStart();return false" class="small">Podpisz ponownie</a></div>
+    <div id="k-btns" style="display:none;margin-top:16px"><button class="btn dark" id="b-kod" onclick="podKod()">Wyślij kod na e-mail</button></div>
     <div class="code" id="code">
       <div style="font-weight:700">Kod wysłaliśmy na <span id="c-mail"></span></div>
       <div class="hint" style="margin-top:4px">Ważny 15 minut. Nie widzisz? Sprawdź folder SPAM albo <a href="#" onclick="podKod();return false">wyślij ponownie</a>.</div>
@@ -153,23 +212,50 @@ input[type=text]:focus{border-color:var(--gold);background:#fff;box-shadow:0 0 0
       <div style="display:flex;gap:10px;flex-wrap:wrap"><input type="text" id="p-kod" inputmode="numeric" autocomplete="one-time-code" maxlength="6"><button class="btn dark" id="b-ok" onclick="podOk()">Akceptuję umowę</button></div>
     </div>
     <div class="err" id="err"></div>
-    <p class="small" style="margin-top:18px">Akceptacja w tym formularzu to zawarcie umowy w formie dokumentowej (art. 77² Kodeksu cywilnego). Zapisujemy datę i godzinę, adres IP, dane osoby i skrót SHA-256 treści: <?= h($u['sha']) ?>.</p>
+    <p class="small" style="margin-top:18px">Akceptacja w tym formularzu to zawarcie umowy w formie dokumentowej (art. 77² Kodeksu cywilnego). Zapisujemy datę i godzinę, adres IP i urządzenie, obraz podpisu, dane osoby i skrót SHA-256 treści: <?= h($u['sha']) ?>.</p>
   </div>
+  <div class="ovl" id="ovl"><div class="ovl-in">
+    <div id="o-qr"><h2>Zeskanuj telefonem i podpisz palcem</h2><p class="lead">Otwórz aparat w telefonie, nakieruj na kod i podpisz się na ekranie. Ta strona sama zobaczy podpis.</p>
+      <div id="qr" class="qr"></div><div class="hint" id="o-wait">Czekam na podpis z telefonu…</div>
+      <div class="o-alt"><a href="#" onclick="podMysz();return false">Nie mam telefonu pod ręką – podpiszę myszką tutaj</a></div></div>
+    <div id="o-pad" style="display:none"><h2>Podpisz się</h2><p class="lead" id="o-padl">Złóż podpis w ramce poniżej.</p>
+      <div class="pad"><canvas id="cv"></canvas><div class="ln"></div></div>
+      <div style="display:flex;gap:10px;margin-top:12px"><button class="btn" onclick="PP.clear()">Wyczyść</button><button class="btn dark" id="b-pz" disabled onclick="podPadSave()">Zatwierdź podpis</button></div></div>
+    <div style="margin-top:14px"><a href="#" onclick="podClose();return false" class="small">Zamknij</a></div>
+  </div></div>
   <div id="done" class="card done" style="display:none;margin-top:14px"><div class="ic">&#10003;</div><h1 style="margin:0 0 8px;font-size:22px">Gotowe – umowa jest zawarta</h1><p style="margin:0 0 18px;color:var(--ink2)">Dziękujemy. PDF z umową i kartą akceptacji wysłaliśmy na Twój e-mail.</p><a class="btn dark" href="?t=<?= h($t) ?>&amp;pdf=1">Pobierz PDF umowy</a></div>
+<script src="qrcode.js?v=1"></script>
+<script src="podpis_pad.js?v=<?= (int)@filemtime(__DIR__ . '/podpis_pad.js') ?>"></script>
 <script>
 (function(){
-var N=<?= json_encode($_SESSION['pod_n']) ?>, T=<?= json_encode($t) ?>, read=false;
+var N=<?= json_encode($_SESSION['pod_n']) ?>, T=<?= json_encode($t) ?>, read=false, signed=false, poll=null, PP=null;
 function $(i){return document.getElementById(i);}
-function st(){var ok=read&&$('p-im').value.trim()&&$('p-na').value.trim()&&$('p-fu').value.trim()&&$('p-upr').checked&&$('p-akc').checked;$('b-kod').disabled=!ok;$('h-scroll').style.display=ok?'none':'';}
+function valid(){return read&&$('p-im').value.trim()&&$('p-na').value.trim()&&$('p-fu').value.trim()&&$('p-upr').checked&&$('p-akc').checked;}
+function st(){var ok=valid();$('b-pod').disabled=!ok;$('h-scroll').style.display=ok?'none':'';$('b-kod').disabled=!(ok&&signed);}
 ['p-im','p-na','p-fu','p-upr','p-akc'].forEach(function(i){$(i).addEventListener('input',st);$(i).addEventListener('change',st);});
 function chk(){var r=$('end').getBoundingClientRect();if(r.top<=window.innerHeight+40){read=true;st();}}
 window.addEventListener('scroll',chk,{passive:true});window.addEventListener('resize',chk);chk();
 function err(m){var e=$('err');e.textContent=m||'';e.style.display=m?'block':'none';}
-function post(a,extra,cb,btn){err('');if(btn){btn.disabled=true;btn.dataset.t=btn.textContent;btn.textContent='Chwila…';}
+function post(a,extra,cb,btn,quiet){if(!quiet)err('');if(btn){btn.disabled=true;btn.dataset.t=btn.textContent;btn.textContent='Chwila…';}
  var d={imie:$('p-im').value,nazwisko:$('p-na').value,funkcja:$('p-fu').value,upr:$('p-upr').checked?1:0,akc:$('p-akc').checked?1:0};for(var k in extra)d[k]=extra[k];
  var x=new XMLHttpRequest();x.open('POST','?t='+encodeURIComponent(T)+'&a='+a);x.setRequestHeader('Content-Type','application/json');x.setRequestHeader('X-Pod',N);
- x.onload=function(){if(btn){btn.disabled=false;btn.textContent=btn.dataset.t;}var r={};try{r=JSON.parse(x.responseText);}catch(e){err('Błąd serwera. Spróbuj ponownie.');return;}if(!r.ok){err(r.error||'Błąd');return;}cb(r);};
- x.onerror=function(){if(btn){btn.disabled=false;btn.textContent=btn.dataset.t;}err('Brak połączenia z internetem.');};x.send(JSON.stringify(d));}
+ x.onload=function(){if(btn){btn.disabled=false;btn.textContent=btn.dataset.t;}var r={};try{r=JSON.parse(x.responseText);}catch(e){if(!quiet)err('Błąd serwera. Spróbuj ponownie.');return;}if(!r.ok){if(!quiet)err(r.error||'Błąd');return;}cb(r);};
+ x.onerror=function(){if(btn){btn.disabled=false;btn.textContent=btn.dataset.t;}if(!quiet)err('Brak połączenia z internetem.');};x.send(JSON.stringify(d));}
+var touch=window.matchMedia&&window.matchMedia('(pointer:coarse)').matches, R=null;
+function showPad(label){$('o-qr').style.display='none';$('o-pad').style.display='block';$('o-padl').textContent=label;if(!PP){PP=SigPad($('cv'));PP.onchange=function(){$('b-pz').disabled=!PP.ok();};}PP.fit();PP.clear();}
+window.podStart=function(){post('rys_start',{},function(r){R=r.r;$('ovl').className='ovl on';
+  if(touch){showPad('Podpisz się palcem w ramce poniżej.');return;}
+  $('o-qr').style.display='block';$('o-pad').style.display='none';$('o-wait').textContent='Czekam na podpis z telefonu…';
+  var q=qrcode(0,'M');q.addData(r.url);q.make();$('qr').innerHTML=q.createSvgTag(5,0);
+  clearInterval(poll);poll=setInterval(function(){post('rys_status',{},function(s){if(s.png)gotSig(s.png);},null,true);},2000);
+ },$('b-pod'));};
+window.podMysz=function(){clearInterval(poll);showPad('Podpisz się myszką w ramce poniżej (przytrzymaj przycisk myszy).');};
+window.podPadSave=function(){var b=$('b-pz');b.disabled=true;var png=PP.png();
+ var x=new XMLHttpRequest();x.open('POST','?t='+encodeURIComponent(T)+'&a=rys_zapisz');x.setRequestHeader('Content-Type','application/json');x.setRequestHeader('X-Pod',N);
+ x.onload=function(){var r={};try{r=JSON.parse(x.responseText);}catch(e){}if(!r.ok){alertErr(r.error);b.disabled=false;return;}gotSig(png);};x.send(JSON.stringify({r:R,png:png}));};
+function alertErr(m){$('o-padl').textContent=m||'Błąd – spróbuj ponownie.';}
+function gotSig(png){clearInterval(poll);signed=true;$('sig-img').src=png;$('sig').className='sig on';$('ovl').className='ovl';$('r-btns').style.display='none';$('k-btns').style.display='block';st();$('sig').scrollIntoView({behavior:'smooth',block:'center'});}
+window.podClose=function(){clearInterval(poll);$('ovl').className='ovl';};
 window.podKod=function(){post('kod',{},function(r){$('c-mail').textContent=r.email;$('code').style.display='block';$('p-kod').focus();},$('b-kod'));};
 window.podOk=function(){var c=$('p-kod').value.replace(/\D/g,'');if(c.length!==6){err('Wpisz 6-cyfrowy kod z maila.');return;}
  post('potwierdz',{kod:c},function(){$('sign').style.display='none';$('done').style.display='block';$('done').scrollIntoView({behavior:'smooth',block:'center'});},$('b-ok'));};

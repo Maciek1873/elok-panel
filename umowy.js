@@ -232,7 +232,7 @@ function umFrozen(r) {
   // akceptacje
   var ac = '';
   for (var i = 0; i < r.akc.length; i++) { var a = r.akc[i]; if (+a.wersja !== +u.wersja) continue;
-    ac += '<div class="um-acc"><b>' + (a.strona === 'elok' ? 'ELOK' : 'Klient') + ': ' + esc(a.imie + ' ' + a.nazwisko) + '</b> <span class="mut">' + esc(a.funkcja) + '</span><div class="mut">' + fd(a.created_at) + ' · IP ' + esc(a.ip) + ' · ' + esc(a.email) + '</div></div>'; }
+    ac += '<div class="um-acc"><b>' + (a.strona === 'elok' ? 'ELOK' : 'Klient') + ': ' + esc(a.imie + ' ' + a.nazwisko) + '</b> <span class="mut">' + esc(a.funkcja) + '</span><div class="mut">' + fd(a.created_at) + ' · IP ' + esc(a.ip) + ' · ' + esc(a.email) + '</div>' + (a.podpis_png ? '<img class="um-sigimg" src="' + esc(a.podpis_png) + '" alt="Podpis">' + (a.strona === 'klient' && a.podpis_ip ? '<div class="mut" style="font-size:11.5px">podpis złożony ' + fd(a.podpis_at) + ' · IP ' + esc(a.podpis_ip) + '</div>' : '') : '') + '</div>'; }
   if (u.sha) ac += '<div class="mut um-sha">Wersja ' + u.wersja + ' · SHA-256 ' + esc(u.sha) + '</div>';
   if (ac) s += '<div class="card pad" style="margin-top:14px"><h2 class="h2">Akceptacje</h2>' + ac + '</div>';
   // powiązane
@@ -468,6 +468,9 @@ function ustView() {
       '<div class="hint">Musi istnieć jako skrzynka na elok-agency.pl w LH.pl. Puste = ' + esc(s.nadawca_domyslny || 'adres z mailingu') + '.</div>' +
       inp('um_nadawca_nazwa', 'Nazwa nadawcy', 'ELOK – umowy') + inp('um_link_dni', 'Ważność linku do podpisu (dni)', '7', 'number') +
       '<div class="row" style="gap:8px;margin-top:14px;flex-wrap:nowrap"><input id="us-test" placeholder="adres do testu" value="' + esc(s.um_f_email || '') + '"><a class="btn" onclick="window.usTest(this)">' + ico(I.mail) + ' Wyślij testowy e-mail</a></div><div class="hint">Test sprawdza też PDF z polskimi znakami (w załączniku).</div></div>';
+    h += '<div class="card pad" style="margin-top:14px"><h2 class="h2">Twój podpis w umowach (ELOK)</h2><div class="mut">Wstawia się do PDF przy każdej umowie, którą wysyłasz do podpisu. Narysuj palcem albo myszką.</div>' +
+      '<div class="um-sigbox"><canvas id="us-cv"></canvas><div class="um-sigln"></div></div>' +
+      '<div class="row" style="gap:8px;margin-top:8px"><a class="btn sm" onclick="window.usSigClear()">Wyczyść</a><span class="mut" id="us-sigst">' + (s.podpis_png ? 'Zapisany podpis:' : 'Brak zapisanego podpisu') + '</span>' + (s.podpis_png ? '<img class="um-sigimg" src="' + esc(s.podpis_png) + '" alt="Podpis ELOK">' : '') + '</div><div class="hint">Nowy podpis zapisze się po kliknięciu „Zapisz ustawienia”.</div></div>';
     h += '<div class="card pad" style="margin-top:14px"><h2 class="h2">Kopie zapasowe (min. 6 lat)</h2>' +
       '<div class="um-kop"><b>1. Skrzynka archiwum</b><div class="mut">Każda zawarta umowa (PDF z kartą) i co tydzień pełna kopia (ZIP) idą na ten adres. Najlepiej osobny Gmail tylko na archiwum.</div>' + inp('um_archiwum_email', 'E-mail archiwum', 'np. elok.archiwum.umow@gmail.com', 'email') + '</div>' +
       '<div class="um-kop"><b>2. Google Drive</b> ' + (s.gd_ok ? '<span class="pill um-st-zawarta">połączony' + (s.um_gd_konto ? ': ' + esc(s.um_gd_konto) : '') + '</span>' : '<span class="pill um-st-szkic">niepołączony</span>') +
@@ -480,11 +483,15 @@ function ustView() {
     if (s.kopie && s.kopie.length) { h += '<div class="feed" style="margin-top:12px">'; for (var i = 0; i < s.kopie.length; i++) { var k = s.kopie[i]; h += '<div><span class="t">' + fd(k.created_at) + '</span><span>' + esc(k.numer || k.nazwa) + ' · mail: ' + (k.mail_at ? 'tak' : 'nie') + ' · Drive: ' + (k.drive_id ? 'tak' : (k.drive_err ? '<span style="color:var(--err)">' + esc(k.drive_err) + '</span>' : 'nie')) + '</span></div>'; } h += '</div>'; }
     h += '<div class="hint">Pliki na serwerze: ' + esc(s.katalog || '') + '</div></div></div></div>';
     $('main').innerHTML = h;
+    US_PAD = window.SigPad ? window.SigPad($('us-cv')) : null;
+    if (US_PAD) US_PAD.onchange = function () { $('us-sigst').textContent = US_PAD.ok() ? 'Nowy podpis – kliknij „Zapisz ustawienia”' : ''; };
   });
 }
+var US_PAD = null;
+window.usSigClear = function () { if (US_PAD) US_PAD.clear(); };
 var US_KEYS = ['um_f_nazwa', 'um_f_siedziba', 'um_f_krs', 'um_f_adres', 'um_f_nip', 'um_f_regon', 'um_f_r_imie', 'um_f_r_nazwisko', 'um_f_r_funkcja', 'um_f_email', 'um_nadawca_email', 'um_nadawca_nazwa', 'um_link_dni', 'um_archiwum_email', 'um_gd_client_id', 'um_gd_secret'];
-function usData() { var d = {}; for (var i = 0; i < US_KEYS.length; i++) d[US_KEYS[i]] = val('us-' + US_KEYS[i]); return d; }
-window.usSave = function (btn, cb) { busy(btn, true); api('um_ust_zapisz', usData(), function () { busy(btn, false); toast('Zapisano ustawienia'); if (cb) cb(); }, function () { busy(btn, false); }); };
+function usData() { var d = {}; for (var i = 0; i < US_KEYS.length; i++) d[US_KEYS[i]] = val('us-' + US_KEYS[i]); if (US_PAD && US_PAD.ok()) d.podpis_png = US_PAD.png(); return d; }
+window.usSave = function (btn, cb) { var d = usData(); busy(btn, true); api('um_ust_zapisz', d, function () { busy(btn, false); toast('Zapisano ustawienia'); if (cb) cb(); else if (d.podpis_png) ustView(); }, function () { busy(btn, false); }); };
 window.usTest = function (btn) { window.usSave(null, function () { busy(btn, true); api('um_test_mail', { to: val('us-test') }, function (r) { busy(btn, false); toast('Wysłano test z ' + r.from + ' na ' + r.to); }, function () { busy(btn, false); }); }); };
 window.usGd = function () { window.usSave(null, function () { location.href = 'umowy_drive.php?start=1'; }); };
 window.usGdOff = function () { window.ask('Rozłączyć Google Drive?', 'Nowe kopie nie będą trafiać na Dysk. Pliki, które już tam są, zostają.', 'Rozłącz', function () { api('um_gd_rozlacz', {}, function () { toast('Rozłączono'); ustView(); }); }); };

@@ -4,6 +4,8 @@
 if (!defined('ELOK')) { http_response_code(403); exit; }
 
 // ---------- TABELE ----------
+define('UM_SCHEMA', '3');
+function um_migrate_if() { if (setting('um_schema') !== UM_SCHEMA) { um_migrate(); setting_set('um_schema', UM_SCHEMA); } }
 function um_migrate() {
     db()->exec("CREATE TABLE IF NOT EXISTS um_klienci (
         id INT AUTO_INCREMENT PRIMARY KEY, nazwa VARCHAR(255) NOT NULL DEFAULT '', siedziba VARCHAR(120) NOT NULL DEFAULT '',
@@ -51,6 +53,15 @@ function um_migrate() {
         drive_id VARCHAR(120) NOT NULL DEFAULT '', drive_err VARCHAR(255) NOT NULL DEFAULT '', drive_proby INT NOT NULL DEFAULT 0,
         mail_at DATETIME NULL, created_at DATETIME NOT NULL, KEY dr (drive_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    db()->exec("CREATE TABLE IF NOT EXISTS um_rys (
+        id INT AUTO_INCREMENT PRIMARY KEY, umowa_id INT NOT NULL, wersja INT NOT NULL, token_hash CHAR(64) NOT NULL, sesja CHAR(64) NOT NULL DEFAULT '',
+        exp DATETIME NOT NULL, png MEDIUMTEXT NULL, ip VARCHAR(45) NOT NULL DEFAULT '', ua VARCHAR(255) NOT NULL DEFAULT '',
+        created_at DATETIME NOT NULL, done_at DATETIME NULL, UNIQUE KEY th (token_hash), KEY um (umowa_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    add_col('um_akceptacje', 'podpis_png', 'MEDIUMTEXT NULL');
+    add_col('um_akceptacje', 'podpis_ip', "VARCHAR(45) NOT NULL DEFAULT ''");
+    add_col('um_akceptacje', 'podpis_ua', "VARCHAR(255) NOT NULL DEFAULT ''");
+    add_col('um_akceptacje', 'podpis_at', 'DATETIME NULL');
     $def = array(
         'um_f_nazwa' => 'Carbonmiledesign sp. z o.o.', 'um_f_siedziba' => '', 'um_f_adres' => '', 'um_f_krs' => '', 'um_f_nip' => '', 'um_f_regon' => '',
         'um_f_r_imie' => '', 'um_f_r_nazwisko' => '', 'um_f_r_funkcja' => 'Prezes Zarządu', 'um_f_email' => '',
@@ -60,6 +71,10 @@ function um_migrate() {
     foreach ($def as $k => $v) if (setting($k, null) === null) setting_set($k, $v);
     if (setting('um_secret') === '') setting_set('um_secret', bin2hex(random_bytes(32)));
     if (!(int)val('SELECT COUNT(*) FROM um_szablony')) um_seed_templates();
+    // Załącznik nr 3: dopisanie podpisu odręcznego na ekranie (tylko w szablonach, umowy mają własne kopie)
+    q("UPDATE um_szablony SET tresc=REPLACE(REPLACE(tresc, ?, ?), ?, ?)", array(
+        'potwierdza zapoznanie się z treścią Umowy i akceptuje ją, a następnie potwierdza', 'potwierdza zapoznanie się z treścią Umowy i akceptuje ją, składa podpis odręczny na ekranie urządzenia (np. telefonu), a następnie potwierdza',
+        'Karta akceptacji zawiera: dane osób akceptujących, datę', 'Karta akceptacji zawiera: dane osób akceptujących, obraz złożonych podpisów, datę'));
 }
 
 function um_seed_templates() {
@@ -323,6 +338,14 @@ function um_doc($u, $body, $karta = '') {
         . '<div class="hdr"><span class="lg">ELOK<span>.</span></span><span class="nr">' . h($u['numer']) . '</span></div>'
         . $body . $karta . '</body></html>';
 }
+function um_podpisy_html($u) {
+    $rows = all("SELECT * FROM um_akceptacje WHERE umowa_id=? AND wersja=? ORDER BY strona='klient', id", array((int)$u['id'], (int)$u['wersja']));
+    if (!$rows) return '';
+    $c = array();
+    foreach ($rows as $a) $c[] = '<td style="width:50%;vertical-align:bottom;padding:0 4mm;text-align:center">' . (!empty($a['podpis_png']) ? '<img src="' . h($a['podpis_png']) . '" style="height:20mm;max-width:70mm">' : '<div style="height:20mm"></div>')
+        . '<div style="border-top:0.6pt solid #8a867c;margin-top:1mm;padding-top:1.5mm;font-size:8.4pt">' . ($a['strona'] === 'elok' ? 'Wykonawca' : 'Zamawiający') . ': ' . h(trim($a['imie'] . ' ' . $a['nazwisko'])) . ', ' . h($a['funkcja']) . '<br>' . h(um_dt_pl($a['created_at'])) . '</div></td>';
+    return '<table style="width:100%;margin-top:10mm;page-break-inside:avoid"><tr>' . implode('', $c) . '</tr></table>';
+}
 function um_karta_html($u) {
     $rows = all('SELECT * FROM um_akceptacje WHERE umowa_id=? AND wersja=? ORDER BY id', array((int)$u['id'], (int)$u['wersja']));
     $h = '<div class="karta"><h2>Karta akceptacji umowy nr ' . h($u['numer']) . '</h2>'
@@ -334,7 +357,9 @@ function um_karta_html($u) {
             . '<tr><td class="k">Data i godzina akceptacji</td><td>' . h(um_dt_pl($a['created_at'])) . ' (czas polski)</td></tr>'
             . '<tr><td class="k">Adres IP</td><td>' . h($a['ip']) . '</td></tr>'
             . '<tr><td class="k">' . ($a['strona'] === 'elok' ? 'Adres e-mail' : 'Adres e-mail, na który wysłano kod') . '</td><td>' . h($a['email']) . '</td></tr>'
-            . '<tr><td class="k">Skrót SHA-256 treści</td><td class="sha">' . h($a['sha']) . '</td></tr></table>';
+            . '<tr><td class="k">Skrót SHA-256 treści</td><td class="sha">' . h($a['sha']) . '</td></tr>'
+            . (!empty($a['podpis_png']) ? '<tr><td class="k">Podpis odręczny' . ($a['strona'] === 'klient' ? '<br><span style="font-size:7.4pt">złożony ' . h(um_dt_pl($a['podpis_at'])) . ', IP ' . h($a['podpis_ip']) . '</span>' : '') . '</td><td><img src="' . h($a['podpis_png']) . '" style="height:20mm;max-width:80mm"></td></tr>' : '')
+            . '</table>';
     }
     $h .= '<p class="note">Wersja treści: ' . (int)$u['wersja'] . '. Treść umowy objęta skrótem to dokument HTML zapisany w panelu ELOK w chwili wysłania umowy do akceptacji.</p></div>';
     return $h;
@@ -371,7 +396,7 @@ function um_pdf_tresc($u) {
 }
 // PDF ostateczny: zamrożona treść + karta akceptacji; zapisywany na dysku bez późniejszych zmian
 function um_pdf_final_make($u) {
-    $pdf = um_pdf_from_html(um_doc($u, $u['html'], um_karta_html($u)), $u['numer']);
+    $pdf = um_pdf_from_html(um_doc($u, $u['html'], um_podpisy_html($u) . um_karta_html($u)), $u['numer']);
     $rel = 'pliki/' . (int)$u['id'] . '/' . preg_replace('/[^A-Za-z0-9_-]+/', '_', $u['numer']) . '_v' . (int)$u['wersja'] . '_zawarta.pdf';
     um_dir(dirname($rel));
     file_put_contents(um_dir() . '/' . $rel, $pdf);
@@ -490,8 +515,9 @@ function um_freeze_and_send($id, $elok) {
     q('UPDATE um_umowy SET status=?, wersja=?, html=?, sha=?, klient_json=?, firma_json=?, wyslana_at=?, metoda=?, updated_at=? WHERE id=? AND status=?',
         array('wyslana', $wersja, $html, $sha, json_encode($kj, JSON_UNESCAPED_UNICODE), json_encode($f, JSON_UNESCAPED_UNICODE), now(), 'online', now(), (int)$id, 'szkic'));
     q('INSERT INTO um_wersje(umowa_id,wersja,html,sha,created_at) VALUES(?,?,?,?,?)', array((int)$id, $wersja, $html, $sha, now()));
-    q('INSERT INTO um_akceptacje(umowa_id,wersja,strona,imie,nazwisko,funkcja,firma,email,ip,ua,sha,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',
-        array((int)$id, $wersja, 'elok', $elok['imie'], $elok['nazwisko'], $elok['funkcja'], $f['nazwa'], $f['email'], um_ip(), um_ua(), $sha, now()));
+    $ep = um_png_ok(setting('um_f_podpis_png')) ? setting('um_f_podpis_png') : null;
+    q('INSERT INTO um_akceptacje(umowa_id,wersja,strona,imie,nazwisko,funkcja,firma,email,ip,ua,sha,created_at,podpis_png,podpis_ip,podpis_ua,podpis_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        array((int)$id, $wersja, 'elok', $elok['imie'], $elok['nazwisko'], $elok['funkcja'], $f['nazwa'], $f['email'], um_ip(), um_ua(), $sha, now(), $ep, $ep ? um_ip() : '', $ep ? um_ua() : '', $ep ? now() : null));
     um_log($id, 'zamrozona', 'Wersja ' . $wersja . ' zamrożona, SHA-256 ' . $sha);
     um_log($id, 'akcept_elok', 'Akceptacja Wykonawcy: ' . trim($elok['imie'] . ' ' . $elok['nazwisko']) . ', ' . $elok['funkcja']);
     db()->commit();
@@ -540,14 +566,18 @@ function um_confirm($u, $code, $osoba) {
         $left = 4 - (int)$u['kod_proby'];
         throw new Exception($left > 0 ? 'Nieprawidłowy kod. Zostało prób: ' . $left . '.' : 'Nieprawidłowy kod. Wyślij nowy kod.');
     }
+    $rys = um_rys_done($u);
+    if (!$rys) throw new Exception('Najpierw złóż podpis palcem (przycisk „Podpisz”).');
     $k = json_decode((string)$u['klient_json'], true);
     db()->beginTransaction();
     $n = q('UPDATE um_umowy SET status=?, zawarta_at=?, kod_hash=NULL, kod_exp=NULL, updated_at=? WHERE id=? AND status=? AND wersja=?',
         array('zawarta', now(), now(), (int)$u['id'], 'wyslana', (int)$u['wersja']))->rowCount();
     if ($n !== 1) { db()->rollBack(); throw new Exception('Umowa nie czeka już na akceptację.'); }
-    q('INSERT INTO um_akceptacje(umowa_id,wersja,strona,imie,nazwisko,funkcja,firma,email,ip,ua,sha,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',
-        array((int)$u['id'], (int)$u['wersja'], 'klient', $osoba['imie'], $osoba['nazwisko'], $osoba['funkcja'], isset($k['nazwa']) ? $k['nazwa'] : '', isset($k['email']) ? $k['email'] : '', um_ip(), um_ua(), $u['sha'], now()));
-    um_log($u['id'], 'podpisana', 'Zaakceptowana przez ' . trim($osoba['imie'] . ' ' . $osoba['nazwisko']) . ' (' . $osoba['funkcja'] . '), oświadczenia: uprawniony do reprezentacji, zapoznał się i akceptuje');
+    q('INSERT INTO um_akceptacje(umowa_id,wersja,strona,imie,nazwisko,funkcja,firma,email,ip,ua,sha,created_at,podpis_png,podpis_ip,podpis_ua,podpis_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        array((int)$u['id'], (int)$u['wersja'], 'klient', $osoba['imie'], $osoba['nazwisko'], $osoba['funkcja'], isset($k['nazwa']) ? $k['nazwa'] : '', isset($k['email']) ? $k['email'] : '', um_ip(), um_ua(), $u['sha'], now(),
+            $rys['png'], $rys['ip'], $rys['ua'], $rys['done_at']));
+    q('UPDATE um_rys SET exp=? WHERE umowa_id=?', array(now(), (int)$u['id']));
+    um_log($u['id'], 'podpisana', 'Zaakceptowana przez ' . trim($osoba['imie'] . ' ' . $osoba['nazwisko']) . ' (' . $osoba['funkcja'] . '), oświadczenia: uprawniony do reprezentacji, zapoznał się i akceptuje; podpis odręczny złożony na urządzeniu IP ' . $rys['ip']);
     db()->commit();
     um_after_signed((int)$u['id']);
 }
@@ -574,6 +604,38 @@ function um_send_signed_mails($u, $pdf) {
     $okF = um_mail(isset($f['email']) ? $f['email'] : '', $t2, um_mail_html($t2, $p2, 'Otwórz w panelu', BASE_URL . '/#umowy'), um_mail_text($t2, $p2), $att);
     um_log($u['id'], $okF ? 'pdf_wyslany' : 'blad_maila', ($okF ? 'PDF wysłany do Wykonawcy: ' : 'Nie wysłano PDF do Wykonawcy: ') . (isset($f['email']) ? $f['email'] : ''));
     if (function_exists('push')) @push('Umowa zawarta', $u['numer'] . ' – ' . $kn, BASE_URL . '/#umowy');
+}
+
+// ---------- PODPIS PALCEM (QR → telefon) ----------
+function um_png_ok($png) {
+    if (!is_string($png) || strlen($png) > 400000 || strncmp($png, 'data:image/png;base64,', 22) !== 0) return false;
+    $bin = base64_decode(substr($png, 22), true);
+    return $bin !== false && strlen($bin) > 200 && substr($bin, 0, 8) === "\x89PNG\r\n\x1a\n";
+}
+function um_rys_start($u, $sesja) {
+    $raw = bin2hex(random_bytes(20));
+    q('INSERT INTO um_rys(umowa_id,wersja,token_hash,sesja,exp,created_at) VALUES(?,?,?,?,?,?)', array((int)$u['id'], (int)$u['wersja'], hash('sha256', $raw), hash('sha256', $sesja), date('Y-m-d H:i:s', time() + 20 * 60), now()));
+    return $raw;
+}
+function um_rys_get($u, $raw) {
+    if (!preg_match('/^[a-f0-9]{40}$/', (string)$raw)) return null;
+    $r = one('SELECT * FROM um_rys WHERE token_hash=? AND umowa_id=? AND wersja=?', array(hash('sha256', $raw), (int)$u['id'], (int)$u['wersja']));
+    return $r && strtotime($r['exp']) >= time() ? $r : null;
+}
+function um_rys_save($u, $raw, $png) {
+    $r = um_rys_get($u, $raw);
+    if (!$r) throw new Exception('Kod QR wygasł. Wygeneruj nowy na komputerze.');
+    if ($r['done_at']) throw new Exception('Podpis został już złożony.');
+    if (!um_png_ok($png)) throw new Exception('Podpis nie został zapisany poprawnie. Spróbuj jeszcze raz.');
+    q('UPDATE um_rys SET png=?, ip=?, ua=?, done_at=? WHERE id=?', array($png, um_ip(), um_ua(), now(), (int)$r['id']));
+    um_log($u['id'], 'podpis_rys', 'Złożono podpis odręczny palcem na urządzeniu (' . mb_substr(um_ua(), 0, 120) . ')');
+}
+function um_rys_status($u, $sesja) {
+    $r = one('SELECT * FROM um_rys WHERE umowa_id=? AND wersja=? AND sesja=? AND done_at IS NOT NULL AND exp>=NOW() ORDER BY id DESC LIMIT 1', array((int)$u['id'], (int)$u['wersja'], hash('sha256', $sesja)));
+    return $r ? $r['png'] : null;
+}
+function um_rys_done($u) {
+    return one('SELECT * FROM um_rys WHERE umowa_id=? AND wersja=? AND done_at IS NOT NULL AND exp>=NOW() ORDER BY id DESC LIMIT 1', array((int)$u['id'], (int)$u['wersja']));
 }
 
 // ---------- KOPIE: archiwum mailowe + Google Drive ----------
@@ -629,7 +691,7 @@ function um_cron() {
 function um_backup_zip() {
     if (!class_exists('ZipArchive')) return null;
     $dump = array('utworzono' => now(), 'tabele' => array());
-    foreach (array('um_klienci', 'um_szablony', 'um_umowy', 'um_wersje', 'um_log', 'um_akceptacje') as $t) $dump['tabele'][$t] = all('SELECT * FROM ' . $t);
+    foreach (array('um_klienci', 'um_szablony', 'um_umowy', 'um_wersje', 'um_log', 'um_akceptacje', 'um_rys') as $t) $dump['tabele'][$t] = all('SELECT * FROM ' . $t);
     $name = 'ELOK_umowy_kopia_' . date('Y-m-d') . '.zip';
     $rel = 'kopie/' . $name;
     um_dir('kopie');

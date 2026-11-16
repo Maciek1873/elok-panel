@@ -205,7 +205,7 @@ Brak którejkolwiek z tych funkcji to Błąd krytyczny.
 
 1. Umowa może zostać zawarta w formie dokumentowej przez akceptację jej treści w panelu Wykonawcy.
 2. Wykonawca udostępnia Zamawiającemu treść Umowy przez jednorazowy link wysłany na adres e-mail Zamawiającego wskazany w Umowie. Treść Umowy można pobrać w pliku PDF.
-3. Osoba akceptująca Umowę w imieniu Zamawiającego podaje imię, nazwisko i funkcję, oświadcza, że jest uprawniona do reprezentowania Zamawiającego, potwierdza zapoznanie się z treścią Umowy i akceptuje ją, a następnie potwierdza akceptację kodem wysłanym na adres e-mail Zamawiającego.
+3. Osoba akceptująca Umowę w imieniu Zamawiającego podaje imię, nazwisko i funkcję, oświadcza, że jest uprawniona do reprezentowania Zamawiającego, potwierdza zapoznanie się z treścią Umowy i akceptuje ją, składa podpis odręczny na ekranie urządzenia (np. telefonu), a następnie potwierdza akceptację kodem wysłanym na adres e-mail Zamawiającego.
 4. Wykonawca akceptuje Umowę przed jej wysłaniem Zamawiającemu. Umowa zostaje zawarta z chwilą jej akceptacji przez Zamawiającego. Po zawarciu Umowy każda Strona otrzymuje e-mailem plik PDF z treścią Umowy i kartą akceptacji.
-5. Karta akceptacji zawiera: dane osób akceptujących, datę i godzinę akceptacji, adres IP, adres e-mail, na który wysłano kod, oraz skrót SHA-256 treści Umowy. Strony uznają kartę akceptacji za dowód zawarcia Umowy o tej treści.
+5. Karta akceptacji zawiera: dane osób akceptujących, obraz złożonych podpisów, datę i godzinę akceptacji, adres IP, adres e-mail, na który wysłano kod, oraz skrót SHA-256 treści Umowy. Strony uznają kartę akceptacji za dowód zawarcia Umowy o tej treści.
 6. Każda Strona może zamiast akceptacji w panelu podpisać Umowę kwalifikowanym podpisem elektronicznym.

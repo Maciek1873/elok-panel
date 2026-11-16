@@ -36,7 +36,7 @@ function um_full($id) {
         'tresc' => $u['tresc'], 'klient' => $k, 'fields' => $fields, 'builtin' => $builtin, 'html' => $html,
         'powiazana' => $pow, 'dzieci' => $dzieci,
         'log' => all('SELECT typ,info,ip,created_at FROM um_log WHERE umowa_id=? ORDER BY id DESC', array((int)$id)),
-        'akc' => all('SELECT wersja,strona,imie,nazwisko,funkcja,firma,email,ip,sha,created_at FROM um_akceptacje WHERE umowa_id=? ORDER BY id', array((int)$id)),
+        'akc' => all('SELECT wersja,strona,imie,nazwisko,funkcja,firma,email,ip,sha,created_at,podpis_png,podpis_ip,podpis_at FROM um_akceptacje WHERE umowa_id=? ORDER BY id', array((int)$id)),
         'link_aktywny' => $u['status'] === 'wyslana' && $u['token_exp'] && strtotime($u['token_exp']) >= time(),
         'pdf_final' => $u['pdf_plik'] !== '' ? 1 : 0,
     );
@@ -274,6 +274,7 @@ function um_api($a) {
             'um_link_dni', 'um_nadawca_email', 'um_nadawca_nazwa', 'um_archiwum_email', 'um_gd_client_id', 'um_gd_konto');
         $o = array(); foreach ($keys as $k) $o[$k] = setting($k);
         $o['um_gd_secret_set'] = setting('um_gd_secret') !== '';
+        $o['podpis_png'] = setting('um_f_podpis_png');
         $o['gd_ok'] = um_gd_ready(); $o['gd_redirect'] = um_gd_redirect();
         $o['nadawca_domyslny'] = setting('nadawca_email');
         $o['kopie'] = all('SELECT k.id,k.rodzaj,k.nazwa,k.drive_id,k.drive_err,k.mail_at,k.created_at,u.numer FROM um_kopie k LEFT JOIN um_umowy u ON u.id=k.umowa_id ORDER BY k.id DESC LIMIT 15');
@@ -288,6 +289,11 @@ function um_api($a) {
         foreach ($keys as $k => $max) setting_set($k, gs($k, $max));
         setting_set('um_link_dni', (string)max(1, min(60, (int)g('um_link_dni') ?: 7)));
         if (gs('um_gd_secret') !== '') setting_set('um_gd_secret', gs('um_gd_secret', 255));
+        if (g('podpis_png', null) !== null) {
+            $pp = (string)g('podpis_png');
+            if ($pp !== '' && !um_png_ok($pp)) fail('Podpis ELOK nie zapisał się poprawnie – narysuj go jeszcze raz.');
+            setting_set('um_f_podpis_png', $pp);
+        }
         out(array());
 
     case 'um_test_mail':

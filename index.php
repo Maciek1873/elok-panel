@@ -363,6 +363,7 @@ input[type=checkbox]{width:17px;height:17px;accent-color:var(--ink);cursor:point
 <script>if ('serviceWorker' in navigator) { navigator.serviceWorker.getRegistrations().then(function (rs) { rs.forEach(function (r) { var a = r.active || r.waiting || r.installing; if (!a || a.scriptURL.indexOf('push-sw.js') < 0) r.unregister(); }); }); if (window.caches) caches.keys().then(function (ks) { ks.forEach(function (k) { caches.delete(k); }); }); }</script>
 <script>window.CSRF = <?= json_encode($_SESSION['csrf']) ?>; window.ELOK_TEST = <?= ELOK_TEST ? 'true' : 'false' ?>;</script>
 <script src="app.js?v=<?= (int)$v ?>"></script>
+<script src="podpis_pad.js?v=<?= (int)@filemtime(__DIR__ . '/podpis_pad.js') ?>"></script>
 <script src="umowy.js?v=<?= (int)@filemtime(__DIR__ . '/umowy.js') ?>"></script>
 </body>
 </html>

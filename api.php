@@ -60,7 +60,7 @@ try {
     // moduł Umowy
     if (strpos($a, 'um_') === 0) {
         require_once __DIR__ . '/umowy.php'; require_once __DIR__ . '/umowy_api.php';
-        if (empty($_SESSION['mig_um2'])) { um_migrate(); $_SESSION['mig_um2'] = 1; }
+        um_migrate_if();
         um_api($a);
     }
 
