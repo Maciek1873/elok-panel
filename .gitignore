@@ -4,3 +4,5 @@ saas/baza.json
 strona/kopie/
 *.log
 .DS_Store
+umowy_dane/
+mail_test.log

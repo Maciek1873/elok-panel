@@ -57,6 +57,12 @@ try {
     }
     if (!logged_in()) fail('Zaloguj się', array('login' => true));
     if (empty($_SESSION['mig_v20'])) { migrate(); sz_migrate(); skp_migrate(); sklepy_migrate(); uk_migrate(); test4_migrate(); test4_teksty2(); $_SESSION['mig_v20'] = 1; }
+    // moduł Umowy
+    if (strpos($a, 'um_') === 0) {
+        require_once __DIR__ . '/umowy.php'; require_once __DIR__ . '/umowy_api.php';
+        if (empty($_SESSION['mig_um2'])) { um_migrate(); $_SESSION['mig_um2'] = 1; }
+        um_api($a);
+    }
 
     switch ($a) {
     case 'logout':
