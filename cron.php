@@ -18,6 +18,8 @@ $tylko = PHP_SAPI === 'cli' ? (isset($argv[1]) ? $argv[1] : '') : (isset($_GET['
 try { $sr = soc_run(); if ($sr !== 'nic do publikacji') echo date('Y-m-d H:i') . ' | publikacje: ' . $sr . "\n"; } catch (Exception $e) { echo 'publikacje: ' . $e->getMessage() . "\n"; }
 // przypomnienia o konsultacjach ze strony (dzień i godzinę wcześniej)
 try { require_once __DIR__ . '/strona/przypomnienia.php'; $kp = kons_przyp_run(); if ($kp !== '') echo date('Y-m-d H:i') . ' | konsultacje: ' . $kp . "\n"; } catch (Exception $e) { echo 'konsultacje: ' . $e->getMessage() . "\n"; }
+// moduł Umowy: ponowienie kopii (mail archiwum, Google Drive) i kopia tygodniowa
+try { require_once __DIR__ . '/umowy.php'; um_migrate_if(); $um = um_cron(); if ($um !== '') echo date('Y-m-d H:i') . ' | umowy: ' . $um . "\n"; } catch (Exception $e) { echo 'umowy: ' . $e->getMessage() . "\n"; }
 if ($tylko === 'pobieranie') { echo date('Y-m-d H:i') . ' | pobieranie: ' . noc_run(230) . "\n"; exit; }
 $r = run_queue(false);
 setting_set('ostatni_cron', now());

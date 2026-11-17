@@ -33,6 +33,7 @@ jobs:
             uploads/**
             saas/baza.json
             strona/kopie/**
+            umowy_dane/**
             README.md
             config.sample.php
       - name: Wgraj przez FTP (proba 2)
@@ -52,5 +53,6 @@ jobs:
             uploads/**
             saas/baza.json
             strona/kopie/**
+            umowy_dane/**
             README.md
             config.sample.php

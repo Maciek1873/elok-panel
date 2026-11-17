@@ -33,10 +33,11 @@ var IC = {
   www_kons: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
   www_podl: '<path d="M9 7H7a5 5 0 0 0 0 10h2M15 7h2a5 5 0 0 1 0 10h-2M8 12h8"/>',
   wiecej: '<path d="M4 6h16M4 12h16M4 18h16"/>',
+  umowy: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/>',
   saas: '<rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M12 18v3"/>',
   ustawienia: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/>'
 };
-var NAV = [['pulpit', 'Pulpit'], ['szukaj', 'Szukaj firm'], ['arkusz', 'Arkusz'], ['firmy', 'Firmy'], ['maile', 'Maile'], ['zgloszenia', 'Zgłoszenia'], ['publikacje', 'Publikacje'], ['www_stat', 'Statystyki strony'], ['www_edit', 'Edytor strony'], ['www_kons', 'Konsultacje'], ['www_podl', 'Podłączenia'], ['aktualizacje', 'Aktualizacje'], ['ustawienia', 'Ustawienia']];
+var NAV = [['pulpit', 'Pulpit'], ['szukaj', 'Szukaj firm'], ['arkusz', 'Arkusz'], ['firmy', 'Firmy'], ['maile', 'Maile'], ['zgloszenia', 'Zgłoszenia'], ['publikacje', 'Publikacje'], ['www_stat', 'Statystyki strony'], ['www_edit', 'Edytor strony'], ['www_kons', 'Konsultacje'], ['www_podl', 'Podłączenia'], ['umowy', 'Umowy'], ['aktualizacje', 'Aktualizacje'], ['ustawienia', 'Ustawienia']];
 
 // ---------- helpers ----------
 function $(id) { return document.getElementById(id); }
@@ -82,6 +83,7 @@ function api(action, data, cb, errCb) {
   x.send(JSON.stringify(data || {}));
 }
 
+window.ELOKUI = { api: function (a, d, cb, er) { api(a, d, cb, er); }, esc: function (x) { return esc(x); }, toast: function (m, t) { toast(m, t); }, busy: function (b, o) { busy(b, o); }, stat: function (l, n, s, b) { return stat(l, n, s, b); } };
 function busy(btn, on) { if (!btn) return; if (on) { btn.setAttribute('disabled', '1'); btn.dataset.t = btn.innerHTML; btn.innerHTML = 'Chwila…'; } else { btn.removeAttribute('disabled'); if (btn.dataset.t) btn.innerHTML = btn.dataset.t; } }
 
 // ---------- login ----------
@@ -169,6 +171,7 @@ window.go = function (v) {
   else if (v === 'www_kons') viewWwwKons();
   else if (v === 'www_podl') viewWwwPodl();
   else if (v === 'ustawienia') viewUstawienia();
+  else if (v === 'umowy') { if (window.UM) window.UM.view(); else $('main').innerHTML = '<div class="empty">Moduł Umowy się nie załadował – odśwież stronę.</div>'; }
 };
 function loadBranze(cb) { api('branze', {}, function (r) { BR = r.rows; if (cb) cb(); }); }
 function brOptions(sel, withAll) {
@@ -1375,7 +1378,8 @@ function zgDetail() {
   var h = '<div class="head"><div><a class="btn sm" onclick="window.zgBack()">' + ic('back', 14) + ' Wszystkie zgłoszenia</a>' +
     '<h1 style="margin-top:14px">' + esc(z.firma) + '</h1><p>' + esc(z.osoba || '') + (z.branza ? (z.osoba ? ' · ' : '') + esc(z.branza) : '') + ' · zgłoszenie ' + fd(z.created_at) + '</p></div>' +
     '<div class="row" style="gap:8px">' + (z.telefon ? '<a class="btn dark" href="tel:' + esc(zgTel(z.telefon)) + '">' + ic('phone') + ' ' + esc(z.telefon) + '</a>' : '') +
-    '<a class="btn gold" onclick="window.wiadNew()">' + ic('send') + ' Napisz wiadomość</a></div></div>' +
+    '<a class="btn gold" onclick="window.wiadNew()">' + ic('send') + ' Napisz wiadomość</a>' +
+    '<a class="btn" onclick="window.umZLeada(' + z.id + ',0)" title="Dodaj jako klienta w module Umowy">' + ic('note') + ' Zrób klienta (umowy)</a></div></div>' +
     '<div class="zgd">' +
     // lewa kolumna
     '<div>' +
