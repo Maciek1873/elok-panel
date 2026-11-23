@@ -225,7 +225,7 @@ function render() {
     sw('s-on', c.strona.on, 'Sprawdzaj strony firm', 'Telefon, szybkość (test Google), SSL, formularz, stara stopka – problem trafia do maila') +
     sw('s-r', c.strona.reczny, 'Zatwierdzam ręcznie', 'Na start zalecane – zobaczysz, co Eli znajduje') +
     sw('s-psi', c.strona.psi, 'Test szybkości Google (PageSpeed)', 'Dokładniejszy, ale wolniejszy – ok. 20 s na stronę') +
-    '<div class="g2f"><div><label class="f">Dziennie do mailingu</label><input id="s-dz" type="number" min="0" max="300" value="' + (+c.strona.dziennie) + '"></div><div></div></div>' +
+    '<div class="g2f"><div><label class="f">Dziennie do mailingu</label><input id="s-dz" type="number" min="0" max="300" value="' + (+c.strona.dziennie) + '"></div><div><label class="f">Klucz Google PageSpeed (opcjonalnie)</label><input id="s-key" value="' + esc(P.psi_key || '') + '" placeholder="bez klucza Google często odmawia"></div></div>' +
     '<label class="f">Sprawdź dowolną stronę teraz</label><div class="row"><input id="s-url" class="grow" placeholder="np. carbonmiledesign.pl" onkeydown="if(event.key===\'Enter\')window.AG.check()"><a class="btn" id="s-btn" onclick="window.AG.check()">Sprawdź</a></div>' +
     '<div class="hint">Eli bierze firmy ze stroną i mailem z Twoich list w „Szukaj firm”, które jeszcze nie dostały maila (teraz: ' + L.strona_pula + '). Pisze tylko, gdy znajdzie wyraźny problem.</div>' + foot('strona') + '</div>';
 
@@ -271,7 +271,7 @@ function gather() {
     on: $('ag-on').checked,
     nowe: { on: $('n-on').checked, reczny: $('n-r').checked, dni: $('n-dni').value, dziennie: $('n-dz').value, pkd: $('n-pkd').value, woj: woj },
     praca: { on: $('p-on').checked, reczny: $('p-r').checked, dziennie: $('p-dz').value, frazy: $('p-fr').value },
-    strona: { on: $('s-on').checked, reczny: $('s-r').checked, psi: $('s-psi').checked, dziennie: $('s-dz').value },
+    strona: { on: $('s-on').checked, reczny: $('s-r').checked, psi: $('s-psi').checked, dziennie: $('s-dz').value, psi_key: $('s-key').value },
     ig: { on: $('i-on').checked, msg: $('i-msg').value },
     form: { on: $('f-on').checked, msg: $('f-msg').value }
   };
