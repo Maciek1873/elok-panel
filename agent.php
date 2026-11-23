@@ -838,7 +838,7 @@ function ag_api($a) {
         $slaba = $waga >= max(1, (int)ag_cfg()['strona']['min']); $pm = ag_pomysl($sig);
         $firm = array('nazwa' => dup_host($www), 'miasto' => '', 'osoba' => '', 'www' => $www, 'eli_problem' => $slaba ? ag_problem_txt($p) : $pm[1], 'zrodlo' => 'audyt', 'token' => str_repeat('0', 32));
         $tpl = tpl_for(ag_br_id($slaba ? AG_BR_STRONA : AG_BR_AUTO), 'pierwszy');
-        list($subj, $html) = render_mail($tpl, $firm, array());
+        list($subj, $html) = render_mail($tpl, $firm, array('btn_url' => BASE_URL . '/p.php?a=tak&t=podglad'));
         ag_log('strona', 'info', 'Ręczne sprawdzenie ' . dup_host($www) . ': ' . ($p ? implode(', ', array_map(function ($x) { return $x[0]; }, $p)) : 'bez problemów'));
         out(array('problemy' => $p, 'psi' => $sc, 'sekundy' => $sek, 'ig' => $ig, 'form' => $furl, 'captcha' => $cap, 'waga' => $waga, 'pisze' => $waga >= max(1, (int)ag_cfg()['strona']['min']), 'temat' => $subj, 'html' => $html, 'psi_blad' => $sc === null ? setting('ag_psi_blad') : '', 'pomysl' => $slaba ? '' : $pm[0]));
     }
@@ -853,7 +853,7 @@ function ag_api($a) {
         $firm['token'] = str_repeat('0', 32);
         $tpl = tpl_for(ag_bid_typ($typ), 'pierwszy');
         if ($it && !empty($it[0]['wlasny'])) { $w = json_decode($it[0]['wlasny'], true); if (is_array($w)) $tpl = ag_tpl_with_text($tpl, $w['temat'], $w['tekst']); }
-        list($subj, $html) = render_mail($tpl, $firm, array());
+        list($subj, $html) = render_mail($tpl, $firm, array('btn_url' => BASE_URL . '/p.php?a=tak&t=podglad'));
         out(array('temat' => $subj, 'html' => $html));
     }
     fail('Nieznana akcja agenta');
