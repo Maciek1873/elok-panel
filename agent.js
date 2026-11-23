@@ -21,6 +21,19 @@ var GADKI = {
   duzo: ['Dobra, dobra. Już wiem, że mnie lubisz.', 'Jeszcze raz i zgłoszę to do działu kadr.', 'Ała. Wiesz, że ja tu pracuję?']
 };
 var POKE = { n: 0, t: 0, h: null, last: '' };
+// Głos Eli: najpierw nagranie (glos/eli_N.mp3 – np. z ElevenLabs, jeśli kiedyś dogramy), inaczej głos przeglądarki po polsku
+function glosOn() { try { return localStorage.getItem('eli_glos') !== '0'; } catch (e) { return true; } }
+function say(txt) {
+  if (!glosOn() || !window.speechSynthesis) return;
+  try {
+    window.speechSynthesis.cancel();
+    var u = new SpeechSynthesisUtterance(txt.replace(/…/g, '.')); u.lang = 'pl-PL'; u.rate = 1.05; u.pitch = 1.15;
+    var vs = window.speechSynthesis.getVoices(), best = null;
+    for (var i = 0; i < vs.length; i++) if (/^pl/i.test(vs[i].lang)) { if (!best || /zosia|paulina|ewa|female|google/i.test(vs[i].name)) best = vs[i]; }
+    if (best) u.voice = best;
+    window.speechSynthesis.speak(u);
+  } catch (e) { /* bez głosu */ }
+}
 var D = null, TAB = 'nowe', SEL = {}, TIMER = null, TYPE = null, WORKING = false, ED = null;
 
 // ---------- wygląd (wstrzykiwany raz) ----------
@@ -125,7 +138,8 @@ function heroHtml() {
     '<div class="ag-tasks">' + tk('nowe', 'Nowe firmy') + tk('praca', 'Ogłoszenia o pracę') + tk('strona', 'Słabe strony') + tk('form', 'Formularze') + tk('ig', 'Instagram') + '</div>' +
     '<div class="mut" style="margin-top:10px;font-size:12px;color:#9A968C">Ostatnio: ' + fd(s.ostatnio) + (s.wynik ? ' · ' + esc(s.wynik) : '') + '</div></div>' +
     '<div class="ag-side"><label class="ag-big" for="ag-on">' + (c.on ? 'Eli aktywna' : 'Aktywuj Eli') + ' <span class="sw"><input type="checkbox" id="ag-on"' + (c.on ? ' checked' : '') + ' onchange="window.AG.toggle(this.checked)"><i></i></span></label>' +
-    '<a class="btn" onclick="window.AG.run(this)">Uruchom teraz</a></div></div>';
+    '<a class="btn" onclick="window.AG.run(this)">Uruchom teraz</a>' +
+    '<a style="font-size:12px;color:#9A968C;cursor:pointer" onclick="window.AG.glos()">Głos Eli: ' + (glosOn() ? 'włączony' : 'wyłączony') + '</a></div></div>';
 }
 
 function sw(id, on, txt, sub) {
@@ -313,11 +327,13 @@ function copy(t) {
 }
 
 window.AG = {
+  glos: function () { try { localStorage.setItem('eli_glos', glosOn() ? '0' : '1'); } catch (e) { /* nic */ } render(); if (glosOn()) say('Cześć! Teraz mnie słychać.'); },
   poke: function () {
     var now = Date.now(); POKE.n = now - POKE.t < 2500 ? POKE.n + 1 : 1; POKE.t = now;
     var set = POKE.n >= 5 ? GADKI.duzo : WORKING ? GADKI.zajeta : (D && D.cfg.on ? GADKI.pracuje : GADKI.spi), txt = POKE.last, g = 0;
     while (txt === POKE.last && g++ < 10) txt = set[Math.floor(Math.random() * set.length)];
     POKE.last = txt;
+    say(txt);
     var b = $('ag-bub'), av = $('ag-av'); if (!b || !av) return;
     b.textContent = txt; b.className = 'ag-bub on';
     av.className = 'ag-av'; void av.offsetWidth; av.className = 'ag-av poke';
@@ -340,6 +356,7 @@ window.AG = {
       render();
       var hero = $('ag-hero'); if (hero) hero.className += ' wake';
       var el = $('ag-type'); if (TYPE) clearTimeout(TYPE.t); if (el) el.innerHTML = 'Cześć! Już zaczynam szukać klientów…<i></i>';
+      say('Cześć! Już zaczynam szukać klientów.');
       setTimeout(function () { window.AG.run(null); }, 1200);
     });
   },
