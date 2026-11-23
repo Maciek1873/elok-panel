@@ -88,6 +88,7 @@ function firm_vars($f) {
         '{osoba}' => isset($f['osoba']) ? $f['osoba'] : '',
         '{moj_telefon}' => my_tel(),
         '{imie}' => strtok(trim(setting('podpis_imie')) . ' ', ' '),
+        '{stanowisko}' => isset($f['eli_tytul']) && $f['eli_tytul'] !== '' ? $f['eli_tytul'] : 'pracownik biurowy',
     );
 }
 function apply_vars($s, $vars) { return strtr((string)$s, $vars); }

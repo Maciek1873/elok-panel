@@ -21,6 +21,7 @@ var TYPY = { pierwszy: 'Pierwszy mail', przypomnienie: 'Przypomnienie', przypomn
 
 var IC = {
   pulpit: '<path d="M3 13h8V3H3zM13 21h8V11h-8zM3 21h8v-6H3zM13 3v6h8V3z"/>',
+  agent: '<rect x="4" y="7" width="16" height="12" rx="3"/><path d="M12 3v4M9 12h.01M15 12h.01M9 16h6"/>',
   firmy: '<path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6"/>',
   szukaj: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
   arkusz: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16"/>',
@@ -37,7 +38,7 @@ var IC = {
   saas: '<rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M12 18v3"/>',
   ustawienia: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/>'
 };
-var NAV = [['pulpit', 'Pulpit'], ['szukaj', 'Szukaj firm'], ['arkusz', 'Arkusz'], ['firmy', 'Firmy'], ['maile', 'Maile'], ['zgloszenia', 'Zgłoszenia'], ['publikacje', 'Publikacje'], ['www_stat', 'Statystyki strony'], ['www_edit', 'Edytor strony'], ['www_kons', 'Konsultacje'], ['www_podl', 'Podłączenia'], ['umowy', 'Umowy'], ['aktualizacje', 'Aktualizacje'], ['ustawienia', 'Ustawienia']];
+var NAV = [['pulpit', 'Pulpit'], ['agent', 'Agent Eli'], ['szukaj', 'Szukaj firm'], ['arkusz', 'Arkusz'], ['firmy', 'Firmy'], ['maile', 'Maile'], ['zgloszenia', 'Zgłoszenia'], ['publikacje', 'Publikacje'], ['www_stat', 'Statystyki strony'], ['www_edit', 'Edytor strony'], ['www_kons', 'Konsultacje'], ['www_podl', 'Podłączenia'], ['umowy', 'Umowy'], ['aktualizacje', 'Aktualizacje'], ['ustawienia', 'Ustawienia']];
 
 // ---------- helpers ----------
 function $(id) { return document.getElementById(id); }
@@ -171,6 +172,7 @@ window.go = function (v) {
   else if (v === 'www_kons') viewWwwKons();
   else if (v === 'www_podl') viewWwwPodl();
   else if (v === 'ustawienia') viewUstawienia();
+  else if (v === 'agent') { if (window.AG) window.AG.view(); else $('main').innerHTML = '<div class="empty">Agent Eli się nie załadował – odśwież stronę.</div>'; }
   else if (v === 'umowy') { if (window.UM) window.UM.view(); else $('main').innerHTML = '<div class="empty">Moduł Umowy się nie załadował – odśwież stronę.</div>'; }
 };
 function loadBranze(cb) { api('branze', {}, function (r) { BR = r.rows; if (cb) cb(); }); }
@@ -965,6 +967,7 @@ window.arSave = function (btn) {
 };
 
 // ========== MAILE / BRANŻE ==========
+window.edBranza = function (b) { ED.branza = +b; ED.mode = 'maile'; window.go('maile'); };
 function viewMaile() {
   loadBranze(function () {
     if (!ED.branza && BR.length) ED.branza = +BR[0].id;
