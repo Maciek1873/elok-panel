@@ -9,8 +9,8 @@ function fd(s) { if (!s) return '—'; var p = String(s).split(/[- :]/); return 
 var WOJ = ['dolnośląskie', 'kujawsko-pomorskie', 'lubelskie', 'lubuskie', 'łódzkie', 'małopolskie', 'mazowieckie', 'opolskie', 'podkarpackie', 'podlaskie', 'pomorskie', 'śląskie', 'świętokrzyskie', 'warmińsko-mazurskie', 'wielkopolskie', 'zachodniopomorskie'];
 var LT = { znaleziono: 'Znalazła', kontakt: 'Kontakt', dodano: 'Zrobione', blad: 'Błąd', info: 'Info' };
 var LC = { znaleziono: 'st-wyslano', kontakt: 'st-otworzyl', dodano: 'st-zainteresowany', blad: 'st-blad', info: 'st-nowy' };
-var ZN = { nowe: 'Nowe firmy', praca: 'Szukają pracownika', strona: 'Słaba strona' };
-var VARS = { nowe: ['{firma}', '{miasto}', '{imie}', '{moj_telefon}'], praca: ['{stanowisko}', '{obowiazki}', '{firma}', '{miasto}', '{imie}', '{moj_telefon}'], strona: ['{www}', '{problem}', '{firma}', '{miasto}', '{imie}', '{moj_telefon}'] };
+var ZN = { nowe: 'Nowe firmy', praca: 'Szukają pracownika', strona: 'Słaba strona', auto: 'Dobra strona – automatyzacja' };
+var VARS = { nowe: ['{firma}', '{miasto}', '{imie}', '{moj_telefon}'], praca: ['{stanowisko}', '{obowiazki}', '{firma}', '{miasto}', '{imie}', '{moj_telefon}'], strona: ['{www}', '{problem}', '{firma}', '{miasto}', '{imie}', '{moj_telefon}'], auto: ['{www}', '{pomysl}', '{firma}', '{miasto}', '{imie}', '{moj_telefon}'] };
 var D = null, TAB = 'nowe', SEL = {}, TIMER = null, TYPE = null, WORKING = false, ED = null;
 
 // ---------- wygląd (wstrzykiwany raz) ----------
@@ -147,11 +147,12 @@ function render() {
     stat('Odpisali', '<span style="color:var(--ok)">' + M.r + '</span>', 'Instagram dziś: ' + L.ig_dzis) + '</div>';
 
   // ----- do zatwierdzenia -----
-  var lists = { nowe: d.czekaN || [], praca: d.czekaP || [], strona: d.czekaS || [] };
+  var lists = { nowe: d.czekaN || [], praca: d.czekaP || [], strona: d.czekaS || [], auto: d.czekaA || [] };
   var info = {
     nowe: c.nowe.reczny ? 'Nowe firmy z mailem. Kliknij „Mail”, żeby zobaczyć i zmienić wiadomość dla konkretnej firmy.' : 'Nowe firmy idą do mailingu same – tu tylko te ponad dzienny limit.',
     praca: c.praca.reczny ? 'Ogłoszenia z mailem firmy. Sprawdź, czy to firma, a nie agencja.' : 'Ogłoszenia idą do mailingu same – tu tylko te ponad dzienny limit.',
-    strona: c.strona.reczny ? 'Strony z wyraźnym problemem. Problem trafia do maila – kliknij „Mail”, żeby przeczytać.' : 'Firmy ze słabą stroną idą do mailingu same – tu tylko te ponad dzienny limit.'
+    strona: c.strona.reczny ? 'Strony z wyraźnym problemem. Problem trafia do maila – kliknij „Mail”, żeby przeczytać.' : 'Firmy ze słabą stroną idą do mailingu same – tu tylko te ponad dzienny limit.',
+    auto: 'Firmy z dobrą stroną – tu Eli proponuje jedną automatyzację dobraną do tego, co widzi na stronie (sklep, zapisy, formularz).'
   };
   h += '<div class="card sec"><div class="pad" style="padding-bottom:8px"><h2 class="ct" style="margin:0 0 8px">Do zatwierdzenia</h2><div class="chips">';
   for (k in ZN) if (ZN.hasOwnProperty(k)) h += '<span class="chip' + (TAB === k ? ' on' : '') + '" onclick="window.AG.tab(\'' + k + '\')">' + ZN[k] + ' <b>' + lists[k].length + '</b></span>';
@@ -162,7 +163,7 @@ function render() {
   else {
     h += '<div class="row" style="padding:0 18px 10px"><a class="btn sm dark" onclick="window.AG.ok(this)">Do mailingu</a><a class="btn sm" onclick="window.AG.no(this)">Odrzuć</a><a class="btn sm" onclick="window.AG.all()">Zaznacz wszystkie</a></div>';
     h += '<table class="tbl"><thead><tr><th style="width:30px"></th>' +
-      (TAB === 'nowe' ? '<th>Firma</th><th>Miasto</th><th>E-mail</th>' : TAB === 'praca' ? '<th>Ogłoszenie</th><th>Firma</th><th>E-mail</th>' : '<th>Firma i strona</th><th>Co jest nie tak</th><th>E-mail</th>') + '<th></th></tr></thead><tbody>';
+      (TAB === 'nowe' ? '<th>Firma</th><th>Miasto</th><th>E-mail</th>' : TAB === 'praca' ? '<th>Ogłoszenie</th><th>Firma</th><th>E-mail</th>' : TAB === 'auto' ? '<th>Firma i strona</th><th>Pomysł</th><th>E-mail</th>' : '<th>Firma i strona</th><th>Co jest nie tak</th><th>E-mail</th>') + '<th></th></tr></thead><tbody>';
     for (i = 0; i < rows.length; i++) {
       var r = rows[i], zm = +r.zm ? '<span class="ag-zm">zmieniony mail</span>' : '';
       var chk = '<td><input type="checkbox" ' + (SEL[r.id] ? 'checked ' : '') + 'onchange="window.AG.sel(' + r.id + ',this.checked)"></td>';
@@ -171,7 +172,7 @@ function render() {
       else if (TAB === 'praca') h += '<tr>' + chk + '<td><a href="' + esc(r.url) + '" target="_blank" rel="noopener"><b>' + esc(r.tytul) + '</b></a>' + zm + '<div class="mut" style="font-size:12px">' + esc(r.miasto) + ' · ' + fd(r.ogl_at) + '</div></td><td>' + esc(r.firma || r.konto) + (r.www ? '<div class="mut" style="font-size:12px">' + esc(host(r.www)) + '</div>' : '') + '</td><td>' + esc(r.email) + '<div class="mut" style="font-size:12px">' + esc((r.powod || '').replace('kontakt: ', '')) + '</div></td>' + btn + '</tr>';
       else {
         var pr = []; try { pr = JSON.parse(r.problemy) || []; } catch (e) { pr = []; }
-        var ps = ''; for (var j = 0; j < pr.length && j < 3; j++) ps += '<span class="pill sm st-przypomnienie" style="margin:2px 4px 2px 0">' + esc(pr[j][0]) + '</span>';
+        var ps = ''; for (var j = 0; j < pr.length && j < 3; j++) ps += '<span class="pill sm ' + (TAB === 'auto' ? 'st-zainteresowany' : 'st-przypomnienie') + '" style="margin:2px 4px 2px 0">' + esc(pr[j][0]) + '</span>';
         h += '<tr>' + chk + '<td><b>' + esc(r.nazwa) + '</b>' + zm + '<div class="mut" style="font-size:12px"><a href="' + esc(/^https?:/.test(r.www) ? r.www : 'http://' + r.www) + '" target="_blank" rel="noopener">' + esc(host(r.www)) + '</a> · ' + esc(r.miasto) + (r.psi !== null && r.psi !== undefined ? ' · Google ' + r.psi + '/100' : '') + '</div></td><td>' + ps + '</td><td>' + esc(r.email) + '</td>' + btn + '</tr>';
       }
     }
@@ -225,6 +226,7 @@ function render() {
     sw('s-on', c.strona.on, 'Sprawdzaj strony firm', 'Telefon, szybkość (test Google), SSL, formularz, stara stopka – problem trafia do maila') +
     sw('s-r', c.strona.reczny, 'Zatwierdzam ręcznie', 'Na start zalecane – zobaczysz, co Eli znajduje') +
     sw('s-psi', c.strona.psi, 'Test szybkości Google (PageSpeed)', 'Dokładniejszy, ale wolniejszy – ok. 20 s na stronę') +
+    sw('s-auto', c.strona.auto, 'Dobra strona → zaproponuj automatyzację', 'Jeden pomysł dobrany do firmy: sklep, zapisy online, zapytania na telefon') +
     '<div class="g2f"><div><label class="f">Dziennie do mailingu</label><input id="s-dz" type="number" min="0" max="300" value="' + (+c.strona.dziennie) + '"></div><div><label class="f">Klucz Google PageSpeed (opcjonalnie)</label><input id="s-key" value="' + esc(P.psi_key || '') + '" placeholder="bez klucza Google często odmawia"></div></div>' +
     '<label class="f">Sprawdź dowolną stronę teraz</label><div class="row"><input id="s-url" class="grow" placeholder="np. carbonmiledesign.pl" onkeydown="if(event.key===\'Enter\')window.AG.check()"><a class="btn" id="s-btn" onclick="window.AG.check()">Sprawdź</a></div>' +
     '<div class="hint">Eli bierze firmy ze stroną i mailem z Twoich list w „Szukaj firm”, które jeszcze nie dostały maila (teraz: ' + L.strona_pula + '). Pisze tylko, gdy znajdzie wyraźny problem.</div>' + foot('strona') + '</div>';
@@ -261,7 +263,8 @@ function render() {
   typer();
 }
 function foot(typ) {
-  return '<div class="row" style="margin-top:12px"><a class="btn dark" onclick="window.AG.save(this)">Zapisz</a><a class="btn" onclick="window.AG.tpl(\'' + typ + '\')">Maile – zmień treść</a><a class="btn" onclick="window.AG.prev(\'' + typ + '\')">Podgląd</a></div>';
+  return '<div class="row" style="margin-top:12px"><a class="btn dark" onclick="window.AG.save(this)">Zapisz</a><a class="btn" onclick="window.AG.tpl(\'' + typ + '\')">Maile – zmień treść</a><a class="btn" onclick="window.AG.prev(\'' + typ + '\')">Podgląd</a>' +
+    (typ === 'strona' ? '<a class="btn" onclick="window.AG.tpl(\'auto\')">Maile – automatyzacje</a>' : '') + '</div>';
 }
 
 function gather() {
@@ -271,13 +274,13 @@ function gather() {
     on: $('ag-on').checked,
     nowe: { on: $('n-on').checked, reczny: $('n-r').checked, dni: $('n-dni').value, dziennie: $('n-dz').value, pkd: $('n-pkd').value, woj: woj },
     praca: { on: $('p-on').checked, reczny: $('p-r').checked, dziennie: $('p-dz').value, frazy: $('p-fr').value },
-    strona: { on: $('s-on').checked, reczny: $('s-r').checked, psi: $('s-psi').checked, dziennie: $('s-dz').value, psi_key: $('s-key').value },
+    strona: { on: $('s-on').checked, reczny: $('s-r').checked, psi: $('s-psi').checked, auto: $('s-auto').checked, dziennie: $('s-dz').value, psi_key: $('s-key').value },
     ig: { on: $('i-on').checked, msg: $('i-msg').value },
     form: { on: $('f-on').checked, msg: $('f-msg').value }
   };
 }
 function ids() { var a = []; for (var k in SEL) if (SEL.hasOwnProperty(k) && SEL[k]) a.push(+k); return a; }
-function rowsOf(t) { return t === 'praca' ? D.czekaP : t === 'strona' ? D.czekaS : D.czekaN; }
+function rowsOf(t) { return t === 'praca' ? D.czekaP : t === 'strona' ? D.czekaS : t === 'auto' ? D.czekaA : D.czekaN; }
 function showPreview(p) {
   window.openModal('Podgląd: ' + p.temat, '<iframe id="ag-pf" style="width:100%;height:520px;border:0;border-radius:10px;background:#F4F3EF"></iframe>', '<a class="btn" onclick="window.closeModal()">Zamknij</a>', true);
   var f = $('ag-pf'); f.contentWindow.document.open(); f.contentWindow.document.write(p.html); f.contentWindow.document.close();
@@ -368,11 +371,14 @@ window.AG = {
     for (var k in T) if (T.hasOwnProperty(k)) h += '<span class="chip' + (ED.cur === k ? ' on' : '') + '" onclick="window.AG.tplTab(\'' + k + '\')">' + T[k] + '</span>';
     var x = ED.t[ED.cur];
     h += '</div><label class="f">Temat</label><input id="agt-t" value="' + esc(x.temat) + '">' +
-      '<label class="f">Treść (podpis doda się sam)</label>' + varChips(ED.typ, 'agt-x') + '<textarea id="agt-x" rows="14">' + esc(x.tekst) + '</textarea>' +
-      '<div class="hint">Kliknij zmienną, żeby wstawić ją w miejscu kursora. Pusta linia = nowy akapit.</div>';
+      '<label class="f">Treść (podpis doda się sam)</label>' + varChips(ED.typ, 'agt-x') + '<textarea id="agt-x" rows="12">' + esc(x.tekst) + '</textarea>' +
+      '<div class="hint">Kliknij zmienną, żeby wstawić ją w miejscu kursora. Pusta linia = nowy akapit.</div>' +
+      '<div class="g2f"><div><label class="f">Napis na przycisku (puste = bez przycisku)</label><input id="agt-b" value="' + esc(x.btn || '') + '"></div><div><label class="f">Pod przyciskiem (mały tekst)</label><input id="agt-s" value="' + esc(x.sub || '') + '"></div></div>' +
+      '<label class="f">Po przycisku (np. „albo odpisz na maila lub zadzwoń”)</label><textarea id="agt-p" rows="2">' + esc(x.po || '') + '</textarea>' +
+      '<div class="hint">Kliknięcie w przycisk widzisz w Firmach i w Zgłoszeniach – klient trafia na formularz umówienia konsultacji.</div>';
     window.openModal('Maile Eli – ' + ZN[ED.typ], h, '<a class="btn" onclick="window.AG.tplReset()">Przywróć gotowe</a><a class="btn" onclick="window.AG.tplPrev()">Podgląd</a><a class="btn dark" onclick="window.AG.tplSave()">Zapisz</a>', true);
   },
-  tplKeep: function () { if ($('agt-t')) { ED.t[ED.cur].temat = $('agt-t').value; ED.t[ED.cur].tekst = $('agt-x').value; } },
+  tplKeep: function () { if ($('agt-t')) { var x = ED.t[ED.cur]; x.temat = $('agt-t').value; x.tekst = $('agt-x').value; x.btn = $('agt-b').value; x.sub = $('agt-s').value; x.po = $('agt-p').value; } },
   tplTab: function (k) { window.AG.tplKeep(); ED.cur = k; window.AG.tplShow(); },
   tplSave: function (cb) {
     window.AG.tplKeep();

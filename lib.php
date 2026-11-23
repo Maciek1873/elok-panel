@@ -90,6 +90,7 @@ function firm_vars($f) {
         '{imie}' => strtok(trim(setting('podpis_imie')) . ' ', ' '),
         '{stanowisko}' => isset($f['eli_tytul']) && $f['eli_tytul'] !== '' ? $f['eli_tytul'] : 'pracownik biurowy',
         '{problem}' => isset($f['eli_problem']) ? (string)$f['eli_problem'] : '',
+        '{pomysl}' => isset($f['eli_problem']) ? (string)$f['eli_problem'] : '',
         '{obowiazki}' => isset($f['eli_problem']) && $f['eli_problem'] !== '' && empty($f['www_problem']) ? (string)$f['eli_problem'] : 'przepisywanie danych i dokumentów',
         '{www}' => isset($f['www']) && $f['www'] !== '' ? preg_replace('/^www\./', '', strtolower((string)parse_url(preg_match('#^https?://#i', $f['www']) ? $f['www'] : 'http://' . $f['www'], PHP_URL_HOST))) : 'Państwa strona',
     );
@@ -433,7 +434,17 @@ function send_to_firm($f, $typ) {
     // własna wersja pierwszego maila dla tej jednej firmy (ustawiona w zakładce Agent Eli)
     if ($typ === 'pierwszy' && !empty($f['wlasny'])) {
         $w = json_decode($f['wlasny'], true);
-        if (is_array($w) && trim((string)$w['tekst']) !== '') { $tpl['temat'] = $w['temat']; $tpl['bloki'] = json_encode(array(array('t' => 'tekst', 'text' => $w['tekst'])), JSON_UNESCAPED_UNICODE); }
+        if (is_array($w) && trim((string)$w['tekst']) !== '') {
+            // podmień tylko główną treść – przycisk do umówienia i dopisek zostają z szablonu
+            $bl = tpl_blocks($tpl); $nb = array(); $done = false; $after = false;
+            foreach ($bl as $b) {
+                if (isset($b['t']) && $b['t'] === 'przycisk') { $after = true; $nb[] = $b; continue; }
+                if (!$after && isset($b['t']) && in_array($b['t'], array('tekst', 'ramka'), true)) { if (!$done) { $nb[] = array('t' => 'tekst', 'text' => $w['tekst']); $done = true; } continue; }
+                $nb[] = $b;
+            }
+            if (!$done) array_unshift($nb, array('t' => 'tekst', 'text' => $w['tekst']));
+            $tpl['temat'] = $w['temat']; $tpl['bloki'] = json_encode($nb, JSON_UNESCAPED_UNICODE);
+        }
     }
     $links = links_for($f);
     list($subj, $html, $text) = render_mail($tpl, $f, $links);
