@@ -1,15 +1,18 @@
 <?php
 // ELOK – Agent Eli: sam szuka firm, którym możemy pomóc, i dokłada je do mailingu.
 // Zadania: 1) nowo zarejestrowane firmy (CEIDG) – gratulacje + strona,
-//          2) firmy, które szukają pracownika biurowego (ogłoszenia OLX) – automatyzacje zamiast etatu.
+//          2) firmy, które szukają pracownika biurowego (ogłoszenia OLX) – automatyzacje zamiast etatu,
+//          3) firmy ze słabą stroną – Eli sprawdza stronę i wpisuje do maila konkretny problem,
+//          4) Instagram – lista firm z profilem i gotową wiadomością (wysyłasz ręcznie, Instagram nie pozwala na automat).
 // Działa z crona (cron.php) i z przycisku „Uruchom teraz” w zakładce Agent Eli.
 if (!defined('ELOK')) { http_response_code(403); exit; }
 require_once __DIR__ . '/szablony.php';
 require_once __DIR__ . '/zrodla.php';
 
-define('AG_SCHEMA', '1');
+define('AG_SCHEMA', '2');
 define('AG_BR_NOWE', 'Eli – nowe firmy');
 define('AG_BR_PRACA', 'Eli – szukają pracownika');
+define('AG_BR_STRONA', 'Eli – słaba strona');
 
 function ag_migrate_if() { if (setting('ag_schema') !== AG_SCHEMA) { ag_migrate(); setting_set('ag_schema', AG_SCHEMA); } }
 function ag_migrate() {
@@ -28,7 +31,31 @@ function ag_migrate() {
     add_col('szukaj', 'eli', 'TINYINT(1) NOT NULL DEFAULT 0');
     add_col('szukaj', 'eli_data', 'DATE NULL');
     add_col('firmy', 'eli_tytul', "VARCHAR(160) NOT NULL DEFAULT ''");
+    add_col('firmy', 'eli_problem', "VARCHAR(800) NOT NULL DEFAULT ''");
+    add_col('firmy', 'wlasny', 'MEDIUMTEXT NULL');
+    add_col('szukaj', 'wlasny', 'TEXT NULL');
+    add_col('szukaj', 'audyt', 'TINYINT(1) NOT NULL DEFAULT 0');
+    add_col('szukaj', 'ig_chk', 'TINYINT(1) NOT NULL DEFAULT 0');
+    add_col('ag_oferty', 'wlasny', 'TEXT NULL');
+    db()->exec("CREATE TABLE IF NOT EXISTS ag_audyt (
+      id INT AUTO_INCREMENT PRIMARY KEY, szukaj_id INT NOT NULL, nazwa VARCHAR(255) NOT NULL DEFAULT '', email VARCHAR(190) NOT NULL DEFAULT '',
+      telefon VARCHAR(60) NOT NULL DEFAULT '', osoba VARCHAR(160) NOT NULL DEFAULT '', miasto VARCHAR(120) NOT NULL DEFAULT '', www VARCHAR(255) NOT NULL DEFAULT '',
+      problemy TEXT, problem_txt TEXT, wynik INT NOT NULL DEFAULT 0, psi INT NULL, sekundy DECIMAL(5,1) NULL, status VARCHAR(20) NOT NULL DEFAULT 'czeka', wlasny TEXT NULL,
+      firma_id INT NULL, created_at DATETIME NOT NULL, UNIQUE KEY sz (szukaj_id), KEY st (status)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    db()->exec("CREATE TABLE IF NOT EXISTS ag_ig (
+      id INT AUTO_INCREMENT PRIMARY KEY, ig VARCHAR(80) NOT NULL, nazwa VARCHAR(255) NOT NULL DEFAULT '', miasto VARCHAR(120) NOT NULL DEFAULT '',
+      www VARCHAR(255) NOT NULL DEFAULT '', problem VARCHAR(160) NOT NULL DEFAULT '', status VARCHAR(20) NOT NULL DEFAULT 'do_wyslania',
+      created_at DATETIME NOT NULL, akcja_at DATETIME NULL, UNIQUE KEY ig (ig), KEY st (status)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
     ag_branze();
+    // nowa wersja maila do nowych firm (v2) – podmień, jeśli to wciąż pierwsza wersja
+    $bN = ag_br_id(AG_BR_NOWE);
+    if ($bN && setting('ag_nowe_v2') !== '1') {
+        $t = one("SELECT temat FROM szablony WHERE branza_id=? AND typ='pierwszy'", array($bN));
+        if (!$t || $t['temat'] === 'Gratulacje z okazji otwarcia firmy') { $set = ag_sets(); save_template($bN, 'pierwszy', $set[AG_BR_NOWE]['pierwszy']); }
+        setting_set('ag_nowe_v2', '1');
+    }
 }
 
 // ---------- ustawienia i stan ----------
@@ -37,6 +64,8 @@ function ag_cfg_def() {
         'on' => 0,
         'nowe' => array('on' => 1, 'dni' => 14, 'woj' => array(), 'pkd' => '', 'dziennie' => 25, 'reczny' => 0),
         'praca' => array('on' => 1, 'frazy' => "pracownik biurowy\nwprowadzanie danych\nfakturowanie\nobsługa zamówień\nasystentka biura\nspecjalista ds. administracji", 'dziennie' => 15, 'reczny' => 1),
+        'strona' => array('on' => 1, 'dziennie' => 20, 'reczny' => 1, 'psi' => 1, 'min' => 2),
+        'ig' => array('on' => 1, 'msg' => "Dzień dobry! Tu {imie} z ELOK.\nZajrzałem na stronę {firma}{problem_ig} i mam kilka konkretnych pomysłów, jak mogłaby przynosić więcej zapytań od klientów.\nMogę podesłać je w paru punktach? Bez żadnych zobowiązań."),
     );
 }
 function ag_cfg() {
@@ -57,16 +86,15 @@ function ag_log($zad, $typ, $info) {
 }
 function ag_br_id($nazwa) { return (int)val('SELECT id FROM branze WHERE nazwa=?', array($nazwa)); }
 
-// Branże agenta z gotowymi mailami (pierwszy + 2 przypomnienia + potwierdzenie)
-function ag_branze() {
-    add_col('branze', 'limit_dzienny', 'INT NOT NULL DEFAULT 0');
+// Gotowe maile agenta (pierwszy + 2 przypomnienia + potwierdzenie) – każdy da się zmienić w zakładce Agent Eli
+function ag_sets() {
     $mk = function ($temat, $txt) { return array('temat' => $temat, 'bloki' => array(array('t' => 'tekst', 'text' => $txt)), 'nadtytul' => '', 'naglowek' => '', 'tresc' => '', 'przycisk' => ''); };
     $confirm = default_template_for('Inne firmy', 'potwierdzenie');
-    $sets = array(
+    return array(
         AG_BR_NOWE => array(
-            'pierwszy' => $mk('Gratulacje z okazji otwarcia firmy',
-                "Dzień dobry,\n\nwidzę, że firma {firma} została niedawno zarejestrowana. Gratuluję i życzę dobrego startu.\n\nJestem {imie} z ELOK. Na początku większość klientów sprawdza firmę w Google, zanim zadzwoni. Dlatego robimy strony, które od pierwszego dnia zbierają zapytania: działają na telefonie i komputerze, mają formularz i powiadomienie na telefon. Pomagamy też ustawić automatyzacje i pierwsze reklamy, żeby papierologia nie zjadała czasu od samego początku.\n\nMogę przesłać krótką propozycję i przykłady naszych realizacji? Wystarczy odpisać „tak”."),
-            'przypomnienie' => $mk('Re: Gratulacje z okazji otwarcia firmy',
+            'pierwszy' => $mk('Gratulacje i krótkie pytanie',
+                "Dzień dobry,\n\ngratuluję założenia firmy! Pierwsze tygodnie to zwykle milion spraw naraz, więc napiszę krótko.\n\nPomagamy nowym firmom wystartować w internecie: robimy stronę, przez którą klienci od razu mogą zostawić zapytanie, ustawiamy pierwsze reklamy, a papierologię, np. faktury i przypomnienia dla klientów, automatyzujemy od pierwszego dnia.\n\nJeśli to temat na teraz, odpiszę z krótką propozycją i przykładami. Wystarczy jedno słowo: „tak”."),
+            'przypomnienie' => $mk('Re: Gratulacje i krótkie pytanie',
                 "Dzień dobry,\n\nwracam krótko do mojej wiadomości sprzed kilku dni. Jeśli strona albo uporządkowanie spraw w nowej firmie są na liście do zrobienia, chętnie przygotuję krótką propozycję.\n\nWystarczy odpisać „tak” albo zadzwonić: {moj_telefon}."),
             'przypomnienie2' => $mk('Ostatnia wiadomość ode mnie',
                 "Dzień dobry,\n\nto już ostatni mail ode mnie, nie będę zaśmiecał skrzynki.\n\nGdyby kiedyś przydała się strona, reklama albo automatyzacja w firmie, wystarczy odpisać albo zadzwonić: {moj_telefon}.\n\nPowodzenia na starcie!"),
@@ -81,8 +109,20 @@ function ag_branze() {
                 "Dzień dobry,\n\nto już ostatni mail ode mnie, nie będę zaśmiecał skrzynki.\n\nGdyby kiedyś temat automatyzacji wrócił, wystarczy odpisać albo zadzwonić: {moj_telefon}.\n\nPowodzenia w rekrutacji!"),
             'potwierdzenie' => $confirm,
         ),
+        AG_BR_STRONA => array(
+            'pierwszy' => $mk('Państwa strona {www}',
+                "Dzień dobry,\n\nzajrzałem na stronę {www} i rzuciło mi się w oczy:\n\n{problem}\n\nTo rzeczy, przez które część klientów rezygnuje, zanim w ogóle zadzwoni. Jestem {imie} z ELOK. Poprawiamy strony tak, żeby przynosiły zapytania, i ustawiamy automatyzacje w firmach.\n\nMogę przesłać krótką propozycję, co i za ile da się poprawić? Wystarczy odpisać „tak”."),
+            'przypomnienie' => $mk('Re: Państwa strona {www}',
+                "Dzień dobry,\n\nwracam krótko do mojej wiadomości o stronie {www}. Chętnie przygotuję listę poprawek z ceną, bez zobowiązań. Nawet jeśli zrobią to Państwo sami albo z kimś innym, lista się przyda.\n\nWystarczy odpisać „tak” albo zadzwonić: {moj_telefon}."),
+            'przypomnienie2' => $mk('Ostatnia wiadomość ode mnie',
+                "Dzień dobry,\n\nto już ostatni mail ode mnie w sprawie strony, nie będę zaśmiecał skrzynki.\n\nGdyby temat wrócił, wystarczy odpisać albo zadzwonić: {moj_telefon}.\n\nPozdrawiam i powodzenia!"),
+            'potwierdzenie' => $confirm,
+        ),
     );
-    foreach ($sets as $nazwa => $set) {
+}
+function ag_branze() {
+    add_col('branze', 'limit_dzienny', 'INT NOT NULL DEFAULT 0');
+    foreach (ag_sets() as $nazwa => $set) {
         if (ag_br_id($nazwa)) continue;
         q('INSERT INTO branze(nazwa,aktywna,kolejnosc,limit_dzienny) VALUES(?,1,?,?)', array($nazwa, (int)val('SELECT COALESCE(MAX(kolejnosc),0)+1 FROM branze'), 25));
         $id = (int)db()->lastInsertId();
@@ -92,7 +132,8 @@ function ag_branze() {
 
 // licznik dodanych dziś (dla limitu dziennego zadania)
 function ag_dzis(&$s, $zad) {
-    if (!isset($s['dzis']) || $s['dzis']['data'] !== date('Y-m-d')) $s['dzis'] = array('data' => date('Y-m-d'), 'nowe' => 0, 'praca' => 0);
+    if (!isset($s['dzis']) || $s['dzis']['data'] !== date('Y-m-d')) $s['dzis'] = array('data' => date('Y-m-d'), 'nowe' => 0, 'praca' => 0, 'strona' => 0, 'audyt' => 0);
+    foreach (array('nowe', 'praca', 'strona', 'audyt') as $k) if (!isset($s['dzis'][$k])) $s['dzis'][$k] = 0;
     return (int)$s['dzis'][$zad];
 }
 
@@ -101,10 +142,11 @@ function ag_do_firm($d, $bid) {
     if (!filter_var($d['email'], FILTER_VALIDATE_EMAIL)) return array(0, 'zły e-mail');
     $dup = firm_dup_find($d['email'], isset($d['telefon']) ? $d['telefon'] : '', $d['nazwa'], isset($d['miasto']) ? $d['miasto'] : '', isset($d['www']) ? $d['www'] : '');
     if ($dup) return array(0, 'już jest w Firmach');
-    q('INSERT INTO firmy(nazwa,email,telefon,miasto,osoba,www,branza_id,status,token,dodano_at,notatka,zrodlo,eli_tytul) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',
+    q('INSERT INTO firmy(nazwa,email,telefon,miasto,osoba,www,branza_id,status,token,dodano_at,notatka,zrodlo,eli_tytul,eli_problem,wlasny) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
         array(mb_substr($d['nazwa'], 0, 255), $d['email'], mb_substr(isset($d['telefon']) ? $d['telefon'] : '', 0, 60), mb_substr(isset($d['miasto']) ? $d['miasto'] : '', 0, 120),
             mb_substr(isset($d['osoba']) ? $d['osoba'] : '', 0, 120), mb_substr(isset($d['www']) ? $d['www'] : '', 0, 255), $bid, 'nowy', token(), now(),
-            mb_substr(isset($d['notatka']) ? $d['notatka'] : '', 0, 2000), isset($d['zrodlo']) ? $d['zrodlo'] : 'eli', mb_substr(isset($d['stanowisko']) ? $d['stanowisko'] : '', 0, 160)));
+            mb_substr(isset($d['notatka']) ? $d['notatka'] : '', 0, 2000), isset($d['zrodlo']) ? $d['zrodlo'] : 'eli', mb_substr(isset($d['stanowisko']) ? $d['stanowisko'] : '', 0, 160),
+            mb_substr(isset($d['problem']) ? $d['problem'] : '', 0, 800), !empty($d['wlasny']) ? $d['wlasny'] : null));
     return array((int)db()->lastInsertId(), '');
 }
 
@@ -127,7 +169,7 @@ function ag_nowe_run($cfg, &$s, $t0, $budget) {
         if ($limit > 0) {
             foreach (all("SELECT * FROM szukaj WHERE eli=1 AND branza_id=? AND status='gotowe' ORDER BY id LIMIT " . (int)$limit, array($bid)) as $r) {
                 list($fid, $why) = ag_do_firm(array('nazwa' => $r['nazwa'], 'email' => $r['email'], 'telefon' => $r['telefon'], 'miasto' => $r['miasto'], 'osoba' => $r['osoba'], 'www' => $r['www'],
-                    'notatka' => 'Agent Eli – nowa firma (CEIDG, start ' . ($r['eli_data'] ?: '?') . '). ' . $r['adres'] . ($r['nip'] ? ' · NIP ' . $r['nip'] : ''), 'zrodlo' => 'ceidg'), $bid);
+                    'notatka' => 'Agent Eli – nowa firma (CEIDG, start ' . ($r['eli_data'] ?: '?') . '). ' . $r['adres'] . ($r['nip'] ? ' · NIP ' . $r['nip'] : ''), 'zrodlo' => 'ceidg', 'wlasny' => $r['wlasny']), $bid);
                 q('UPDATE szukaj SET status=? WHERE id=?', array($fid ? 'dodano' : 'juz_jest', $r['id']));
                 if ($fid) { $s['dzis']['nowe']++; ag_log('nowe', 'dodano', $r['nazwa'] . ' (' . $r['miasto'] . ') – ' . $r['email']); }
             }
@@ -297,10 +339,134 @@ function ag_praca_dodaj($r, &$s) {
     $bid = ag_br_id(AG_BR_PRACA);
     $nazwa = $r['firma'] !== '' ? $r['firma'] : ($r['www'] ? dup_host($r['www']) : $r['konto']);
     list($fid, $why) = ag_do_firm(array('nazwa' => $nazwa, 'email' => $r['email'], 'miasto' => $r['miasto'], 'www' => $r['www'], 'stanowisko' => $r['stanowisko'] ?: 'pracownik biurowy',
-        'notatka' => 'Agent Eli – ogłoszenie o pracę: ' . $r['tytul'] . ' ' . $r['url'], 'zrodlo' => 'olx'), $bid);
+        'notatka' => 'Agent Eli – ogłoszenie o pracę: ' . $r['tytul'] . ' ' . $r['url'], 'zrodlo' => 'olx', 'wlasny' => $r['wlasny']), $bid);
     q('UPDATE ag_oferty SET status=?, firma_id=? WHERE id=?', array($fid ? 'dodano' : 'juz_jest', $fid ?: null, $r['id']));
     if ($fid) { ag_dzis($s, 'praca'); $s['dzis']['praca']++; ag_log('praca', 'dodano', $nazwa . ' – ' . $r['email'] . ' (' . $r['stanowisko'] . ')'); }
     return $fid;
+}
+
+// ---------- ZADANIE 3: firmy ze słabą stroną ----------
+// pobranie strony z pomiarem czasu i końcowym adresem (po przekierowaniach)
+function ag_fetch($url, $timeout = 15) {
+    if (!function_exists('curl_init')) return array(0, '', $url, 0);
+    $c = curl_init($url);
+    curl_setopt_array($c, array(CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => $timeout, CURLOPT_CONNECTTIMEOUT => 7, CURLOPT_FOLLOWLOCATION => true, CURLOPT_MAXREDIRS => 5,
+        CURLOPT_USERAGENT => 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Mobile Safari/537.36', CURLOPT_ENCODING => '',
+        CURLOPT_HTTPHEADER => array('Accept: text/html', 'Accept-Language: pl-PL')));
+    $html = curl_exec($c);
+    $code = (int)curl_getinfo($c, CURLINFO_HTTP_CODE); $final = (string)curl_getinfo($c, CURLINFO_EFFECTIVE_URL); $t = (float)curl_getinfo($c, CURLINFO_TOTAL_TIME);
+    curl_close($c);
+    if ($html === false) $html = '';
+    return array($code, substr($html, 0, 1500000), $final ?: $url, $t);
+}
+function ag_ig_z_html($html) {
+    if (preg_match_all('#instagram\.com/([A-Za-z0-9_.]{2,30})#i', $html, $m)) {
+        foreach ($m[1] as $h) { $h = rtrim($h, '.'); if (!in_array(strtolower($h), array('p', 'reel', 'explore', 'accounts', 'stories', 'tv', 'about', 'developer', 'instagram', 'legal', 'direct', 'sharer'), true)) return $h; }
+    }
+    return '';
+}
+function ag_psi($url) {
+    $k = trim((string)setting('psi_key'));
+    list($code, $body) = http_req('GET', 'https://www.googleapis.com/pagespeedonline/v5/runPagespeed?strategy=mobile&category=performance&url=' . rawurlencode($url) . ($k ? '&key=' . rawurlencode($k) : ''), array('Accept: application/json'), null, 55);
+    if ($code !== 200) return array(null, null);
+    $j = json_decode($body, true);
+    $sc = isset($j['lighthouseResult']['categories']['performance']['score']) ? (int)round($j['lighthouseResult']['categories']['performance']['score'] * 100) : null;
+    $lcp = isset($j['lighthouseResult']['audits']['largest-contentful-paint']['numericValue']) ? round($j['lighthouseResult']['audits']['largest-contentful-paint']['numericValue'] / 1000, 1) : null;
+    return array($sc, $lcp);
+}
+function ag_num($x) { return str_replace('.', ',', (string)$x); }
+// sprawdza stronę; zwraca array(problemy[], psi, sekundy, ig, blad)
+// problem: array(krótko, zdanie do maila, waga)
+function ag_audyt($www, $psi_on) {
+    if (!preg_match('#^https?://#i', $www)) $www = 'http://' . $www;
+    list($code, $html, $final, $t) = ag_fetch($www);
+    if ($code === 0 || $code >= 500) { list($code, $html, $final, $t) = ag_fetch($www, 20); } // druga próba
+    if ($code === 0 || $code >= 400 || $html === '') return array(array(), null, null, '', 'strona nie odpowiada (' . ($code ?: 'brak połączenia') . ')');
+    $host = preg_replace('/^www\./', '', strtolower((string)parse_url($final, PHP_URL_HOST)));
+    $p = array();
+    if (stripos($final, 'https://') !== 0) $p[] = array('nie ma certyfikatu SSL', '- strona nie ma certyfikatu SSL, więc przeglądarka pokazuje przy adresie „Niezabezpieczona”. Wielu klientów w tym momencie wychodzi,', 3);
+    if (!preg_match('/<meta[^>]+name=["\']?viewport/i', $html)) $p[] = array('nie jest dopasowana do telefonu', '- strona nie jest dopasowana do telefonu, na komórce trzeba ją powiększać palcami, a dziś większość klientów szuka właśnie z telefonu,', 3);
+    $psi = null; $lcp = null;
+    if ($psi_on) list($psi, $lcp) = ag_psi($final);
+    if ($psi !== null && $psi < 50) $p[] = array('ma ' . $psi . '/100 w teście szybkości Google', '- Google ocenia szybkość strony na telefonie na ' . $psi . '/100' . ($lcp ? ', a główna treść pojawia się dopiero po ok. ' . ag_num($lcp) . ' s' : '') . '. Słaby wynik obniża też pozycję w wyszukiwarce,', $psi < 30 ? 3 : 2);
+    elseif ($t > 4) $p[] = array('ładuje się ok. ' . ag_num(round($t, 1)) . ' s', '- strona otwiera się ok. ' . ag_num(round($t, 1)) . ' s. Po 3 sekundach czekania sporo osób wraca do wyników Google,', 2);
+    // formularz – na stronie głównej albo na podstronie kontaktowej
+    $form = stripos($html, '<form') !== false && !preg_match('/<form[^>]*(search|szukaj)/i', $html) ? true : false;
+    if (!$form && preg_match('/href=["\']([^"\'#]*(kontakt|contact)[^"\']*)["\']/i', $html, $mm)) {
+        $l = $mm[1];
+        if (!preg_match('#^https?://#i', $l)) { $pu = parse_url($final); $l = (isset($pu['scheme']) ? $pu['scheme'] : 'http') . '://' . (isset($pu['host']) ? $pu['host'] : '') . '/' . ltrim($l, '/'); }
+        list($c2, $h2) = ag_fetch($l, 10);
+        if ($c2 >= 200 && $c2 < 400 && stripos($h2, '<form') !== false) $form = true;
+    }
+    if (!$form) $p[] = array('nie ma formularza kontaktowego', '- nie ma formularza, przez który klient może od razu zostawić zapytanie, musi szukać telefonu albo maila,', 1);
+    if (preg_match('/(?:©|&copy;|copyright)\s*(?:\d{4}\s*[-–]\s*)?(20[0-2]\d)\b/iu', $html, $my) && (int)$my[1] <= (int)date('Y') - 3 && !preg_match('/(?:©|&copy;|copyright)[^<]{0,20}20[0-2]\d\s*[-–]\s*20[2-9]\d/iu', $html))
+        $p[] = array('w stopce ma rok ' . $my[1], '- w stopce widnieje rok ' . $my[1] . ', więc strona wygląda na dawno nieaktualizowaną,', 1);
+    usort($p, function ($a, $b) { return $b[2] - $a[2]; });
+    return array($p, $psi, round($t, 1), ag_ig_z_html($html), '');
+}
+function ag_problem_txt($p) {
+    $l = array(); foreach (array_slice($p, 0, 3) as $x) $l[] = $x[1];
+    $t = implode("\n", $l);
+    return rtrim($t, ',') . '.';
+}
+function ag_strona_run($cfg, &$s, $t0, $budget) {
+    $c = $cfg['strona'];
+    $bid = ag_br_id(AG_BR_STRONA);
+    if (!$bid) return 'brak branży';
+    $done = 0; $zle = 0;
+    while (microtime(true) - $t0 < $budget && ag_dzis($s, 'audyt') < 120) {
+        // firmy ze strony i z mailem, z list w „Szukaj firm”, które jeszcze nie trafiły do mailingu
+        $r = one("SELECT * FROM szukaj WHERE audyt=0 AND www<>'' AND email<>'' AND status='gotowe' AND eli=0 ORDER BY id DESC LIMIT 1");
+        if (!$r) { if (!$done) return 'brak firm ze stroną do sprawdzenia – dodaj listę w „Szukaj firm”'; break; }
+        q('UPDATE szukaj SET audyt=1 WHERE id=?', array($r['id']));
+        $psi = !empty($c['psi']) && (microtime(true) - $t0) < $budget - 50;
+        list($p, $sc, $sek, $ig, $err) = ag_audyt($r['www'], $psi);
+        $s['dzis']['audyt']++; $done++;
+        if ($ig) q('INSERT IGNORE INTO ag_ig(ig,nazwa,miasto,www,problem,created_at) VALUES(?,?,?,?,?,?)', array($ig, mb_substr($r['nazwa'], 0, 255), mb_substr($r['miasto'], 0, 120), mb_substr($r['www'], 0, 255), $p ? mb_substr($p[0][0], 0, 160) : '', now()));
+        $waga = 0; foreach ($p as $x) $waga += $x[2];
+        $status = $err ? 'blad' : ($waga >= max(1, (int)$c['min']) ? 'czeka' : 'ok_strona');
+        q('INSERT IGNORE INTO ag_audyt(szukaj_id,nazwa,email,telefon,osoba,miasto,www,problemy,problem_txt,wynik,psi,sekundy,status,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+            array($r['id'], $r['nazwa'], $r['email'], $r['telefon'], $r['osoba'], $r['miasto'], $r['www'], json_encode($p, JSON_UNESCAPED_UNICODE), $p ? ag_problem_txt($p) : $err, $waga, $sc, $sek, $status, now()));
+        if ($status === 'czeka') { $zle++; ag_log('strona', 'kontakt', $r['nazwa'] . ' – ' . dup_host($r['www']) . ': ' . implode(', ', array_map(function ($x) { return $x[0]; }, array_slice($p, 0, 3)))); }
+    }
+    if ($done) ag_log('strona', 'znaleziono', 'Sprawdzone strony: ' . $done . ', z wyraźnym problemem: ' . $zle);
+    if (empty($c['reczny'])) {
+        $limit = max(0, (int)$c['dziennie'] - ag_dzis($s, 'strona'));
+        foreach (all("SELECT * FROM ag_audyt WHERE status='czeka' ORDER BY wynik DESC, id LIMIT " . (int)$limit) as $a) ag_strona_dodaj($a, $s);
+    }
+    return 'sprawdzono ' . $done;
+}
+function ag_strona_dodaj($a, &$s) {
+    $bid = ag_br_id(AG_BR_STRONA);
+    list($fid) = ag_do_firm(array('nazwa' => $a['nazwa'], 'email' => $a['email'], 'telefon' => $a['telefon'], 'miasto' => $a['miasto'], 'osoba' => $a['osoba'], 'www' => $a['www'],
+        'problem' => $a['problem_txt'], 'wlasny' => $a['wlasny'], 'notatka' => 'Agent Eli – słaba strona: ' . str_replace("\n", ' ', $a['problem_txt']), 'zrodlo' => 'audyt'), $bid);
+    q('UPDATE ag_audyt SET status=?, firma_id=? WHERE id=?', array($fid ? 'dodano' : 'juz_jest', $fid ?: null, $a['id']));
+    q("UPDATE szukaj SET status=IF(?,'dodano','juz_jest') WHERE id=?", array($fid ? 1 : 0, $a['szukaj_id']));
+    if ($fid) { ag_dzis($s, 'strona'); $s['dzis']['strona']++; ag_log('strona', 'dodano', $a['nazwa'] . ' – ' . $a['email']); }
+    return $fid;
+}
+
+// ---------- ZADANIE 4: Instagram (lista do ręcznego wysłania) ----------
+function ag_ig_run($cfg, &$s, $t0, $budget) {
+    $n = 0; $found = 0;
+    while (microtime(true) - $t0 < $budget && $n < 25) {
+        // strony firm bez maila (tu Instagram jest jedynym kontaktem) i reszta, której jeszcze nie sprawdzano
+        $r = one("SELECT id,nazwa,miasto,www FROM szukaj WHERE ig_chk=0 AND www<>'' AND status IN('brak_maila','juz_jest','dodano') ORDER BY (status='brak_maila') DESC, id DESC LIMIT 1");
+        if (!$r) break;
+        q('UPDATE szukaj SET ig_chk=1 WHERE id=?', array($r['id']));
+        $www = preg_match('#^https?://#i', $r['www']) ? $r['www'] : 'http://' . $r['www'];
+        list($code, $html) = ag_fetch($www, 10);
+        $n++;
+        $ig = $code >= 200 && $code < 400 ? ag_ig_z_html($html) : '';
+        if ($ig && q('INSERT IGNORE INTO ag_ig(ig,nazwa,miasto,www,created_at) VALUES(?,?,?,?,?)', array($ig, mb_substr($r['nazwa'], 0, 255), mb_substr($r['miasto'], 0, 120), mb_substr($r['www'], 0, 255), now()))->rowCount()) $found++;
+    }
+    if ($found) ag_log('ig', 'znaleziono', 'Instagram: ' . $found . ' nowych profili firm do napisania');
+    return 'sprawdzono stron: ' . $n . ', profile: ' . $found;
+}
+function ag_ig_msg($cfg, $r) {
+    $p = trim((string)$r['problem']);
+    return strtr((string)$cfg['ig']['msg'], array('{imie}' => strtok(trim(setting('podpis_imie')) . ' ', ' '), '{firma}' => $r['nazwa'], '{miasto}' => $r['miasto'],
+        '{www}' => dup_host($r['www']), '{problem_ig}' => $p !== '' ? ' (zauważyłem, że ' . $p . ')' : '', '{moj_telefon}' => my_tel()));
 }
 
 // ---------- przebieg (cron / przycisk) ----------
@@ -313,8 +479,10 @@ function ag_run($budget, $manual = false) {
     $s = ag_stan(); ag_dzis($s, 'nowe');
     $r = array();
     try {
-        if (!empty($cfg['nowe']['on'])) $r[] = 'nowe firmy: ' . ag_nowe_run($cfg, $s, $t0, $budget * 0.55);
-        if (!empty($cfg['praca']['on'])) $r[] = 'ogłoszenia: ' . ag_praca_run($cfg, $s, $t0, $budget);
+        if (!empty($cfg['nowe']['on'])) $r[] = 'nowe firmy: ' . ag_nowe_run($cfg, $s, $t0, $budget * 0.3);
+        if (!empty($cfg['praca']['on'])) $r[] = 'ogłoszenia: ' . ag_praca_run($cfg, $s, $t0, $budget * 0.5);
+        if (!empty($cfg['strona']['on'])) $r[] = 'strony: ' . ag_strona_run($cfg, $s, $t0, $budget * 0.9);
+        if (!empty($cfg['ig']['on'])) $r[] = 'instagram: ' . ag_ig_run($cfg, $s, $t0, $budget);
     } catch (Exception $e) { ag_log('', 'blad', $e->getMessage()); $r[] = 'błąd: ' . $e->getMessage(); }
     $s['ostatnio'] = now(); $s['wynik'] = implode(' | ', $r);
     ag_stan_save($s);
@@ -322,29 +490,42 @@ function ag_run($budget, $manual = false) {
     // raz dziennie po 18:00 podsumowanie na telefon
     if ((int)date('G') >= 18 && setting('ag_raport') !== date('Y-m-d') && !empty($cfg['on'])) {
         setting_set('ag_raport', date('Y-m-d'));
-        $d = isset($s['dzis']) ? $s['dzis'] : array('nowe' => 0, 'praca' => 0);
-        $czeka = (int)val("SELECT COUNT(*) FROM ag_oferty WHERE status='gotowe'") + (!empty($cfg['nowe']['reczny']) ? (int)val("SELECT COUNT(*) FROM szukaj WHERE eli=1 AND status='gotowe'") : 0);
-        push('Agent Eli – dzisiaj', 'Dodane do mailingu: nowe firmy ' . (int)$d['nowe'] . ', ogłoszenia ' . (int)$d['praca'] . ($czeka ? ' · czeka na zatwierdzenie: ' . $czeka : ''), BASE_URL . '#agent');
+        $d = $s['dzis'];
+        $czeka = (int)val("SELECT COUNT(*) FROM ag_oferty WHERE status='gotowe'") + (int)val("SELECT COUNT(*) FROM ag_audyt WHERE status='czeka'") + (!empty($cfg['nowe']['reczny']) ? (int)val("SELECT COUNT(*) FROM szukaj WHERE eli=1 AND status='gotowe'") : 0);
+        $ig = (int)val("SELECT COUNT(*) FROM ag_ig WHERE status='do_wyslania'");
+        push('Agent Eli – dzisiaj', 'Do mailingu: nowe firmy ' . (int)$d['nowe'] . ', ogłoszenia ' . (int)$d['praca'] . ', słabe strony ' . (int)$d['strona'] . ($czeka ? ' · czeka na Ciebie: ' . $czeka : '') . ($ig ? ' · Instagram do napisania: ' . $ig : ''), BASE_URL . '#agent');
     }
     return $s['wynik'];
 }
 
 // ---------- API (akcje „ag_…”, wywoływane z api.php) ----------
+function ag_bid_typ($typ) { return ag_br_id($typ === 'praca' ? AG_BR_PRACA : ($typ === 'strona' ? AG_BR_STRONA : AG_BR_NOWE)); }
+// wiersz „do zatwierdzenia” jako firma (do podstawienia zmiennych w mailu)
+function ag_item($typ, $id) {
+    if ($typ === 'praca') { $r = one('SELECT * FROM ag_oferty WHERE id=?', array((int)$id)); if (!$r) return null; return array($r, array('nazwa' => $r['firma'] ?: ($r['www'] ? dup_host($r['www']) : $r['konto']), 'miasto' => $r['miasto'], 'osoba' => '', 'www' => $r['www'], 'eli_tytul' => $r['stanowisko'], 'zrodlo' => 'olx')); }
+    if ($typ === 'strona') { $r = one('SELECT * FROM ag_audyt WHERE id=?', array((int)$id)); if (!$r) return null; return array($r, array('nazwa' => $r['nazwa'], 'miasto' => $r['miasto'], 'osoba' => $r['osoba'], 'www' => $r['www'], 'eli_problem' => $r['problem_txt'], 'zrodlo' => 'audyt')); }
+    $r = one('SELECT * FROM szukaj WHERE id=? AND eli=1', array((int)$id)); if (!$r) return null;
+    return array($r, array('nazwa' => $r['nazwa'], 'miasto' => $r['miasto'], 'osoba' => $r['osoba'], 'www' => $r['www'], 'zrodlo' => 'ceidg'));
+}
+function ag_tbl($typ) { return $typ === 'praca' ? 'ag_oferty' : ($typ === 'strona' ? 'ag_audyt' : 'szukaj'); }
+function ag_tpl_txt($tpl) { $b = tpl_blocks($tpl); $o = array(); foreach ($b as $x) if (isset($x['text']) && in_array($x['t'], array('tekst', 'ramka'), true)) $o[] = $x['text']; return implode("\n\n", $o); }
+
 function ag_api($a) {
     ag_migrate_if();
+    $typ = in_array(g('typ'), array('nowe', 'praca', 'strona'), true) ? g('typ') : 'nowe';
     if ($a === 'ag_stan') {
         $cfg = ag_cfg(); $s = ag_stan(); ag_dzis($s, 'nowe');
-        $bN = ag_br_id(AG_BR_NOWE); $bP = ag_br_id(AG_BR_PRACA);
-        $br = all('SELECT id,nazwa,aktywna,limit_dzienny FROM branze WHERE id IN(?,?)', array($bN, $bP));
+        $ids = array(ag_br_id(AG_BR_NOWE), ag_br_id(AG_BR_PRACA), ag_br_id(AG_BR_STRONA));
+        $br = all('SELECT id,nazwa,aktywna,limit_dzienny FROM branze WHERE id IN(?,?,?) ORDER BY id', $ids);
         $mail = array();
-        foreach (array($bN, $bP) as $b) $mail[$b] = array(
+        foreach ($ids as $b) $mail[$b] = array(
             'w_kolejce' => (int)val("SELECT COUNT(*) FROM firmy WHERE branza_id=? AND status='nowy'", array($b)),
             'wyslano' => (int)val("SELECT COUNT(*) FROM firmy WHERE branza_id=? AND wyslano_at IS NOT NULL", array($b)),
             'otwarte' => (int)val("SELECT COUNT(*) FROM firmy WHERE branza_id=? AND otwarcia>0", array($b)),
             'odpisali' => (int)val("SELECT COUNT(*) FROM firmy WHERE branza_id=? AND (odpisal_at IS NOT NULL OR zgloszenie_at IS NOT NULL)", array($b)),
         );
-        $czekaN = all("SELECT id,nazwa,osoba,email,telefon,www,miasto,adres,eli_data FROM szukaj WHERE eli=1 AND status='gotowe' ORDER BY id DESC LIMIT 100");
-        $czekaP = all("SELECT id,tytul,stanowisko,firma,konto,miasto,url,email,www,powod,ogl_at FROM ag_oferty WHERE status='gotowe' ORDER BY id DESC LIMIT 100");
+        $ig = all("SELECT * FROM ag_ig WHERE status='do_wyslania' ORDER BY id DESC LIMIT 60");
+        foreach ($ig as $k => $r) $ig[$k]['msg'] = ag_ig_msg($cfg, $r);
         $licz = array(
             'nowe_znalezione' => (int)val('SELECT COUNT(*) FROM szukaj WHERE eli=1'),
             'nowe_z_mailem' => (int)val("SELECT COUNT(*) FROM szukaj WHERE eli=1 AND status IN('gotowe','dodano')"),
@@ -352,9 +533,16 @@ function ag_api($a) {
             'praca_ogl' => (int)val('SELECT COUNT(*) FROM ag_oferty'),
             'praca_odrz' => (int)val("SELECT COUNT(*) FROM ag_oferty WHERE status='odrzucona'"),
             'praca_brak' => (int)val("SELECT COUNT(*) FROM ag_oferty WHERE status='brak_maila'"),
-            'praca_dodane' => (int)val("SELECT COUNT(*) FROM ag_oferty WHERE status='dodano'"),
+            'strona_spr' => (int)val('SELECT COUNT(*) FROM ag_audyt'),
+            'strona_zle' => (int)val("SELECT COUNT(*) FROM ag_audyt WHERE status IN('czeka','dodano')"),
+            'strona_pula' => (int)val("SELECT COUNT(*) FROM szukaj WHERE audyt=0 AND www<>'' AND email<>'' AND status='gotowe' AND eli=0"),
+            'ig_wyslane' => (int)val("SELECT COUNT(*) FROM ag_ig WHERE status='wyslane'"),
+            'ig_dzis' => (int)val("SELECT COUNT(*) FROM ag_ig WHERE status='wyslane' AND akcja_at>=?", array(date('Y-m-d 00:00:00'))),
         );
-        out(array('cfg' => $cfg, 'stan' => $s, 'branze' => $br, 'mail' => $mail, 'czekaN' => $czekaN, 'czekaP' => $czekaP, 'licz' => $licz,
+        out(array('cfg' => $cfg, 'stan' => $s, 'branze' => $br, 'mail' => $mail, 'licz' => $licz, 'ig' => $ig,
+            'czekaN' => all("SELECT id,nazwa,osoba,email,telefon,www,miasto,adres,eli_data,(wlasny IS NOT NULL AND wlasny<>'') AS zm FROM szukaj WHERE eli=1 AND status='gotowe' ORDER BY id DESC LIMIT 100"),
+            'czekaP' => all("SELECT id,tytul,stanowisko,firma,konto,miasto,url,email,www,powod,ogl_at,(wlasny IS NOT NULL AND wlasny<>'') AS zm FROM ag_oferty WHERE status='gotowe' ORDER BY id DESC LIMIT 100"),
+            'czekaS' => all("SELECT id,nazwa,email,miasto,www,problemy,problem_txt,wynik,psi,sekundy,(wlasny IS NOT NULL AND wlasny<>'') AS zm FROM ag_audyt WHERE status='czeka' ORDER BY wynik DESC, id DESC LIMIT 100"),
             'pol' => array(
                 'ceidg' => ceidg_token() !== '', 'ceidg_debug' => setting('ceidg_debug'),
                 'olx' => setting('ag_olx_last'),
@@ -367,26 +555,33 @@ function ag_api($a) {
     if ($a === 'ag_zapisz') {
         $c = ag_cfg();
         $c['on'] = g('on') ? 1 : 0;
-        $n = (array)g('nowe'); $p = (array)g('praca');
+        $n = (array)g('nowe'); $p = (array)g('praca'); $st = (array)g('strona'); $ig = (array)g('ig');
+        $num = function ($arr, $k, $def, $min, $max) { return max($min, min($max, (int)(isset($arr[$k]) ? $arr[$k] : $def))); };
         $c['nowe']['on'] = !empty($n['on']) ? 1 : 0;
-        $c['nowe']['dni'] = max(1, min(60, (int)(isset($n['dni']) ? $n['dni'] : 14)));
-        $c['nowe']['dziennie'] = max(0, min(300, (int)(isset($n['dziennie']) ? $n['dziennie'] : 25)));
+        $c['nowe']['dni'] = $num($n, 'dni', 14, 1, 60);
+        $c['nowe']['dziennie'] = $num($n, 'dziennie', 25, 0, 300);
         $c['nowe']['reczny'] = !empty($n['reczny']) ? 1 : 0;
         $c['nowe']['pkd'] = mb_substr(trim((string)(isset($n['pkd']) ? $n['pkd'] : '')), 0, 500);
         $woj = array(); foreach ((array)(isset($n['woj']) ? $n['woj'] : array()) as $w) if (in_array($w, noc_woj_all(), true)) $woj[] = $w;
         $c['nowe']['woj'] = $woj;
         $c['praca']['on'] = !empty($p['on']) ? 1 : 0;
-        $c['praca']['dziennie'] = max(0, min(300, (int)(isset($p['dziennie']) ? $p['dziennie'] : 15)));
+        $c['praca']['dziennie'] = $num($p, 'dziennie', 15, 0, 300);
         $c['praca']['reczny'] = !empty($p['reczny']) ? 1 : 0;
         $c['praca']['frazy'] = mb_substr(trim((string)(isset($p['frazy']) ? $p['frazy'] : '')), 0, 1000);
+        $c['strona']['on'] = !empty($st['on']) ? 1 : 0;
+        $c['strona']['dziennie'] = $num($st, 'dziennie', 20, 0, 300);
+        $c['strona']['reczny'] = !empty($st['reczny']) ? 1 : 0;
+        $c['strona']['psi'] = !empty($st['psi']) ? 1 : 0;
+        $c['ig']['on'] = !empty($ig['on']) ? 1 : 0;
+        if (isset($ig['msg']) && trim($ig['msg']) !== '') $c['ig']['msg'] = mb_substr(trim((string)$ig['msg']), 0, 1000);
         ag_cfg_save($c);
         $s = ag_stan(); unset($s['nowe']); ag_stan_save($s); // nowe ustawienia → nowy przebieg
-        ag_log('', 'info', 'Zmieniono ustawienia agenta' . ($c['on'] ? '' : ' (agent wyłączony)'));
+        ag_log('', 'info', $c['on'] ? 'Zmieniono ustawienia agenta' : 'Agent wyłączony');
         out(array());
     }
-    if ($a === 'ag_uruchom') { @set_time_limit(60); out(array('wynik' => ag_run(22, true))); }
+    if ($a === 'ag_uruchom') { @set_time_limit(60); out(array('wynik' => ag_run(24, true))); }
     if ($a === 'ag_zatwierdz' || $a === 'ag_odrzuc') {
-        $ids = array_map('intval', (array)g('ids')); $typ = g('typ') === 'praca' ? 'praca' : 'nowe';
+        $ids = array_map('intval', (array)g('ids'));
         if (!$ids) fail('Nic nie zaznaczono');
         $s = ag_stan(); ag_dzis($s, 'nowe'); $n = 0;
         foreach ($ids as $id) {
@@ -394,11 +589,15 @@ function ag_api($a) {
                 $r = one("SELECT * FROM ag_oferty WHERE id=? AND status='gotowe'", array($id)); if (!$r) continue;
                 if ($a === 'ag_odrzuc') { q("UPDATE ag_oferty SET status='odrzucona', powod='odrzucone ręcznie' WHERE id=?", array($id)); $n++; continue; }
                 if (ag_praca_dodaj($r, $s)) $n++;
+            } elseif ($typ === 'strona') {
+                $r = one("SELECT * FROM ag_audyt WHERE id=? AND status='czeka'", array($id)); if (!$r) continue;
+                if ($a === 'ag_odrzuc') { q("UPDATE ag_audyt SET status='odrzucona' WHERE id=?", array($id)); $n++; continue; }
+                if (ag_strona_dodaj($r, $s)) $n++;
             } else {
                 $r = one("SELECT * FROM szukaj WHERE id=? AND eli=1 AND status='gotowe'", array($id)); if (!$r) continue;
                 if ($a === 'ag_odrzuc') { q("UPDATE szukaj SET status='ukryty' WHERE id=?", array($id)); $n++; continue; }
                 list($fid) = ag_do_firm(array('nazwa' => $r['nazwa'], 'email' => $r['email'], 'telefon' => $r['telefon'], 'miasto' => $r['miasto'], 'osoba' => $r['osoba'], 'www' => $r['www'],
-                    'notatka' => 'Agent Eli – nowa firma (CEIDG). ' . $r['adres'] . ($r['nip'] ? ' · NIP ' . $r['nip'] : ''), 'zrodlo' => 'ceidg'), ag_br_id(AG_BR_NOWE));
+                    'notatka' => 'Agent Eli – nowa firma (CEIDG). ' . $r['adres'] . ($r['nip'] ? ' · NIP ' . $r['nip'] : ''), 'zrodlo' => 'ceidg', 'wlasny' => $r['wlasny']), ag_br_id(AG_BR_NOWE));
                 q('UPDATE szukaj SET status=? WHERE id=?', array($fid ? 'dodano' : 'juz_jest', $id));
                 if ($fid) { $n++; $s['dzis']['nowe']++; ag_log('nowe', 'dodano', $r['nazwa'] . ' – ' . $r['email'] . ' (zatwierdzone)'); }
             }
@@ -406,16 +605,64 @@ function ag_api($a) {
         ag_stan_save($s);
         out(array('n' => $n));
     }
+    // mail dla jednej firmy z listy: odczyt (gotowy tekst) i zapis własnej wersji
+    if ($a === 'ag_mail_get') {
+        $it = ag_item($typ, (int)g('id')); if (!$it) fail('Nie ma takiej pozycji');
+        list($r, $firm) = $it;
+        $w = !empty($r['wlasny']) ? json_decode($r['wlasny'], true) : null;
+        if (is_array($w)) out(array('temat' => $w['temat'], 'tekst' => $w['tekst'], 'wlasny' => true));
+        $tpl = tpl_for(ag_bid_typ($typ), 'pierwszy'); $v = firm_vars($firm);
+        out(array('temat' => apply_vars($tpl['temat'], $v), 'tekst' => apply_vars(ag_tpl_txt($tpl), $v), 'wlasny' => false));
+    }
+    if ($a === 'ag_mail_zapisz') {
+        $id = (int)g('id'); if (!ag_item($typ, $id)) fail('Nie ma takiej pozycji');
+        $w = g('reset') ? null : json_encode(array('temat' => gs('temat', 255), 'tekst' => mb_substr(trim((string)g('tekst')), 0, 8000)), JSON_UNESCAPED_UNICODE);
+        q('UPDATE ' . ag_tbl($typ) . ' SET wlasny=? WHERE id=?', array($w, $id));
+        out(array());
+    }
+    // szablony maili Eli (pierwszy, przypomnienie, ostatnie przypomnienie) – prosta edycja tekstu
+    if ($a === 'ag_tpl_get') {
+        $bid = ag_bid_typ($typ); $o = array();
+        foreach (array('pierwszy', 'przypomnienie', 'przypomnienie2') as $t) { $tpl = tpl_for($bid, $t); $o[$t] = array('temat' => $tpl['temat'], 'tekst' => ag_tpl_txt($tpl)); }
+        out(array('tpl' => $o, 'bid' => $bid));
+    }
+    if ($a === 'ag_tpl_zapisz') {
+        $bid = ag_bid_typ($typ); $t = (array)g('tpl');
+        foreach (array('pierwszy', 'przypomnienie', 'przypomnienie2') as $k) {
+            if (!isset($t[$k]['temat'], $t[$k]['tekst']) || trim($t[$k]['tekst']) === '') continue;
+            save_template($bid, $k, array('temat' => mb_substr(trim($t[$k]['temat']), 0, 255), 'bloki' => array(array('t' => 'tekst', 'text' => mb_substr(trim($t[$k]['tekst']), 0, 8000))), 'nadtytul' => '', 'naglowek' => '', 'tresc' => '', 'przycisk' => ''));
+        }
+        ag_log('', 'info', 'Zmieniono maile: ' . ($typ === 'praca' ? 'szukają pracownika' : ($typ === 'strona' ? 'słaba strona' : 'nowe firmy')));
+        out(array());
+    }
+    if ($a === 'ag_tpl_reset') {
+        $sets = ag_sets(); $n = $typ === 'praca' ? AG_BR_PRACA : ($typ === 'strona' ? AG_BR_STRONA : AG_BR_NOWE);
+        foreach (array('pierwszy', 'przypomnienie', 'przypomnienie2') as $k) save_template(ag_bid_typ($typ), $k, $sets[$n][$k]);
+        out(array());
+    }
+    if ($a === 'ag_ig') {
+        $id = (int)g('id'); $st = g('akcja') === 'pomin' ? 'pominiete' : 'wyslane';
+        q('UPDATE ag_ig SET status=?, akcja_at=? WHERE id=?', array($st, now(), $id));
+        if ($st === 'wyslane') { $r = one('SELECT nazwa,ig FROM ag_ig WHERE id=?', array($id)); if ($r) ag_log('ig', 'dodano', 'Instagram: napisano do @' . $r['ig'] . ' (' . $r['nazwa'] . ')'); }
+        out(array());
+    }
     if ($a === 'ag_oferty') {
         $st = gs('status', 20);
         $w = $st !== '' ? ' WHERE status=?' : ''; $p = $st !== '' ? array($st) : array();
         out(array('rows' => all('SELECT id,tytul,stanowisko,firma,konto,miasto,url,email,www,powod,status,ogl_at FROM ag_oferty' . $w . ' ORDER BY id DESC LIMIT 200', $p)));
     }
+    if ($a === 'ag_audyty') {
+        out(array('rows' => all('SELECT id,nazwa,www,miasto,problem_txt,wynik,psi,sekundy,status,created_at FROM ag_audyt ORDER BY id DESC LIMIT 200')));
+    }
     if ($a === 'ag_podglad') {
-        $typ = g('typ') === 'praca' ? AG_BR_PRACA : AG_BR_NOWE;
-        $tpl = tpl_for(ag_br_id($typ), 'pierwszy');
-        $firm = array('nazwa' => gs('nazwa') ?: 'Przykładowa Firma', 'miasto' => gs('miasto'), 'osoba' => '', 'eli_tytul' => gs('stanowisko') ?: 'pracownik biurowy', 'token' => str_repeat('0', 32), 'zrodlo' => 'ceidg');
-        list($subj, $html) = render_mail($tpl, $firm, array('preview' => true));
+        $id = (int)g('id');
+        $it = $id ? ag_item($typ, $id) : null;
+        $firm = $it ? $it[1] : array('nazwa' => 'Przykładowa Firma', 'miasto' => 'Warszawa', 'osoba' => '', 'www' => 'https://przyklad.pl', 'eli_tytul' => 'pracownik biurowy',
+            'eli_problem' => "- strona nie jest dopasowana do telefonu, na komórce trzeba ją powiększać palcami,\n- nie ma formularza, przez który klient może od razu zostawić zapytanie.", 'zrodlo' => 'ceidg');
+        $firm['token'] = str_repeat('0', 32);
+        $tpl = tpl_for(ag_bid_typ($typ), 'pierwszy');
+        if ($it && !empty($it[0]['wlasny'])) { $w = json_decode($it[0]['wlasny'], true); if (is_array($w)) { $tpl['temat'] = $w['temat']; $tpl['bloki'] = json_encode(array(array('t' => 'tekst', 'text' => $w['tekst'])), JSON_UNESCAPED_UNICODE); } }
+        list($subj, $html) = render_mail($tpl, $firm, array());
         out(array('temat' => $subj, 'html' => $html));
     }
     fail('Nieznana akcja agenta');
