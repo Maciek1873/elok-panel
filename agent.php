@@ -730,6 +730,19 @@ function ag_api($a) {
         $w = $st !== '' ? ' WHERE status=?' : ''; $p = $st !== '' ? array($st) : array();
         out(array('rows' => all('SELECT id,tytul,stanowisko,firma,konto,miasto,url,email,www,powod,status,ogl_at FROM ag_oferty' . $w . ' ORDER BY id DESC LIMIT 200', $p)));
     }
+    // ręczne sprawdzenie dowolnej strony (np. własnej) – wynik + jak wyglądałby mail
+    if ($a === 'ag_sprawdz') {
+        @set_time_limit(90);
+        $www = trim(gs('www', 255)); if ($www === '') fail('Wpisz adres strony');
+        list($p, $sc, $sek, $ig, $err, $furl, $cap) = ag_audyt($www, true);
+        if ($err) fail('Eli nie mogła otworzyć strony: ' . $err);
+        $waga = 0; foreach ($p as $x) $waga += $x[2];
+        $firm = array('nazwa' => dup_host($www), 'miasto' => '', 'osoba' => '', 'www' => $www, 'eli_problem' => $p ? ag_problem_txt($p) : '', 'zrodlo' => 'audyt', 'token' => str_repeat('0', 32));
+        $tpl = tpl_for(ag_br_id(AG_BR_STRONA), 'pierwszy');
+        list($subj, $html) = render_mail($tpl, $firm, array());
+        ag_log('strona', 'info', 'Ręczne sprawdzenie ' . dup_host($www) . ': ' . ($p ? implode(', ', array_map(function ($x) { return $x[0]; }, $p)) : 'bez problemów'));
+        out(array('problemy' => $p, 'psi' => $sc, 'sekundy' => $sek, 'ig' => $ig, 'form' => $furl, 'captcha' => $cap, 'waga' => $waga, 'pisze' => $waga >= max(1, (int)ag_cfg()['strona']['min']), 'temat' => $subj, 'html' => $html));
+    }
     if ($a === 'ag_audyty') {
         out(array('rows' => all('SELECT id,nazwa,www,miasto,problem_txt,wynik,psi,sekundy,status,created_at FROM ag_audyt ORDER BY id DESC LIMIT 200')));
     }

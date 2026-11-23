@@ -226,6 +226,7 @@ function render() {
     sw('s-r', c.strona.reczny, 'Zatwierdzam ręcznie', 'Na start zalecane – zobaczysz, co Eli znajduje') +
     sw('s-psi', c.strona.psi, 'Test szybkości Google (PageSpeed)', 'Dokładniejszy, ale wolniejszy – ok. 20 s na stronę') +
     '<div class="g2f"><div><label class="f">Dziennie do mailingu</label><input id="s-dz" type="number" min="0" max="300" value="' + (+c.strona.dziennie) + '"></div><div></div></div>' +
+    '<label class="f">Sprawdź dowolną stronę teraz</label><div class="row"><input id="s-url" class="grow" placeholder="np. carbonmiledesign.pl" onkeydown="if(event.key===\'Enter\')window.AG.check()"><a class="btn" id="s-btn" onclick="window.AG.check()">Sprawdź</a></div>' +
     '<div class="hint">Eli bierze firmy ze stroną i mailem z Twoich list w „Szukaj firm”, które jeszcze nie dostały maila (teraz: ' + L.strona_pula + '). Pisze tylko, gdy znajdzie wyraźny problem.</div>' + foot('strona') + '</div>';
 
   h += '<div class="card pad"><h2 class="ct">4. Formularze kontaktowe</h2>' +
@@ -393,6 +394,24 @@ window.AG = {
   },
   igDone: function (id, a) {
     api('ag_ig', { id: id, akcja: a === 'ok' ? 'wyslane' : 'pomin' }, function () { toast(a === 'ok' ? 'Zapisane jako napisane' : 'Pominięte'); view(true); });
+  },
+  check: function () {
+    var u = $('s-url').value.trim(), b = $('s-btn'); if (!u) { toast('Wpisz adres strony', 'err'); return; }
+    busy(b, 1); WORKING = true; var hero = $('ag-hero'); if (hero) hero.className = 'ag-hero on work';
+    var el = $('ag-type'); if (TYPE) clearTimeout(TYPE.t); if (el) el.innerHTML = 'Sprawdzam ' + esc(u) + ' jak klient z telefonu… (test Google trwa ok. 20 s)<i></i>';
+    api('ag_sprawdz', { www: u }, function (r) {
+      busy(b, 0); WORKING = false; if (hero) hero.className = 'ag-hero ' + (D.cfg.on ? 'on' : 'off'); typer();
+      var h = '<div class="grid g2" style="gap:10px;margin-bottom:12px">' +
+        '<div class="card pad stat"><div class="l">Test szybkości Google (telefon)</div><div class="n">' + (r.psi === null ? '—' : r.psi + '<small>/100</small>') + '</div><div class="s">otwarcie strony: ' + String(r.sekundy).replace('.', ',') + ' s</div></div>' +
+        '<div class="card pad stat"><div class="l">Czy Eli by napisała</div><div class="n" style="font-size:24px">' + (r.pisze ? 'Tak' : 'Nie') + '</div><div class="s">' + (r.pisze ? 'znalazła wyraźny problem' : 'strona jest w porządku') + '</div></div></div>';
+      h += '<h3 style="margin:6px 0">Co znalazła</h3>';
+      if (!r.problemy.length) h += '<p class="mut">Nic – strona jest w porządku.</p>';
+      for (var i = 0; i < r.problemy.length; i++) h += '<div style="padding:8px 0;border-bottom:1px solid var(--line)"><span class="pill sm ' + (r.problemy[i][2] >= 3 ? 'st-blad' : r.problemy[i][2] >= 2 ? 'st-przypomnienie' : 'st-nowy') + '">' + (r.problemy[i][2] >= 3 ? 'poważne' : r.problemy[i][2] >= 2 ? 'średnie' : 'drobne') + '</span> ' + esc(r.problemy[i][1].replace(/^- /, '').replace(/,$/, '.')) + '</div>';
+      h += '<p class="mut" style="font-size:12.5px;margin-top:10px">Formularz: ' + (r.form ? esc(r.form) + (+r.captcha ? ' (z CAPTCHA)' : '') : 'nie znalazła') + ' · Instagram: ' + (r.ig ? '@' + esc(r.ig) : 'nie znalazła') + '</p>';
+      h += '<h3 style="margin:14px 0 6px">Tak wyglądałby mail: ' + esc(r.temat) + '</h3><iframe id="ag-cf" style="width:100%;height:460px;border:0;border-radius:10px;background:#F4F3EF"></iframe>';
+      window.openModal('Eli sprawdziła: ' + u, h, '<a class="btn" onclick="window.closeModal()">Zamknij</a>', true);
+      var f = $('ag-cf'); f.contentWindow.document.open(); f.contentWindow.document.write(r.html); f.contentWindow.document.close();
+    }, function () { busy(b, 0); WORKING = false; if (hero) hero.className = 'ag-hero ' + (D.cfg.on ? 'on' : 'off'); typer(); });
   },
   fmOpen: function (i) {
     var f = D.form[i]; if (!f) return;
