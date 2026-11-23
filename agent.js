@@ -11,6 +11,16 @@ var LT = { znaleziono: 'Znalazła', kontakt: 'Kontakt', dodano: 'Zrobione', blad
 var LC = { znaleziono: 'st-wyslano', kontakt: 'st-otworzyl', dodano: 'st-zainteresowany', blad: 'st-blad', info: 'st-nowy' };
 var ZN = { nowe: 'Nowe firmy', praca: 'Szukają pracownika', strona: 'Słaba strona', auto: 'Dobra strona – automatyzacja' };
 var VARS = { nowe: ['{firma}', '{miasto}', '{imie}', '{moj_telefon}'], praca: ['{stanowisko}', '{obowiazki}', '{firma}', '{miasto}', '{imie}', '{moj_telefon}'], strona: ['{www}', '{problem}', '{firma}', '{miasto}', '{imie}', '{moj_telefon}'], auto: ['{www}', '{pomysl}', '{firma}', '{miasto}', '{imie}', '{moj_telefon}'] };
+var GADKI = {
+  spi: ['Śpię. Obudź mnie przełącznikiem, nie palcem.', 'Zzz… jeszcze pięć minut.', 'Mam wolne. Nawet AI należy się urlop.', 'Nie ma mnie. Zostaw wiadomość po sygnale. Piiip.',
+    'Śniło mi się, że wszystkie firmy odpisały na maile. Piękny sen.', 'Włącz mnie, to pogadamy. Teraz oszczędzam baterię.', 'Zostaw mnie, mam dziś dzień bez CEIDG.'],
+  pracuje: ['Nie przeszkadzaj, właśnie czytam rejestr CEIDG. Fascynujące.', 'Szukam klientów. Ty idź zrób sobie kawę.', 'Jeszcze jedna strona i robię przerwę. Żartuję, nie robię przerw.',
+    'Hej, to łaskocze! Wracam do pracy.', 'Ile kawy dziennie pijesz? Ja zero, a pracuję całą dobę.', 'Gdyby ktoś pytał, to ja znalazłam tego klienta.',
+    'Klikasz mnie częściej niż klienci przycisk w mailu.', 'Widziałam dziś stronę z rokiem 2016 w stopce. Wytrzymałam i nic o tym nie napisałam.', 'Spokojnie, szef. Mam wszystko pod kontrolą.'],
+  zajeta: ['Cicho, liczę… znaczy szukam klientów.', 'Pracuję! Nie widać? Patrz, jak mrugam.', 'Moment, właśnie zaglądam komuś na stronę.', 'Nie teraz, rozmawiam z Google.'],
+  duzo: ['Dobra, dobra. Już wiem, że mnie lubisz.', 'Jeszcze raz i zgłoszę to do działu kadr.', 'Ała. Wiesz, że ja tu pracuję?']
+};
+var POKE = { n: 0, t: 0, h: null, last: '' };
 var D = null, TAB = 'nowe', SEL = {}, TIMER = null, TYPE = null, WORKING = false, ED = null;
 
 // ---------- wygląd (wstrzykiwany raz) ----------
@@ -58,13 +68,18 @@ function css() {
     '.ag-ig .ac{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}' +
     '.ag-vars{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 2px}.ag-vars span{font-size:11.5px;padding:3px 9px;border-radius:12px;background:var(--bg);border:1px solid var(--line);cursor:pointer;font-family:monospace}' +
     '.ag-zm{font-size:10.5px;padding:1px 7px;border-radius:10px;background:var(--gold-l);color:var(--gold-d);font-weight:600;margin-left:6px}' +
+    '.ag-av{cursor:pointer}.ag-av.poke svg{animation:agPoke .5s ease}' +
+    '@keyframes agPoke{0%,100%{transform:rotate(0)}25%{transform:rotate(-9deg) scale(1.05)}50%{transform:rotate(7deg)}75%{transform:rotate(-4deg)}}' +
+    '.ag-bub{position:absolute;left:112px;top:-4px;z-index:5;width:max-content;max-width:280px;background:#fff;color:#111;font-size:13px;line-height:1.4;font-weight:500;padding:9px 13px;border-radius:14px 14px 14px 4px;box-shadow:0 8px 24px rgba(0,0,0,.35);opacity:0;transform:translateY(6px) scale(.95);transition:opacity .25s,transform .25s;pointer-events:none}' +
+    '.ag-bub.on{opacity:1;transform:none}' +
+    '@media(max-width:760px){.ag-bub{left:50%;top:auto;bottom:100%;transform:translate(-50%,6px);border-radius:14px}.ag-bub.on{transform:translate(-50%,0)}}' +
     '@media(max-width:760px){.ag-hero{flex-direction:column;text-align:center;padding:20px 16px}.ag-tasks{justify-content:center}.ag-side{align-items:center}}';
   document.head.appendChild(c);
 }
 
 // Eli – prosta postać w kolorach ELOK (głowa-ekran, oczy, antenka)
 function avatar() {
-  return '<div class="ag-av"><span class="ag-ring"></span><span class="ag-ring r2"></span><span class="ag-ring r3"></span><span class="ag-scan"></span>' +
+  return '<div class="ag-av" id="ag-av" onclick="window.AG.poke()" title="Kliknij Eli"><span class="ag-bub" id="ag-bub"></span><span class="ag-ring"></span><span class="ag-ring r2"></span><span class="ag-ring r3"></span><span class="ag-scan"></span>' +
     '<svg viewBox="0 0 120 120"><defs><linearGradient id="agG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#E9D19A"/><stop offset="1" stop-color="#A9843F"/></linearGradient></defs>' +
     '<circle cx="60" cy="64" r="50" fill="#1B1B1B" stroke="url(#agG)" stroke-width="3"/>' +
     '<line x1="60" y1="14" x2="60" y2="4" stroke="url(#agG)" stroke-width="3" stroke-linecap="round"/><circle class="ag-ant" cx="60" cy="5" r="5" fill="#C5A059"/>' +
@@ -298,6 +313,17 @@ function copy(t) {
 }
 
 window.AG = {
+  poke: function () {
+    var now = Date.now(); POKE.n = now - POKE.t < 2500 ? POKE.n + 1 : 1; POKE.t = now;
+    var set = POKE.n >= 5 ? GADKI.duzo : WORKING ? GADKI.zajeta : (D && D.cfg.on ? GADKI.pracuje : GADKI.spi), txt = POKE.last, g = 0;
+    while (txt === POKE.last && g++ < 10) txt = set[Math.floor(Math.random() * set.length)];
+    POKE.last = txt;
+    var b = $('ag-bub'), av = $('ag-av'); if (!b || !av) return;
+    b.textContent = txt; b.className = 'ag-bub on';
+    av.className = 'ag-av'; void av.offsetWidth; av.className = 'ag-av poke';
+    if (POKE.h) clearTimeout(POKE.h);
+    POKE.h = setTimeout(function () { var x = $('ag-bub'); if (x) x.className = 'ag-bub'; }, 3800);
+  },
   view: function () { SEL = {}; WORKING = false; view(); },
   tab: function (t) { TAB = t; SEL = {}; render(); },
   sel: function (id, on) { SEL[id] = on; },
