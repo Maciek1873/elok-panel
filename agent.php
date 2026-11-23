@@ -463,35 +463,6 @@ function ag_psi($url) {
     $lcp = isset($j['lighthouseResult']['audits']['largest-contentful-paint']['numericValue']) ? round($j['lighthouseResult']['audits']['largest-contentful-paint']['numericValue'] / 1000, 1) : null;
     return array($sc, $lcp);
 }
-// głos Eli – Google Cloud Text-to-Speech na tym samym kluczu co PageSpeed; gotowe nagrania trzymamy w pamięci podręcznej
-function ag_tts($txt) {
-    $txt = trim(mb_substr((string)$txt, 0, 300));
-    if ($txt === '') return array('', 'pusty tekst');
-    $k = trim((string)setting('psi_key'));
-    if ($k === '') return array('', 'brak klucza Google');
-    $dir = __DIR__ . '/glos_cache';
-    if (!is_dir($dir)) { @mkdir($dir, 0755); @file_put_contents($dir . '/.htaccess', "Require all denied\nDeny from all\n"); }
-    $voices = array(array('pl-PL-Chirp3-HD-Aoede', false), array('pl-PL-Wavenet-A', true), array('pl-PL-Standard-A', true));
-    $f = $dir . '/' . md5($txt) . '.mp3';
-    if (is_file($f) && filesize($f) > 500) return array(base64_encode(file_get_contents($f)), '');
-    $err = '';
-    foreach ($voices as $v) {
-        $cfg = array('audioEncoding' => 'MP3', 'speakingRate' => 1.0);
-        if ($v[1]) $cfg['pitch'] = 2.5; // starsze głosy – trochę wyżej, słodziej
-        $body = json_encode(array('input' => array('text' => $txt), 'voice' => array('languageCode' => 'pl-PL', 'name' => $v[0]), 'audioConfig' => $cfg), JSON_UNESCAPED_UNICODE);
-        list($code, $res) = http_req('POST', 'https://texttospeech.googleapis.com/v1/text:synthesize?key=' . rawurlencode($k), array('Content-Type: application/json'), $body, 20);
-        $j = json_decode((string)$res, true);
-        if ($code === 200 && !empty($j['audioContent'])) {
-            @file_put_contents($f, base64_decode($j['audioContent']));
-            setting_set('ag_tts_blad', '');
-            return array($j['audioContent'], '');
-        }
-        $err = ($code ?: 'brak połączenia') . (isset($j['error']['message']) ? ' ' . mb_substr($j['error']['message'], 0, 200) : '');
-        if ($code === 403 || $code === 401) break; // klucz/API – inne głosy nic nie zmienią
-    }
-    setting_set('ag_tts_blad', date('Y-m-d H:i') . ' ' . $err);
-    return array('', $err);
-}
 function ag_num($x) { return str_replace('.', ',', (string)$x); }
 // sprawdza stronę tak, jak widzi ją klient z telefonu
 // zwraca array(problemy[], psi, sekundy, ig, blad, form_url, captcha); problem: array(krótko – z podmiotem, zdanie do maila, waga)
@@ -879,10 +850,6 @@ function ag_api($a) {
     }
     if ($a === 'ag_audyty') {
         out(array('rows' => all('SELECT id,nazwa,www,miasto,problem_txt,wynik,psi,sekundy,status,created_at FROM ag_audyt ORDER BY id DESC LIMIT 200')));
-    }
-    if ($a === 'ag_glos') {
-        list($b64, $err) = ag_tts(g('t'));
-        out(array('mp3' => $b64, 'blad' => $err));
     }
     if ($a === 'ag_podglad') {
         $id = (int)g('id');
