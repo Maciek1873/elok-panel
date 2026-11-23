@@ -27,10 +27,24 @@ function say(txt) {
   if (!glosOn() || !window.speechSynthesis) return;
   try {
     window.speechSynthesis.cancel();
-    var u = new SpeechSynthesisUtterance(txt.replace(/…/g, '.')); u.lang = 'pl-PL'; u.rate = 1.05; u.pitch = 1.15;
-    var vs = window.speechSynthesis.getVoices(), best = null;
-    for (var i = 0; i < vs.length; i++) if (/^pl/i.test(vs[i].lang)) { if (!best || /zosia|paulina|ewa|female|google/i.test(vs[i].name)) best = vs[i]; }
+    var u = new SpeechSynthesisUtterance(txt.replace(/…/g, '.')); u.lang = 'pl-PL';
+    // najładniejszy dostępny kobiecy głos: neuronowe (Edge „Online (Natural)”, Premium/Enhanced na Macu) > Google > reszta
+    var vs = window.speechSynthesis.getVoices(), best = null, bs = -99;
+    for (var i = 0; i < vs.length; i++) {
+      var v = vs[i], n = v.name || '';
+      if (!/^pl/i.test(v.lang)) continue;
+      var s = 0;
+      if (/natural|neural|online/i.test(n)) s += 10;
+      if (/premium|enhanced|ulepsz/i.test(n)) s += 8;
+      if (/google/i.test(n)) s += 5;
+      if (/zofia|agnieszka|zosia|ewa|paulina|maja|female/i.test(n)) s += 3;
+      if (/krzysztof|marek|jacek|jan|male/i.test(n) && !/female/i.test(n)) s -= 20;
+      if (s > bs) { bs = s; best = v; }
+    }
     if (best) u.voice = best;
+    // dobre głosy brzmią słodko same z siebie – lekko wyżej i spokojniej; słabe podbijamy mocniej
+    u.rate = bs >= 8 ? 1.0 : 0.95;
+    u.pitch = bs >= 8 ? 1.1 : 1.3;
     window.speechSynthesis.speak(u);
   } catch (e) { /* bez głosu */ }
 }
