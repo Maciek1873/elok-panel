@@ -21,12 +21,44 @@ var GADKI = {
   duzo: ['Dobra, dobra. Już wiem, że mnie lubisz.', 'Jeszcze raz i zgłoszę to do działu kadr.', 'Ała. Wiesz, że ja tu pracuję?']
 };
 var POKE = { n: 0, t: 0, h: null, last: '' };
-// Głos Eli: najpierw nagranie (glos/eli_N.mp3 – np. z ElevenLabs, jeśli kiedyś dogramy), inaczej głos przeglądarki po polsku
 function glosOn() { try { return localStorage.getItem('eli_glos') !== '0'; } catch (e) { return true; } }
+// Głos Eli: Google (damski, neuronowy) przez nasz serwer i klucz PageSpeed; nagrania trzymamy w pamięci; awaryjnie głos przeglądarki
+var GLOS = { cache: {}, audio: null, n: 0, blad: false };
+function sayStop() {
+  try { if (GLOS.audio) { GLOS.audio.pause(); GLOS.audio = null; } } catch (e) { /* nic */ }
+  try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) { /* nic */ }
+}
+function sayPlay(b64, my) {
+  if (my !== GLOS.n) return; // w międzyczasie kliknięto znowu
+  try {
+    var a = new Audio('data:audio/mpeg;base64,' + b64);
+    GLOS.audio = a;
+    var p = a.play();
+    if (p && p.catch) p.catch(function () { /* przeglądarka zablokowała dźwięk */ });
+  } catch (e) { /* nic */ }
+}
 function say(txt) {
-  if (!glosOn() || !window.speechSynthesis) return;
+  if (!glosOn()) return;
+  sayStop();
+  var my = ++GLOS.n;
+  if (GLOS.cache[txt]) { sayPlay(GLOS.cache[txt], my); return; }
+  if (GLOS.blad) { sayBrowser(txt, my); return; }
+  api('ag_glos', { t: txt }, function (r) {
+    if (r && r.mp3) { GLOS.cache[txt] = r.mp3; sayPlay(r.mp3, my); return; }
+    GLOS.blad = true;
+    toast('Głos Google nie działa: ' + ((r && r.blad) || 'błąd') + ' – Eli mówi głosem przeglądarki');
+    sayBrowser(txt, my);
+  }, function () { sayBrowser(txt, my); });
+}
+function sayBrowser(txt, my) {
+  if (!window.speechSynthesis) return;
+  // Chrome gubi wypowiedź, gdy speak() idzie zaraz po cancel() – stąd krótka przerwa
+  setTimeout(function () { if (my === GLOS.n) sayBrowserNow(txt); }, 120);
+}
+function sayBrowserNow(txt) {
   try {
     window.speechSynthesis.cancel();
+    if (window.speechSynthesis.paused) window.speechSynthesis.resume();
     var u = new SpeechSynthesisUtterance(txt.replace(/…/g, '.')); u.lang = 'pl-PL';
     // najładniejszy dostępny kobiecy głos: neuronowe (Edge „Online (Natural)”, Premium/Enhanced na Macu) > Google > reszta
     var vs = window.speechSynthesis.getVoices(), best = null, bs = -99;
@@ -38,13 +70,15 @@ function say(txt) {
       if (/premium|enhanced|ulepsz/i.test(n)) s += 8;
       if (/google/i.test(n)) s += 5;
       if (/zofia|agnieszka|zosia|ewa|paulina|maja|female/i.test(n)) s += 3;
-      if (/krzysztof|marek|jacek|jan|male/i.test(n) && !/female/i.test(n)) s -= 20;
+      if (/krzysztof|marek|jacek|jan|male|męsk/i.test(n) && !/female/i.test(n)) s -= 100;
       if (s > bs) { bs = s; best = v; }
     }
+    if (bs <= -50) return; // tylko męski głos na tym komputerze – lepiej milczeć
     if (best) u.voice = best;
     // dobre głosy brzmią słodko same z siebie – lekko wyżej i spokojniej; słabe podbijamy mocniej
     u.rate = bs >= 8 ? 1.0 : 0.95;
     u.pitch = bs >= 8 ? 1.1 : 1.3;
+    window._eliU = u; // Chrome potrafi „zgubić” wypowiedź bez trzymanej referencji
     window.speechSynthesis.speak(u);
   } catch (e) { /* bez głosu */ }
 }
