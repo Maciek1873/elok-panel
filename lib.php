@@ -88,6 +88,10 @@ function firm_vars($f) {
         '{osoba}' => isset($f['osoba']) ? $f['osoba'] : '',
         '{moj_telefon}' => my_tel(),
         '{imie}' => strtok(trim(setting('podpis_imie')) . ' ', ' '),
+        '{stanowisko}' => isset($f['eli_tytul']) && $f['eli_tytul'] !== '' ? $f['eli_tytul'] : 'pracownik biurowy',
+        '{problem}' => isset($f['eli_problem']) ? (string)$f['eli_problem'] : '',
+        '{obowiazki}' => isset($f['eli_problem']) && $f['eli_problem'] !== '' && empty($f['www_problem']) ? (string)$f['eli_problem'] : 'przepisywanie danych i dokumentów',
+        '{www}' => isset($f['www']) && $f['www'] !== '' ? preg_replace('/^www\./', '', strtolower((string)parse_url(preg_match('#^https?://#i', $f['www']) ? $f['www'] : 'http://' . $f['www'], PHP_URL_HOST))) : 'Państwa strona',
     );
 }
 function apply_vars($s, $vars) { return strtr((string)$s, $vars); }
@@ -426,6 +430,11 @@ function send_to_firm($f, $typ) {
     set_lang_branza($f['branza_id']);
     $tpl = tpl_for($f['branza_id'], $typ);
     if (!$tpl) return 'brak szablonu';
+    // własna wersja pierwszego maila dla tej jednej firmy (ustawiona w zakładce Agent Eli)
+    if ($typ === 'pierwszy' && !empty($f['wlasny'])) {
+        $w = json_decode($f['wlasny'], true);
+        if (is_array($w) && trim((string)$w['tekst']) !== '') { $tpl['temat'] = $w['temat']; $tpl['bloki'] = json_encode(array(array('t' => 'tekst', 'text' => $w['tekst'])), JSON_UNESCAPED_UNICODE); }
+    }
     $links = links_for($f);
     list($subj, $html, $text) = render_mail($tpl, $f, $links);
     $ok = send_mail($f['email'], $subj, $html, $text, $links);

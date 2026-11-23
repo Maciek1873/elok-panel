@@ -365,5 +365,6 @@ input[type=checkbox]{width:17px;height:17px;accent-color:var(--ink);cursor:point
 <script src="app.js?v=<?= (int)$v ?>"></script>
 <script src="podpis_pad.js?v=<?= (int)@filemtime(__DIR__ . '/podpis_pad.js') ?>"></script>
 <script src="umowy.js?v=<?= (int)@filemtime(__DIR__ . '/umowy.js') ?>"></script>
+<script src="agent.js?v=<?= (int)@filemtime(__DIR__ . '/agent.js') ?>"></script>
 </body>
 </html>

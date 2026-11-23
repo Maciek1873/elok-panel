@@ -80,7 +80,7 @@ function ceidg_pkd_norm($p) { return strtoupper(preg_replace('/[^0-9A-Za-z]/', '
 function ceidg_search($pkd_list, $miasto, $woj, $page, $branza_id, $extra = array()) {
     $base = array();
     foreach ($pkd_list as $p) { $p = ceidg_pkd_norm($p); if ($p !== '') $base[] = 'pkd=' . rawurlencode($p); }
-    if (!$base) return array(0, 0, false, 'Podaj kod PKD');
+    if (!$base && empty($extra['dataod'])) return array(0, 0, false, 'Podaj kod PKD');
     // CEIDG rozróżnia wielkość liter – "konstancin-jeziorna" → "Konstancin-Jeziorna"
     if ($miasto !== '') $base[] = 'miasto=' . rawurlencode(ceidg_miasto($miasto));
     if ($woj !== '') $base[] = 'wojewodztwo=' . rawurlencode(mb_strtolower(trim($woj)));
