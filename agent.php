@@ -403,7 +403,7 @@ function ag_ig_z_html($html) {
 function ag_psi($url) {
     $k = trim((string)setting('psi_key'));
     list($code, $body) = http_req('GET', 'https://www.googleapis.com/pagespeedonline/v5/runPagespeed?strategy=mobile&category=performance&url=' . rawurlencode($url) . ($k ? '&key=' . rawurlencode($k) : ''), array('Accept: application/json'), null, 55);
-    if ($code !== 200) return array(null, null);
+    if ($code !== 200) { setting_set('ag_psi_blad', date('Y-m-d H:i') . ' ' . ($code ?: 'brak połączenia')); return array(null, null); }
     $j = json_decode($body, true);
     $sc = isset($j['lighthouseResult']['categories']['performance']['score']) ? (int)round($j['lighthouseResult']['categories']['performance']['score'] * 100) : null;
     $lcp = isset($j['lighthouseResult']['audits']['largest-contentful-paint']['numericValue']) ? round($j['lighthouseResult']['audits']['largest-contentful-paint']['numericValue'] / 1000, 1) : null;
@@ -440,6 +440,28 @@ function ag_audyt($www, $psi_on) {
     if (!$form_url && !$sklep) $p[] = array('na stronie nie ma formularza kontaktowego', '- nie ma formularza, przez który klient może od razu zostawić zapytanie, musi szukać telefonu albo maila,', 1);
     if (!preg_match('/href=["\']tel:/i', $hk) && preg_match('/(\+48[\s\-]?)?\b\d{3}[\s\-]\d{3}[\s\-]\d{3}\b/', strip_tags($hk)))
         $p[] = array('numeru telefonu nie da się kliknąć na komórce', '- numeru telefonu nie da się kliknąć na komórce, klient musi go przepisywać, a część po prostu tego nie robi,', 1);
+    // --- sprzedaż: czy strona prowadzi klienta do kontaktu / zakupu ---
+    $bi = stripos($html, '<body'); $body = $bi !== false ? substr($html, $bi) : $html;
+    $top = substr($body, 0, (int)(strlen($body) * 0.25));
+    $txt = preg_replace('/\s+/u', ' ', strip_tags(preg_replace('#<(script|style)[^>]*>.*?</\1>#is', ' ', $body)));
+    $ctaRe = $sklep ? '(kup|do koszyka|zamów|zamow|sklep|zobacz produkt|kolekcj|sprawdź|bestseller|nowości)' : '(zadzwo|umów|umow|zamów|zamow|wycen|rezerw|zapytaj|skontaktuj|napisz|zapisz się|sprawdź termin)';
+    if (!preg_match('/<(a|button)[^>]*>[^<]{0,80}' . $ctaRe . '/iu', $top) && !preg_match('/href=["\']tel:/i', $top))
+        $p[] = array($sklep ? 'na pierwszym ekranie sklepu nie ma wyraźnego przycisku do zakupów' : 'na pierwszym ekranie nie ma przycisku do kontaktu',
+            $sklep ? '- na pierwszym ekranie nie ma wyraźnego przycisku typu „Kup” czy „Zobacz produkty”, klient musi sam szukać, gdzie kliknąć,' : '- na pierwszym ekranie nie ma przycisku typu „Zadzwoń” czy „Umów termin”, klient musi przewijać i szukać, jak się z Państwem skontaktować,', 2);
+    if (!preg_match('/opini|recenzj|gwiazdk|★|testimonial|ocen[ay] klient|polecaj/iu', $txt))
+        $p[] = array('na stronie głównej nie ma opinii klientów', '- na stronie głównej nie ma opinii klientów, a to one najbardziej przekonują nowych' . ($sklep ? ' do zakupu' : ' do telefonu') . ',', 1);
+    if (!$sklep && !preg_match('/\d\s?zł|cennik|PLN|od \d+/iu', $txt))
+        $p[] = array('na stronie nie ma żadnych cen', '- nie ma żadnych cen ani cennika, część klientów nie dzwoni, bo boi się kwoty,', 1);
+    $nsc = preg_match_all('/<script/i', $html); $ncss = preg_match_all('/<link[^>]+stylesheet/i', $html); $kb = (int)round(strlen($html) / 1024);
+    if ($psi === null && ($nsc > 40 || $kb > 300))
+        $p[] = array($kto . ' ładuje aż ' . $nsc . ' skryptów', '- ' . $kto . ' przy otwarciu ładuje aż ' . $nsc . ' skryptów i ' . $ncss . ' plików stylów (' . $kb . ' KB samego kodu strony), przez co na telefonie startuje wolno,', 2);
+    $nimg = preg_match_all('/<img/i', $body); $nlazy = preg_match_all('/loading=["\']?lazy|data-src|lazyload/i', $body);
+    if ($nimg >= 8 && $nlazy === 0) $p[] = array('wszystkie zdjęcia ładują się od razu', '- wszystkie zdjęcia (' . $nimg . ') ładują się od razu, nawet te na dole, co spowalnia otwieranie na telefonie,', 1);
+    $title = preg_match('/<title[^>]*>([^<]*)/i', $html, $mt) ? trim(html_entity_decode($mt[1], ENT_QUOTES, 'UTF-8')) : '';
+    if ($title === '' || preg_match('/^(strona główna|home|start|główna|witamy|index)\b/iu', $title))
+        $p[] = array('w Google strona wyświetla się jako „' . ($title ?: 'bez tytułu') . '”', '- w Google strona wyświetla się jako „' . ($title ?: 'bez tytułu') . '”, bez nazwy usługi i miasta, więc trudniej ją znaleźć,', 1);
+    elseif (!preg_match('/<meta[^>]+name=["\']?description/i', $html))
+        $p[] = array('strona nie ma opisu dla Google', '- strona nie ma opisu dla Google, więc w wynikach wyszukiwania wyświetla się przypadkowy fragment tekstu,', 1);
     if (!preg_match('/googletagmanager|gtag\(|google-analytics|fbq\(|connect\.facebook\.net|clarity\.ms/i', $html))
         $p[] = array('na stronie nie ma żadnej analityki', '- ' . $kto . ' nie ma żadnej analityki (Google Analytics ani piksela Meta), więc nie wiadomo, skąd przychodzą klienci i które reklamy się opłacają,', 1);
     if (preg_match('/(?:©|&copy;|copyright)\s*(?:\d{4}\s*[-–]\s*)?(20[0-2]\d)\b/iu', $html, $my) && (int)$my[1] <= (int)date('Y') - 3 && !preg_match('/(?:©|&copy;|copyright)[^<]{0,20}20[0-2]\d\s*[-–]\s*20[2-9]\d/iu', $html))
@@ -619,7 +641,7 @@ function ag_api($a) {
                 'olx' => setting('ag_olx_last'),
                 'cron' => setting('ostatni_cron'), 'auto' => setting('auto_on') === '1',
                 'godz' => setting('godz_od', '8') . '–' . setting('godz_do', '11'), 'limit' => (int)setting('limit_dzienny', '25'),
-                'push' => setting('ntfy_topic') !== '',
+                'push' => setting('ntfy_topic') !== '', 'psi_key' => setting('psi_key'), 'psi_blad' => setting('ag_psi_blad'),
             ),
             'log' => all('SELECT zad,typ,info,created_at FROM ag_log ORDER BY id DESC LIMIT 80')));
     }
@@ -645,6 +667,7 @@ function ag_api($a) {
         $c['strona']['dziennie'] = $num($st, 'dziennie', 20, 0, 300);
         $c['strona']['reczny'] = !empty($st['reczny']) ? 1 : 0;
         $c['strona']['psi'] = !empty($st['psi']) ? 1 : 0;
+        if (isset($st['psi_key'])) setting_set('psi_key', trim(mb_substr((string)$st['psi_key'], 0, 80)));
         $c['ig']['on'] = !empty($ig['on']) ? 1 : 0;
         if (isset($ig['msg']) && trim($ig['msg']) !== '') $c['ig']['msg'] = mb_substr(trim((string)$ig['msg']), 0, 1000);
         ag_cfg_save($c);
@@ -741,7 +764,7 @@ function ag_api($a) {
         $tpl = tpl_for(ag_br_id(AG_BR_STRONA), 'pierwszy');
         list($subj, $html) = render_mail($tpl, $firm, array());
         ag_log('strona', 'info', 'Ręczne sprawdzenie ' . dup_host($www) . ': ' . ($p ? implode(', ', array_map(function ($x) { return $x[0]; }, $p)) : 'bez problemów'));
-        out(array('problemy' => $p, 'psi' => $sc, 'sekundy' => $sek, 'ig' => $ig, 'form' => $furl, 'captcha' => $cap, 'waga' => $waga, 'pisze' => $waga >= max(1, (int)ag_cfg()['strona']['min']), 'temat' => $subj, 'html' => $html));
+        out(array('problemy' => $p, 'psi' => $sc, 'sekundy' => $sek, 'ig' => $ig, 'form' => $furl, 'captcha' => $cap, 'waga' => $waga, 'pisze' => $waga >= max(1, (int)ag_cfg()['strona']['min']), 'temat' => $subj, 'html' => $html, 'psi_blad' => $sc === null ? setting('ag_psi_blad') : ''));
     }
     if ($a === 'ag_audyty') {
         out(array('rows' => all('SELECT id,nazwa,www,miasto,problem_txt,wynik,psi,sekundy,status,created_at FROM ag_audyt ORDER BY id DESC LIMIT 200')));
