@@ -22,33 +22,32 @@ var GADKI = {
 };
 var POKE = { n: 0, t: 0, h: null, last: '' };
 function glosOn() { try { return localStorage.getItem('eli_glos') !== '0'; } catch (e) { return true; } }
-// Głos Eli: Google (damski, neuronowy) przez nasz serwer i klucz PageSpeed; nagrania trzymamy w pamięci; awaryjnie głos przeglądarki
-var GLOS = { cache: {}, audio: null, n: 0, blad: false };
+// Głos Eli: gotowe nagrania (damski głos), awaryjnie damski głos przeglądarki
+var GLOS = { cache: {}, audio: null, n: 0 };
 function sayStop() {
   try { if (GLOS.audio) { GLOS.audio.pause(); GLOS.audio = null; } } catch (e) { /* nic */ }
   try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) { /* nic */ }
-}
-function sayPlay(b64, my) {
-  if (my !== GLOS.n) return; // w międzyczasie kliknięto znowu
-  try {
-    var a = new Audio('data:audio/mpeg;base64,' + b64);
-    GLOS.audio = a;
-    var p = a.play();
-    if (p && p.catch) p.catch(function () { /* przeglądarka zablokowała dźwięk */ });
-  } catch (e) { /* nic */ }
 }
 function say(txt) {
   if (!glosOn()) return;
   sayStop();
   var my = ++GLOS.n;
-  if (GLOS.cache[txt]) { sayPlay(GLOS.cache[txt], my); return; }
-  if (GLOS.blad) { sayBrowser(txt, my); return; }
-  api('ag_glos', { t: txt }, function (r) {
-    if (r && r.mp3) { GLOS.cache[txt] = r.mp3; sayPlay(r.mp3, my); return; }
-    GLOS.blad = true;
-    toast('Głos Google nie działa: ' + ((r && r.blad) || 'błąd') + ' – Eli mówi głosem przeglądarki');
-    sayBrowser(txt, my);
-  }, function () { sayBrowser(txt, my); });
+  // nagrania w glos/eli_<hash>.mp3 (głos Gosia, generowany u nas – bez płatnych usług); brak pliku = głos przeglądarki
+  if (GLOS.cache[txt] === false) { sayBrowser(txt, my); return; }
+  try {
+    var a = new Audio('glos/eli_' + glosHash(txt) + '.mp3');
+    GLOS.audio = a;
+    a.onerror = function () { GLOS.cache[txt] = false; if (my === GLOS.n) sayBrowser(txt, my); };
+    var p = a.play();
+    if (p && p.catch) p.catch(function () { /* blokada dźwięku albo brak pliku – obsłuży onerror */ });
+  } catch (e) { sayBrowser(txt, my); }
+}
+function glosHash(s) {
+  var x = 5381;
+  for (var i = 0; i < s.length; i++) x = ((x * 33) ^ s.charCodeAt(i)) >>> 0;
+  var h = x.toString(16);
+  while (h.length < 8) h = '0' + h;
+  return h;
 }
 function sayBrowser(txt, my) {
   if (!window.speechSynthesis) return;
