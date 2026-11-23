@@ -479,7 +479,7 @@ function ag_audyt($www, $psi_on) {
     $psi = null; $lcp = null;
     if ($psi_on) list($psi, $lcp) = ag_psi($final);
     $koszt = $sklep ? ' W sklepie każda sekunda czekania to mniej zamówień,' : ' Po 3 sekundach czekania sporo osób wraca do wyników Google,';
-    if ($psi !== null && $psi < 50) $p[] = array($kto . ' ma ' . $psi . '/100 w teście szybkości Google', '- Google ocenia szybkość ' . ($sklep ? 'sklepu' : 'strony') . ' na telefonie na ' . $psi . '/100' . ($lcp ? ', a główna treść pojawia się dopiero po ok. ' . ag_num($lcp) . ' s' : '') . '.' . $koszt, $psi < 30 ? 3 : 2);
+    if ($psi !== null && $psi < 40) $p[] = array($kto . ' ma ' . $psi . '/100 w teście szybkości Google', '- Google ocenia szybkość ' . ($sklep ? 'sklepu' : 'strony') . ' na telefonie na ' . $psi . '/100' . ($lcp ? ', a główna treść pojawia się dopiero po ok. ' . ag_num($lcp) . ' s' : '') . '.' . $koszt, $psi < 30 ? 3 : 2);
     elseif ($t > 4) $p[] = array($kto . ' ładuje się ok. ' . ag_num(round($t, 1)) . ' s', '- ' . $kto . ' otwiera się ok. ' . ag_num(round($t, 1)) . ' s.' . $koszt, 2);
     // formularz – na stronie głównej albo na podstronie kontaktowej
     $form_url = ''; $captcha = 0; $hk = $html;
@@ -491,9 +491,9 @@ function ag_audyt($www, $psi_on) {
         if ($c2 >= 200 && $c2 < 400) { $hk .= $h2; if (stripos($h2, '<form') !== false && preg_match('/<(textarea|input[^>]+type=["\']?email)/i', $h2)) { $form_url = $l; $html2 = $h2; } }
     }
     if ($form_url) $captcha = preg_match('/recaptcha|hcaptcha|turnstile|captcha/i', isset($html2) ? $html2 : $html) ? 1 : 0;
-    if (!$form_url && !$sklep) $p[] = array('na stronie nie ma formularza kontaktowego', '- nie ma formularza, przez który klient może od razu zostawić zapytanie, musi szukać telefonu albo maila,', 1);
+    if (!$form_url && !$sklep) $p[] = array('na stronie nie ma formularza kontaktowego', '- nie ma formularza, przez który klient może od razu zostawić zapytanie, musi szukać telefonu albo maila,', 2);
     if (!preg_match('/href=["\']tel:/i', $hk) && preg_match('/(\+48[\s\-]?)?\b\d{3}[\s\-]\d{3}[\s\-]\d{3}\b/', strip_tags($hk)))
-        $p[] = array('numeru telefonu nie da się kliknąć na komórce', '- numeru telefonu nie da się kliknąć na komórce, klient musi go przepisywać, a część po prostu tego nie robi,', 1);
+        $p[] = array('numeru telefonu nie da się kliknąć na komórce', '- numeru telefonu nie da się kliknąć na komórce, klient musi go przepisywać, a część po prostu tego nie robi,', 2);
     // --- sprzedaż: czy strona prowadzi klienta do kontaktu / zakupu ---
     $bi = stripos($html, '<body'); $body = $bi !== false ? substr($html, $bi) : $html;
     $top = substr($body, 0, (int)(strlen($body) * 0.25));
@@ -504,22 +504,28 @@ function ag_audyt($www, $psi_on) {
             $sklep ? '- na pierwszym ekranie nie ma wyraźnego przycisku typu „Kup” czy „Zobacz produkty”, klient musi sam szukać, gdzie kliknąć,' : '- na pierwszym ekranie nie ma przycisku typu „Zadzwoń” czy „Umów termin”, klient musi przewijać i szukać, jak się z Państwem skontaktować,', 2);
     if (!preg_match('/opini|recenzj|gwiazdk|★|testimonial|ocen[ay] klient|polecaj/iu', $txt))
         $p[] = array('na stronie głównej nie ma opinii klientów', '- na stronie głównej nie ma opinii klientów, a to one najbardziej przekonują nowych' . ($sklep ? ' do zakupu' : ' do telefonu') . ',', 1);
+    $wizyty = (bool)preg_match('/wizyt|termin|zabieg|gabinet|salon|fryzjer|kosmetycz|fizjoterap|masaż|szkoła jazdy|serwis|przegląd/iu', $txt);
+    $online = (bool)preg_match('/booksy|calendly|reservio|znanylekarz|versum|moment\.pl|rezerwuj online|zarezerwuj online|umów (się )?online|kalendarz rezerwacji|wybierz termin/iu', $hk);
+    if (!$sklep && $wizyty && !$online)
+        $p[] = array('klient nie może umówić się online', '- termin można umówić tylko telefonicznie. Kto chce się zapisać wieczorem albo wtedy, gdy Państwo pracują i nie odbierają, często wybiera firmę, gdzie zrobi to od razu online,', 2);
+    if (!$sklep && !preg_match('/realizacj|portfolio|galeri|nasze prace|efekty|przed i po|metamorfoz|case stud/iu', $txt))
+        $p[] = array('na stronie nie widać Państwa prac', '- na stronie nie widać zdjęć Państwa prac ani realizacji, a klient przed telefonem chce zobaczyć, że robią Państwo to dobrze,', 1);
     if (!$sklep && !preg_match('/\d\s?zł|cennik|PLN|od \d+/iu', $txt))
         $p[] = array('na stronie nie ma żadnych cen', '- nie ma żadnych cen ani cennika, część klientów nie dzwoni, bo boi się kwoty,', 1);
     $nsc = preg_match_all('/<script/i', $html); $ncss = preg_match_all('/<link[^>]+stylesheet/i', $html); $kb = (int)round(strlen($html) / 1024);
     if ($psi === null && ($nsc > 40 || $kb > 300))
-        $p[] = array($kto . ' ładuje aż ' . $nsc . ' skryptów', '- ' . $kto . ' przy otwarciu ładuje aż ' . $nsc . ' skryptów i ' . $ncss . ' plików stylów (' . $kb . ' KB samego kodu strony), przez co na telefonie startuje wolno,', 2);
+        $p[] = array($kto . ' ładuje aż ' . $nsc . ' skryptów', '- ' . $kto . ' przy otwarciu ładuje aż ' . $nsc . ' skryptów i ' . $ncss . ' plików stylów (' . $kb . ' KB samego kodu strony), przez co na telefonie startuje wolno,', 0);
     $nimg = preg_match_all('/<img/i', $body); $nlazy = preg_match_all('/loading=["\']?lazy|data-src|lazyload/i', $body);
-    if ($nimg >= 8 && $nlazy === 0) $p[] = array('wszystkie zdjęcia ładują się od razu', '- wszystkie zdjęcia (' . $nimg . ') ładują się od razu, nawet te na dole, co spowalnia otwieranie na telefonie,', 1);
+    if ($nimg >= 8 && $nlazy === 0) $p[] = array('wszystkie zdjęcia ładują się od razu', '- wszystkie zdjęcia (' . $nimg . ') ładują się od razu, nawet te na dole, co spowalnia otwieranie na telefonie,', 0);
     $title = preg_match('/<title[^>]*>([^<]*)/i', $html, $mt) ? trim(html_entity_decode($mt[1], ENT_QUOTES, 'UTF-8')) : '';
     if ($title === '' || preg_match('/^(strona główna|home|start|główna|witamy|index)\b/iu', $title))
-        $p[] = array('w Google strona wyświetla się jako „' . ($title ?: 'bez tytułu') . '”', '- w Google strona wyświetla się jako „' . ($title ?: 'bez tytułu') . '”, bez nazwy usługi i miasta, więc trudniej ją znaleźć,', 1);
+        $p[] = array('w Google strona wyświetla się jako „' . ($title ?: 'bez tytułu') . '”', '- w Google strona wyświetla się jako „' . ($title ?: 'bez tytułu') . '”, bez nazwy usługi i miasta, więc trudniej ją znaleźć,', 0);
     elseif (!preg_match('/<meta[^>]+name=["\']?description/i', $html))
-        $p[] = array('strona nie ma opisu dla Google', '- strona nie ma opisu dla Google, więc w wynikach wyszukiwania wyświetla się przypadkowy fragment tekstu,', 1);
+        $p[] = array('strona nie ma opisu dla Google', '- strona nie ma opisu dla Google, więc w wynikach wyszukiwania wyświetla się przypadkowy fragment tekstu,', 0);
     if (!preg_match('/googletagmanager|gtag\(|google-analytics|fbq\(|connect\.facebook\.net|clarity\.ms/i', $html))
-        $p[] = array('na stronie nie ma żadnej analityki', '- ' . $kto . ' nie ma żadnej analityki (Google Analytics ani piksela Meta), więc nie wiadomo, skąd przychodzą klienci i które reklamy się opłacają,', 1);
+        $p[] = array('na stronie nie ma żadnej analityki', '- ' . $kto . ' nie ma żadnej analityki (Google Analytics ani piksela Meta), więc nie wiadomo, skąd przychodzą klienci i które reklamy się opłacają,', 0);
     if (preg_match('/(?:©|&copy;|copyright)\s*(?:\d{4}\s*[-–]\s*)?(20[0-2]\d)\b/iu', $html, $my) && (int)$my[1] <= (int)date('Y') - 3 && !preg_match('/(?:©|&copy;|copyright)[^<]{0,20}20[0-2]\d\s*[-–]\s*20[2-9]\d/iu', $html))
-        $p[] = array('w stopce strony jest rok ' . $my[1], '- w stopce widnieje rok ' . $my[1] . ', więc ' . $kto . ' wygląda na dawno nieaktualizowan' . ($sklep ? 'y' : 'ą') . ',', 1);
+        $p[] = array('w stopce strony jest rok ' . $my[1], '- w stopce widnieje rok ' . $my[1] . ', więc ' . $kto . ' wygląda na dawno nieaktualizowan' . ($sklep ? 'y' : 'ą') . ',', 0);
     usort($p, function ($a, $b) { return $b[2] - $a[2]; });
     $sig = array('sklep' => $sklep, 'form' => (bool)$form_url, 'allegro' => (bool)preg_match('/allegro\.pl/i', $hk),
         'rezerwacje' => (bool)preg_match('/booksy|calendly|reservio|znanylekarz|versum|moment\.pl|rezerwuj online|zarezerwuj online|umów (się )?online|kalendarz rezerwacji/iu', $hk),
@@ -538,7 +544,7 @@ function ag_pomysl($sig) {
         'Zapytanie z formularza może od razu trafiać na Państwa telefon, a klient w tej samej minucie dostaje odpowiedź z najważniejszymi informacjami. Do tego oferty i faktury mogą przygotowywać się same. Kto odpowie pierwszy, ten zwykle dostaje zlecenie.');
 }
 function ag_problem_txt($p) {
-    $l = array(); foreach (array_slice($p, 0, 3) as $x) $l[] = $x[1];
+    $l = array(); foreach ($p as $x) { if ($x[2] > 0 && count($l) < 2) $l[] = $x[1]; }
     $t = implode("\n", $l);
     return rtrim($t, ',') . '.';
 }
@@ -555,7 +561,7 @@ function ag_strona_run($cfg, &$s, $t0, $budget) {
         $psi = !empty($c['psi']) && (microtime(true) - $t0) < $budget - 50;
         list($p, $sc, $sek, $ig, $err, $furl, $cap, $sig) = ag_audyt($r['www'], $psi);
         $s['dzis']['audyt']++; $done++;
-        if ($ig) q('INSERT IGNORE INTO ag_ig(ig,nazwa,miasto,www,problem,created_at) VALUES(?,?,?,?,?,?)', array($ig, mb_substr($r['nazwa'], 0, 255), mb_substr($r['miasto'], 0, 120), mb_substr($r['www'], 0, 255), $p ? mb_substr($p[0][0], 0, 160) : '', now()));
+        if ($ig) q('INSERT IGNORE INTO ag_ig(ig,nazwa,miasto,www,problem,created_at) VALUES(?,?,?,?,?,?)', array($ig, mb_substr($r['nazwa'], 0, 255), mb_substr($r['miasto'], 0, 120), mb_substr($r['www'], 0, 255), $p && $p[0][2] > 0 ? mb_substr($p[0][0], 0, 160) : '', now()));
         $waga = 0; foreach ($p as $x) $waga += $x[2];
         $status = $err ? 'blad' : ($waga >= max(1, (int)$c['min']) ? 'czeka' : (!empty($c['auto']) ? 'czeka_auto' : 'ok_strona'));
         $ptxt = $p ? ag_problem_txt($p) : $err;
@@ -616,8 +622,8 @@ function ag_form_run($cfg, &$s, $t0, $budget) {
         q('UPDATE szukaj SET form_chk=1, ig_chk=1 WHERE id=?', array($r['id']));
         list($p, $sc, $sek, $ig, $err, $furl, $cap, $sig) = ag_audyt($r['www'], false);
         $n++;
-        if ($ig) q('INSERT IGNORE INTO ag_ig(ig,nazwa,miasto,www,problem,created_at) VALUES(?,?,?,?,?,?)', array($ig, mb_substr($r['nazwa'], 0, 255), mb_substr($r['miasto'], 0, 120), mb_substr($r['www'], 0, 255), $p ? mb_substr($p[0][0], 0, 160) : '', now()));
-        if ($err || !$furl || !$p) continue; // bez formularza albo bez realnego problemu – nie piszemy
+        if ($ig) q('INSERT IGNORE INTO ag_ig(ig,nazwa,miasto,www,problem,created_at) VALUES(?,?,?,?,?,?)', array($ig, mb_substr($r['nazwa'], 0, 255), mb_substr($r['miasto'], 0, 120), mb_substr($r['www'], 0, 255), $p && $p[0][2] > 0 ? mb_substr($p[0][0], 0, 160) : '', now()));
+        if ($err || !$furl || !$p || $p[0][2] < 2) continue; // bez formularza albo bez realnego problemu biznesowego – nie piszemy
         q('INSERT IGNORE INTO ag_form(szukaj_id,nazwa,miasto,www,url,problem,captcha,created_at) VALUES(?,?,?,?,?,?,?,?)', array($r['id'], mb_substr($r['nazwa'], 0, 255), mb_substr($r['miasto'], 0, 120), mb_substr($r['www'], 0, 255), mb_substr($furl, 0, 400), mb_substr($p[0][0], 0, 255), $cap, now()));
         $found++;
     }
@@ -838,7 +844,7 @@ function ag_api($a) {
         $slaba = $waga >= max(1, (int)ag_cfg()['strona']['min']); $pm = ag_pomysl($sig);
         $firm = array('nazwa' => dup_host($www), 'miasto' => '', 'osoba' => '', 'www' => $www, 'eli_problem' => $slaba ? ag_problem_txt($p) : $pm[1], 'zrodlo' => 'audyt', 'token' => str_repeat('0', 32));
         $tpl = tpl_for(ag_br_id($slaba ? AG_BR_STRONA : AG_BR_AUTO), 'pierwszy');
-        list($subj, $html) = render_mail($tpl, $firm, array());
+        list($subj, $html) = render_mail($tpl, $firm, array('btn_url' => BASE_URL . '/p.php?a=tak&t=podglad'));
         ag_log('strona', 'info', 'Ręczne sprawdzenie ' . dup_host($www) . ': ' . ($p ? implode(', ', array_map(function ($x) { return $x[0]; }, $p)) : 'bez problemów'));
         out(array('problemy' => $p, 'psi' => $sc, 'sekundy' => $sek, 'ig' => $ig, 'form' => $furl, 'captcha' => $cap, 'waga' => $waga, 'pisze' => $waga >= max(1, (int)ag_cfg()['strona']['min']), 'temat' => $subj, 'html' => $html, 'psi_blad' => $sc === null ? setting('ag_psi_blad') : '', 'pomysl' => $slaba ? '' : $pm[0]));
     }
@@ -853,7 +859,7 @@ function ag_api($a) {
         $firm['token'] = str_repeat('0', 32);
         $tpl = tpl_for(ag_bid_typ($typ), 'pierwszy');
         if ($it && !empty($it[0]['wlasny'])) { $w = json_decode($it[0]['wlasny'], true); if (is_array($w)) $tpl = ag_tpl_with_text($tpl, $w['temat'], $w['tekst']); }
-        list($subj, $html) = render_mail($tpl, $firm, array());
+        list($subj, $html) = render_mail($tpl, $firm, array('btn_url' => BASE_URL . '/p.php?a=tak&t=podglad'));
         out(array('temat' => $subj, 'html' => $html));
     }
     fail('Nieznana akcja agenta');
