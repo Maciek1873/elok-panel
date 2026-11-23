@@ -9,10 +9,11 @@ if (!defined('ELOK')) { http_response_code(403); exit; }
 require_once __DIR__ . '/szablony.php';
 require_once __DIR__ . '/zrodla.php';
 
-define('AG_SCHEMA', '3');
+define('AG_SCHEMA', '4');
 define('AG_BR_NOWE', 'Eli – nowe firmy');
 define('AG_BR_PRACA', 'Eli – szukają pracownika');
 define('AG_BR_STRONA', 'Eli – słaba strona');
+define('AG_BR_AUTO', 'Eli – dobra strona, automatyzacje');
 
 function ag_migrate_if() { if (setting('ag_schema') !== AG_SCHEMA) { ag_migrate(); setting_set('ag_schema', AG_SCHEMA); } }
 function ag_migrate() {
@@ -76,6 +77,21 @@ function ag_migrate() {
         $c = ag_cfg(); $c['ig']['msg'] = ag_cfg_def()['ig']['msg']; ag_cfg_save($c);
         setting_set('ag_teksty_v3', '1');
     }
+    // v4: bez „wystarczy odpisać tak” i bez cen; przycisk do umówienia konsultacji – podmień, jeśli tekst jest wciąż gotowy
+    if (setting('ag_teksty_v4') !== '1') {
+        foreach (ag_sets() as $nazwa => $set) {
+            $bid = ag_br_id($nazwa); if (!$bid) continue;
+            foreach (array('pierwszy', 'przypomnienie', 'przypomnienie2') as $typ) {
+                $t = one('SELECT temat,bloki,tresc FROM szablony WHERE branza_id=? AND typ=?', array($bid, $typ));
+                $raw = $t ? (string)$t['bloki'] . (string)$t['tresc'] : '';
+                if (!$t || mb_strpos($raw, 'odpisać „tak”') !== false || mb_strpos($raw, 'odpisać \u201etak') !== false || mb_strpos($raw, 'ile to kosztuje') !== false || mb_strpos($raw, 'jedno słowo') !== false || mb_strpos($raw, 'ostatni mail ode mnie') !== false) save_template($bid, $typ, $set[$typ]);
+            }
+        }
+        $c = ag_cfg(); $d = ag_cfg_def();
+        if (mb_strpos($c['form']['msg'], 'ile to kosztuje') !== false) $c['form']['msg'] = $d['form']['msg'];
+        ag_cfg_save($c);
+        setting_set('ag_teksty_v4', '1');
+    }
 }
 
 // ---------- ustawienia i stan ----------
@@ -84,9 +100,9 @@ function ag_cfg_def() {
         'on' => 0,
         'nowe' => array('on' => 1, 'dni' => 14, 'woj' => array(), 'pkd' => '', 'dziennie' => 25, 'reczny' => 0),
         'praca' => array('on' => 1, 'frazy' => "pracownik biurowy\nwprowadzanie danych\nfakturowanie\nobsługa zamówień\nasystentka biura\nspecjalista ds. administracji", 'dziennie' => 15, 'reczny' => 1),
-        'strona' => array('on' => 1, 'dziennie' => 20, 'reczny' => 1, 'psi' => 1, 'min' => 2),
+        'strona' => array('on' => 1, 'dziennie' => 20, 'reczny' => 1, 'psi' => 1, 'min' => 2, 'auto' => 1),
         'ig' => array('on' => 1, 'msg' => "Dzień dobry! Tu {imie} z ELOK.\nZajrzałem na stronę {firma}{problem_ig}. Przez takie rzeczy część klientów wychodzi ze strony, zanim zadzwoni.\nMogę podesłać, co konkretnie poprawić? Bez zobowiązań."),
-        'form' => array('on' => 1, 'msg' => "Dzień dobry,\n\nzajrzałem na stronę {www} tak, jak robi to klient z telefonu, i zauważyłem, że {problem_krotko}. Przez takie rzeczy część klientów wychodzi ze strony, zanim zadzwoni.\n\nJestem {imie} z ELOK. Mogę przesłać krótką listę, co konkretnie poprawić i ile to kosztuje? Bez zobowiązań.\n\n{imie}, ELOK\n{moj_telefon} · {moj_email}"),
+        'form' => array('on' => 1, 'msg' => "Dzień dobry,\n\nzajrzałem na stronę {www} tak, jak robi to klient z telefonu, i zauważyłem, że {problem_krotko}. Przez takie rzeczy część klientów wychodzi ze strony, zanim zadzwoni.\n\nJestem {imie} z ELOK. Pomagamy firmom poprawić takie rzeczy: doradzimy, co zmienić, a jeśli Państwo zechcą, zrobimy to. Chętnie porozmawiam 15 minut, bezpłatnie i bez zobowiązań. Najprościej odpisać na maila albo zadzwonić.\n\n{imie}, ELOK\n{moj_telefon} · {moj_email}"),
     );
 }
 function ag_cfg() {
@@ -108,36 +124,74 @@ function ag_log($zad, $typ, $info) {
 function ag_br_id($nazwa) { return (int)val('SELECT id FROM branze WHERE nazwa=?', array($nazwa)); }
 
 // Gotowe maile agenta (pierwszy + 2 przypomnienia + potwierdzenie) – każdy da się zmienić w zakładce Agent Eli
+// mail = treść + przycisk „Umów bezpłatną konsultację” (kliknięcie widać w panelu) + inne sposoby kontaktu
+function ag_build($temat, $tekst, $btn, $sub, $po) {
+    $bl = array(array('t' => 'tekst', 'text' => $tekst));
+    if (trim($btn) !== '') $bl[] = array('t' => 'przycisk', 'text' => $btn, 'sub' => $sub);
+    if (trim($po) !== '') $bl[] = array('t' => 'tekst', 'text' => $po);
+    return array('temat' => $temat, 'bloki' => $bl, 'nadtytul' => '', 'naglowek' => '', 'tresc' => '', 'przycisk' => '');
+}
+// rozbicie szablonu na części do edycji: treść, napis na przycisku, podpis pod przyciskiem, tekst po przycisku
+function ag_parts($tpl) {
+    $o = array('tekst' => '', 'btn' => '', 'sub' => '', 'po' => ''); $after = false; $pre = array(); $post = array();
+    foreach (tpl_blocks($tpl) as $x) {
+        $t = isset($x['t']) ? $x['t'] : '';
+        if ($t === 'przycisk') { $o['btn'] = (string)$x['text']; $o['sub'] = isset($x['sub']) ? (string)$x['sub'] : ''; $after = true; continue; }
+        if (isset($x['text']) && in_array($t, array('tekst', 'ramka'), true)) { if ($after) $post[] = $x['text']; else $pre[] = $x['text']; }
+    }
+    $o['tekst'] = implode("\n\n", $pre); $o['po'] = implode("\n\n", $post);
+    return $o;
+}
+// podmiana tylko treści głównej (własna wersja maila dla jednej firmy) – przycisk i dopisek zostają
+function ag_tpl_with_text($tpl, $temat, $tekst) {
+    $p = ag_parts($tpl);
+    $n = ag_build($temat, $tekst, $p['btn'], $p['sub'], $p['po']);
+    $tpl['temat'] = $temat; $tpl['bloki'] = json_encode($n['bloki'], JSON_UNESCAPED_UNICODE);
+    return $tpl;
+}
 function ag_sets() {
-    // Zasada: jeden realny problem klienta → jedno rozwiązanie, które pomaga mu zarabiać. Bez wyliczania „robimy wszystko”.
-    $mk = function ($temat, $txt) { return array('temat' => $temat, 'bloki' => array(array('t' => 'tekst', 'text' => $txt)), 'nadtytul' => '', 'naglowek' => '', 'tresc' => '', 'przycisk' => ''); };
+    // Zasada: jeden realny problem klienta → jedno rozwiązanie. Bez cen i bez „wystarczy odpisać tak”.
+    // Kończymy propozycją bezpłatnej konsultacji: przycisk (widać, kto kliknął) albo odpowiedź na maila / telefon.
+    $btn = 'Umów bezpłatną konsultację'; $sub = 'Wybierz dogodny termin – zajmie to 30 sekund.';
+    $alt = 'Wolą Państwo inaczej? Wystarczy odpowiedzieć na tego maila albo zadzwonić: {moj_telefon}.';
+    $alt2 = 'Można też po prostu odpowiedzieć na tego maila albo zadzwonić: {moj_telefon}.';
+    $m = function ($temat, $txt, $b = null, $s2 = null, $po = null) use ($btn, $sub, $alt) { return ag_build($temat, $txt, $b === null ? $btn : $b, $s2 === null ? $sub : $s2, $po === null ? $alt : $po); };
     $confirm = default_template_for('Inne firmy', 'potwierdzenie');
     return array(
         AG_BR_NOWE => array(
-            'pierwszy' => $mk('Gratulacje – pytanie o pierwszych klientów',
-                "Dzień dobry,\n\ngratuluję założenia firmy!\n\nZanim klient zadzwoni, zwykle wpisuje usługę w Google i wybiera spośród firm, które tam znajdzie. Nowa firma bez strony w tym momencie po prostu nie istnieje, a zlecenia trafiają do konkurencji.\n\nJestem {imie} z ELOK. Robimy strony, przez które klient od razu zostawia zapytanie, a Państwo dostają powiadomienie na telefon.\n\nMogę pokazać, jak to wygląda u firmy z podobnej branży? Wystarczy odpisać „tak”."),
-            'przypomnienie' => $mk('Re: Gratulacje – pytanie o pierwszych klientów',
-                "Dzień dobry,\n\nwracam krótko do mojej wiadomości. Jeśli pierwsi klienci z internetu to temat na teraz, pokażę przykład i powiem, ile to kosztuje. Bez zobowiązań.\n\nWystarczy odpisać „tak” albo zadzwonić: {moj_telefon}."),
-            'przypomnienie2' => $mk('Ostatnia wiadomość ode mnie',
-                "Dzień dobry,\n\nto już ostatni mail ode mnie, nie będę zaśmiecał skrzynki.\n\nGdyby kiedyś przydała się strona, która zbiera zapytania, wystarczy odpisać albo zadzwonić: {moj_telefon}.\n\nPowodzenia na starcie!"),
+            'pierwszy' => $m('Gratulacje – pytanie o pierwszych klientów',
+                "Dzień dobry,\n\ngratuluję założenia firmy!\n\nZanim klient zadzwoni, zwykle wpisuje usługę w Google i wybiera spośród firm, które tam znajdzie. Nowa firma bez strony w tym momencie po prostu nie istnieje, a zlecenia trafiają do konkurencji.\n\nJestem {imie} z ELOK. Pomagamy nowym firmom zdobyć pierwszych klientów z internetu: doradzimy, od czego zacząć, i przygotujemy stronę, przez którą klient od razu zostawia zapytanie, a Państwo dostają powiadomienie na telefon.\n\nChętnie porozmawiam 15 minut i podpowiem, co ma sens na start. Bezpłatnie i bez zobowiązań."),
+            'przypomnienie' => $m('Re: Gratulacje – pytanie o pierwszych klientów',
+                "Dzień dobry,\n\nwracam krótko do mojej wiadomości. Jeśli pierwsi klienci z internetu to temat na teraz, chętnie podpowiem, od czego zacząć. Rozmowa jest bezpłatna i do niczego nie zobowiązuje.", 'Umów rozmowę', '', $alt2),
+            'przypomnienie2' => $m('Ostatnia wiadomość ode mnie',
+                "Dzień dobry,\n\nto już ostatni mail ode mnie, nie będę zaśmiecał skrzynki.\n\nGdyby kiedyś przydała się pomoc ze stroną albo z pozyskiwaniem klientów, jestem pod telefonem: {moj_telefon}.\n\nPowodzenia na starcie!", '', '', ''),
             'potwierdzenie' => $confirm,
         ),
         AG_BR_PRACA => array(
-            'pierwszy' => $mk('Ogłoszenie – {stanowisko}',
-                "Dzień dobry,\n\nwidzę, że szukają Państwo osoby na stanowisko {stanowisko}. W ogłoszeniu jest m.in. {obowiazki}.\n\nTo zadania, które da się ustawić tak, żeby robiły się same: zamówienie samo trafia do systemu, faktura wystawia się po opłaceniu, a klient dostaje maila bez niczyjego udziału. Wtedy nie trzeba zatrudniać kogoś do przepisywania danych, a jeśli nowa osoba i tak dojdzie, zajmie się klientami, a nie papierami.\n\nJestem {imie} z ELOK, ustawiamy takie automatyzacje w firmach. Mogę przesłać, jak mogłoby to wyglądać u Państwa? Wystarczy odpisać „tak”."),
-            'przypomnienie' => $mk('Re: Ogłoszenie – {stanowisko}',
-                "Dzień dobry,\n\nwracam krótko do mojej wiadomości w sprawie ogłoszenia. Chętnie rozpiszę, które z tych obowiązków da się u Państwa zautomatyzować i ile to kosztuje. Bezpłatnie i bez zobowiązań.\n\nWystarczy odpisać „tak” albo zadzwonić: {moj_telefon}."),
-            'przypomnienie2' => $mk('Ostatnia wiadomość ode mnie',
-                "Dzień dobry,\n\nto już ostatni mail ode mnie, nie będę zaśmiecał skrzynki.\n\nGdyby temat przepisywania danych i dokumentów wrócił, wystarczy odpisać albo zadzwonić: {moj_telefon}.\n\nPowodzenia w rekrutacji!"),
+            'pierwszy' => $m('Ogłoszenie – {stanowisko}',
+                "Dzień dobry,\n\nwidzę, że szukają Państwo osoby na stanowisko {stanowisko}. W ogłoszeniu jest m.in. {obowiazki}.\n\nTo zadania, które da się ustawić tak, żeby robiły się same: zamówienie samo trafia do systemu, faktura wystawia się po opłaceniu, a klient dostaje maila bez niczyjego udziału. Wtedy nie trzeba zatrudniać kogoś do przepisywania danych, a jeśli nowa osoba i tak dojdzie, zajmie się klientami, a nie papierami.\n\nJestem {imie} z ELOK. Doradzamy i wdrażamy takie automatyzacje w firmach. Chętnie w 15 minut podpowiem, co z tej listy da się u Państwa zautomatyzować. Bezpłatnie i bez zobowiązań."),
+            'przypomnienie' => $m('Re: Ogłoszenie – {stanowisko}',
+                "Dzień dobry,\n\nwracam krótko do mojej wiadomości w sprawie ogłoszenia. Chętnie pokażę, które z tych obowiązków mogą robić się same. Rozmowa jest bezpłatna i do niczego nie zobowiązuje.", 'Umów rozmowę', '', $alt2),
+            'przypomnienie2' => $m('Ostatnia wiadomość ode mnie',
+                "Dzień dobry,\n\nto już ostatni mail ode mnie, nie będę zaśmiecał skrzynki.\n\nGdyby temat przepisywania danych i dokumentów wrócił, jestem pod telefonem: {moj_telefon}.\n\nPowodzenia w rekrutacji!", '', '', ''),
             'potwierdzenie' => $confirm,
         ),
         AG_BR_STRONA => array(
-            'pierwszy' => $mk('Pytanie o stronę {www}',
-                "Dzień dobry,\n\nzajrzałem na stronę {www} tak, jak robi to klient z telefonu, i zauważyłem:\n\n{problem}\n\nKażda taka rzecz to klienci, którzy wchodzą na stronę, ale nie dzwonią, tylko wracają do Google i wybierają kolejną firmę.\n\nJestem {imie} z ELOK. Mogę przesłać krótką listę, co konkretnie poprawić i ile to kosztuje? Bez zobowiązań, wystarczy odpisać „tak”."),
-            'przypomnienie' => $mk('Re: Pytanie o stronę {www}',
-                "Dzień dobry,\n\nwracam krótko do mojej wiadomości o stronie {www}. Lista poprawek z ceną jest bezpłatna. Nawet jeśli zrobią to Państwo sami albo z kimś innym, przyda się.\n\nWystarczy odpisać „tak” albo zadzwonić: {moj_telefon}."),
-            'przypomnienie2' => $mk('Ostatnia wiadomość ode mnie',
-                "Dzień dobry,\n\nto już ostatni mail ode mnie w sprawie strony, nie będę zaśmiecał skrzynki.\n\nGdyby temat wrócił, wystarczy odpisać albo zadzwonić: {moj_telefon}.\n\nPozdrawiam i powodzenia!"),
+            'pierwszy' => $m('Pytanie o stronę {www}',
+                "Dzień dobry,\n\nzajrzałem na stronę {www} tak, jak robi to klient z telefonu, i zauważyłem:\n\n{problem}\n\nKażda taka rzecz to klienci, którzy wchodzą na stronę, ale nie dzwonią, tylko wracają do Google i wybierają kolejną firmę.\n\nJestem {imie} z ELOK. Pomagamy firmom poprawić strony tak, żeby przynosiły zapytania: doradzimy, co zmienić, a jeśli Państwo zechcą, zrobimy to za Państwa. Chętnie pokażę to na krótkiej konsultacji. Bezpłatnie i bez zobowiązań."),
+            'przypomnienie' => $m('Re: Pytanie o stronę {www}',
+                "Dzień dobry,\n\nwracam krótko do mojej wiadomości o stronie {www}. Chętnie pokażę, co konkretnie poprawić. Nawet jeśli zrobią to Państwo sami albo z kimś innym, wskazówki się przydadzą.", 'Umów rozmowę', '', $alt2),
+            'przypomnienie2' => $m('Ostatnia wiadomość ode mnie',
+                "Dzień dobry,\n\nto już ostatni mail ode mnie w sprawie strony, nie będę zaśmiecał skrzynki.\n\nGdyby temat wrócił, jestem pod telefonem: {moj_telefon}.\n\nPozdrawiam i powodzenia!", '', '', ''),
+            'potwierdzenie' => $confirm,
+        ),
+        AG_BR_AUTO => array(
+            'pierwszy' => $m('Pomysł dla {firma}',
+                "Dzień dobry,\n\nzajrzałem na stronę {www}. Jest zrobiona porządnie, więc nie piszę w sprawie strony.\n\n{pomysl}\n\nJestem {imie} z ELOK. Doradzamy firmom, co ma sens zautomatyzować, i wdrażamy to. Chętnie w 15 minut podpowiem, co da się usprawnić u Państwa. Bezpłatnie i bez zobowiązań."),
+            'przypomnienie' => $m('Re: Pomysł dla {firma}',
+                "Dzień dobry,\n\nwracam krótko do mojej wiadomości. Chętnie pokażę na przykładzie, jak to działa w podobnej firmie. Rozmowa jest bezpłatna i do niczego nie zobowiązuje.", 'Umów rozmowę', '', $alt2),
+            'przypomnienie2' => $m('Ostatnia wiadomość ode mnie',
+                "Dzień dobry,\n\nto już ostatni mail ode mnie, nie będę zaśmiecał skrzynki.\n\nGdyby temat automatyzacji wrócił, jestem pod telefonem: {moj_telefon}.\n\nPozdrawiam!", '', '', ''),
             'potwierdzenie' => $confirm,
         ),
     );
@@ -416,7 +470,7 @@ function ag_audyt($www, $psi_on) {
     if (!preg_match('#^https?://#i', $www)) $www = 'http://' . $www;
     list($code, $html, $final, $t) = ag_fetch($www);
     if ($code === 0 || $code >= 500) { list($code, $html, $final, $t) = ag_fetch($www, 20); } // druga próba
-    if ($code === 0 || $code >= 400 || $html === '') return array(array(), null, null, '', 'strona nie odpowiada (' . ($code ?: 'brak połączenia') . ')', '', 0);
+    if ($code === 0 || $code >= 400 || $html === '') return array(array(), null, null, '', 'strona nie odpowiada (' . ($code ?: 'brak połączenia') . ')', '', 0, array());
     $sklep = (bool)preg_match('/woocommerce|shoper|idosell|iai-shop|prestashop|shopify|add-to-cart|do koszyka|dodaj do koszyka/i', $html);
     $kto = $sklep ? 'sklep' : 'strona';
     $p = array();
@@ -467,7 +521,21 @@ function ag_audyt($www, $psi_on) {
     if (preg_match('/(?:©|&copy;|copyright)\s*(?:\d{4}\s*[-–]\s*)?(20[0-2]\d)\b/iu', $html, $my) && (int)$my[1] <= (int)date('Y') - 3 && !preg_match('/(?:©|&copy;|copyright)[^<]{0,20}20[0-2]\d\s*[-–]\s*20[2-9]\d/iu', $html))
         $p[] = array('w stopce strony jest rok ' . $my[1], '- w stopce widnieje rok ' . $my[1] . ', więc ' . $kto . ' wygląda na dawno nieaktualizowan' . ($sklep ? 'y' : 'ą') . ',', 1);
     usort($p, function ($a, $b) { return $b[2] - $a[2]; });
-    return array($p, $psi, round($t, 1), ag_ig_z_html($hk), '', $form_url, $captcha);
+    $sig = array('sklep' => $sklep, 'form' => (bool)$form_url, 'allegro' => (bool)preg_match('/allegro\.pl/i', $hk),
+        'rezerwacje' => (bool)preg_match('/booksy|calendly|reservio|znanylekarz|versum|moment\.pl|rezerwuj online|zarezerwuj online|umów (się )?online|kalendarz rezerwacji/iu', $hk),
+        'wizyty' => (bool)preg_match('/wizyt|termin|zabieg|gabinet|salon|serwis|naprawa|przegląd/iu', $txt));
+    return array($p, $psi, round($t, 1), ag_ig_z_html($hk), '', $form_url, $captcha, $sig);
+}
+// dobra strona → jeden konkretny pomysł na automatyzację, dobrany do tego, co widać na stronie
+function ag_pomysl($sig) {
+    if (!empty($sig['sklep'])) return array('sklep: zamówienia, faktury i wysyłki same',
+        'Widzę, że prowadzą Państwo sklep internetowy. W wielu sklepach sporo czasu schodzi na rzeczy, które powtarzają się przy każdym zamówieniu: faktura, etykieta kurierska, mail do klienta, aktualizacja stanów' . (!empty($sig['allegro']) ? ', a do tego osobno zamówienia z Allegro' : '') . '. To da się ustawić tak, żeby po opłaceniu zamówienia wszystko działo się samo, a Państwo tylko pakowali paczki.');
+    if (!empty($sig['wizyty']) && empty($sig['rezerwacje'])) return array('zapisy online i przypomnienia SMS',
+        'Widzę, że klienci umawiają się u Państwa telefonicznie albo przez formularz. Da się to ustawić tak, żeby klient sam wybierał wolny termin, a dzień wcześniej dostawał SMS z przypomnieniem. Mniej telefonów w trakcie pracy i mniej klientów, którzy zapominają o wizycie.');
+    if (!empty($sig['rezerwacje'])) return array('stali klienci wracają sami',
+        'Widzę, że mają Państwo zapisy online. Kolejnym krokiem bywa automatyczne przypomnienie stałym klientom o następnej wizycie i prośba o opinię w Google po usłudze. To zwykle najtańszy sposób na więcej powracających klientów i lepsze miejsce w Google.');
+    return array('zapytania od razu na telefon, oferty same',
+        'Zapytanie z formularza może od razu trafiać na Państwa telefon, a klient w tej samej minucie dostaje odpowiedź z najważniejszymi informacjami. Do tego oferty i faktury mogą przygotowywać się same. Kto odpowie pierwszy, ten zwykle dostaje zlecenie.');
 }
 function ag_problem_txt($p) {
     $l = array(); foreach (array_slice($p, 0, 3) as $x) $l[] = $x[1];
@@ -485,26 +553,29 @@ function ag_strona_run($cfg, &$s, $t0, $budget) {
         if (!$r) { if (!$done) return 'brak firm ze stroną do sprawdzenia – dodaj listę w „Szukaj firm”'; break; }
         q('UPDATE szukaj SET audyt=1 WHERE id=?', array($r['id']));
         $psi = !empty($c['psi']) && (microtime(true) - $t0) < $budget - 50;
-        list($p, $sc, $sek, $ig, $err) = ag_audyt($r['www'], $psi);
+        list($p, $sc, $sek, $ig, $err, $furl, $cap, $sig) = ag_audyt($r['www'], $psi);
         $s['dzis']['audyt']++; $done++;
         if ($ig) q('INSERT IGNORE INTO ag_ig(ig,nazwa,miasto,www,problem,created_at) VALUES(?,?,?,?,?,?)', array($ig, mb_substr($r['nazwa'], 0, 255), mb_substr($r['miasto'], 0, 120), mb_substr($r['www'], 0, 255), $p ? mb_substr($p[0][0], 0, 160) : '', now()));
         $waga = 0; foreach ($p as $x) $waga += $x[2];
-        $status = $err ? 'blad' : ($waga >= max(1, (int)$c['min']) ? 'czeka' : 'ok_strona');
+        $status = $err ? 'blad' : ($waga >= max(1, (int)$c['min']) ? 'czeka' : (!empty($c['auto']) ? 'czeka_auto' : 'ok_strona'));
+        $ptxt = $p ? ag_problem_txt($p) : $err;
+        if ($status === 'czeka_auto') { $pm = ag_pomysl($sig); $p = array(array($pm[0], '', 0)); $ptxt = $pm[1]; }
         q('INSERT IGNORE INTO ag_audyt(szukaj_id,nazwa,email,telefon,osoba,miasto,www,problemy,problem_txt,wynik,psi,sekundy,status,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-            array($r['id'], $r['nazwa'], $r['email'], $r['telefon'], $r['osoba'], $r['miasto'], $r['www'], json_encode($p, JSON_UNESCAPED_UNICODE), $p ? ag_problem_txt($p) : $err, $waga, $sc, $sek, $status, now()));
+            array($r['id'], $r['nazwa'], $r['email'], $r['telefon'], $r['osoba'], $r['miasto'], $r['www'], json_encode($p, JSON_UNESCAPED_UNICODE), $ptxt, $waga, $sc, $sek, $status, now()));
         if ($status === 'czeka') { $zle++; ag_log('strona', 'kontakt', $r['nazwa'] . ' – ' . dup_host($r['www']) . ': ' . implode(', ', array_map(function ($x) { return $x[0]; }, array_slice($p, 0, 3)))); }
     }
     if ($done) ag_log('strona', 'znaleziono', 'Sprawdzone strony: ' . $done . ', z wyraźnym problemem: ' . $zle);
     if (empty($c['reczny'])) {
         $limit = max(0, (int)$c['dziennie'] - ag_dzis($s, 'strona'));
-        foreach (all("SELECT * FROM ag_audyt WHERE status='czeka' ORDER BY wynik DESC, id LIMIT " . (int)$limit) as $a) ag_strona_dodaj($a, $s);
+        foreach (all("SELECT * FROM ag_audyt WHERE status IN('czeka','czeka_auto') ORDER BY status, wynik DESC, id LIMIT " . (int)$limit) as $a) ag_strona_dodaj($a, $s);
     }
     return 'sprawdzono ' . $done;
 }
 function ag_strona_dodaj($a, &$s) {
-    $bid = ag_br_id(AG_BR_STRONA);
+    $auto = $a['status'] === 'czeka_auto';
+    $bid = ag_br_id($auto ? AG_BR_AUTO : AG_BR_STRONA);
     list($fid) = ag_do_firm(array('nazwa' => $a['nazwa'], 'email' => $a['email'], 'telefon' => $a['telefon'], 'miasto' => $a['miasto'], 'osoba' => $a['osoba'], 'www' => $a['www'],
-        'problem' => $a['problem_txt'], 'wlasny' => $a['wlasny'], 'notatka' => 'Agent Eli – słaba strona: ' . str_replace("\n", ' ', $a['problem_txt']), 'zrodlo' => 'audyt'), $bid);
+        'problem' => $a['problem_txt'], 'wlasny' => $a['wlasny'], 'notatka' => 'Agent Eli – ' . ($auto ? 'dobra strona, pomysł na automatyzację: ' : 'słaba strona: ') . str_replace("\n", ' ', $a['problem_txt']), 'zrodlo' => 'audyt'), $bid);
     q('UPDATE ag_audyt SET status=?, firma_id=? WHERE id=?', array($fid ? 'dodano' : 'juz_jest', $fid ?: null, $a['id']));
     q("UPDATE szukaj SET status=IF(?,'dodano','juz_jest') WHERE id=?", array($fid ? 1 : 0, $a['szukaj_id']));
     if ($fid) { ag_dzis($s, 'strona'); $s['dzis']['strona']++; ag_log('strona', 'dodano', $a['nazwa'] . ' – ' . $a['email']); }
@@ -543,7 +614,7 @@ function ag_form_run($cfg, &$s, $t0, $budget) {
         $r = one("SELECT id,nazwa,miasto,www FROM szukaj WHERE form_chk=0 AND www<>'' AND status='brak_maila' ORDER BY id DESC LIMIT 1");
         if (!$r) break;
         q('UPDATE szukaj SET form_chk=1, ig_chk=1 WHERE id=?', array($r['id']));
-        list($p, $sc, $sek, $ig, $err, $furl, $cap) = ag_audyt($r['www'], false);
+        list($p, $sc, $sek, $ig, $err, $furl, $cap, $sig) = ag_audyt($r['www'], false);
         $n++;
         if ($ig) q('INSERT IGNORE INTO ag_ig(ig,nazwa,miasto,www,problem,created_at) VALUES(?,?,?,?,?,?)', array($ig, mb_substr($r['nazwa'], 0, 255), mb_substr($r['miasto'], 0, 120), mb_substr($r['www'], 0, 255), $p ? mb_substr($p[0][0], 0, 160) : '', now()));
         if ($err || !$furl || !$p) continue; // bez formularza albo bez realnego problemu – nie piszemy
@@ -589,24 +660,24 @@ function ag_run($budget, $manual = false) {
 }
 
 // ---------- API (akcje „ag_…”, wywoływane z api.php) ----------
-function ag_bid_typ($typ) { return ag_br_id($typ === 'praca' ? AG_BR_PRACA : ($typ === 'strona' ? AG_BR_STRONA : AG_BR_NOWE)); }
+function ag_bid_typ($typ) { return ag_br_id($typ === 'praca' ? AG_BR_PRACA : ($typ === 'strona' ? AG_BR_STRONA : ($typ === 'auto' ? AG_BR_AUTO : AG_BR_NOWE))); }
 // wiersz „do zatwierdzenia” jako firma (do podstawienia zmiennych w mailu)
 function ag_item($typ, $id) {
     if ($typ === 'praca') { $r = one('SELECT * FROM ag_oferty WHERE id=?', array((int)$id)); if (!$r) return null; return array($r, array('nazwa' => $r['firma'] ?: ($r['www'] ? dup_host($r['www']) : $r['konto']), 'miasto' => $r['miasto'], 'osoba' => '', 'www' => $r['www'], 'eli_tytul' => $r['stanowisko'], 'eli_problem' => $r['obowiazki'], 'zrodlo' => 'olx')); }
-    if ($typ === 'strona') { $r = one('SELECT * FROM ag_audyt WHERE id=?', array((int)$id)); if (!$r) return null; return array($r, array('nazwa' => $r['nazwa'], 'miasto' => $r['miasto'], 'osoba' => $r['osoba'], 'www' => $r['www'], 'eli_problem' => $r['problem_txt'], 'zrodlo' => 'audyt')); }
+    if ($typ === 'strona' || $typ === 'auto') { $r = one('SELECT * FROM ag_audyt WHERE id=?', array((int)$id)); if (!$r) return null; return array($r, array('nazwa' => $r['nazwa'], 'miasto' => $r['miasto'], 'osoba' => $r['osoba'], 'www' => $r['www'], 'eli_problem' => $r['problem_txt'], 'zrodlo' => 'audyt')); }
     $r = one('SELECT * FROM szukaj WHERE id=? AND eli=1', array((int)$id)); if (!$r) return null;
     return array($r, array('nazwa' => $r['nazwa'], 'miasto' => $r['miasto'], 'osoba' => $r['osoba'], 'www' => $r['www'], 'zrodlo' => 'ceidg'));
 }
-function ag_tbl($typ) { return $typ === 'praca' ? 'ag_oferty' : ($typ === 'strona' ? 'ag_audyt' : 'szukaj'); }
+function ag_tbl($typ) { return $typ === 'praca' ? 'ag_oferty' : ($typ === 'strona' || $typ === 'auto' ? 'ag_audyt' : 'szukaj'); }
 function ag_tpl_txt($tpl) { $b = tpl_blocks($tpl); $o = array(); foreach ($b as $x) if (isset($x['text']) && in_array($x['t'], array('tekst', 'ramka'), true)) $o[] = $x['text']; return implode("\n\n", $o); }
 
 function ag_api($a) {
     ag_migrate_if();
-    $typ = in_array(g('typ'), array('nowe', 'praca', 'strona'), true) ? g('typ') : 'nowe';
+    $typ = in_array(g('typ'), array('nowe', 'praca', 'strona', 'auto'), true) ? g('typ') : 'nowe';
     if ($a === 'ag_stan') {
         $cfg = ag_cfg(); $s = ag_stan(); ag_dzis($s, 'nowe');
-        $ids = array(ag_br_id(AG_BR_NOWE), ag_br_id(AG_BR_PRACA), ag_br_id(AG_BR_STRONA));
-        $br = all('SELECT id,nazwa,aktywna,limit_dzienny FROM branze WHERE id IN(?,?,?) ORDER BY id', $ids);
+        $ids = array(ag_br_id(AG_BR_NOWE), ag_br_id(AG_BR_PRACA), ag_br_id(AG_BR_STRONA), ag_br_id(AG_BR_AUTO));
+        $br = all('SELECT id,nazwa,aktywna,limit_dzienny FROM branze WHERE id IN(?,?,?,?) ORDER BY id', $ids);
         $mail = array();
         foreach ($ids as $b) $mail[$b] = array(
             'w_kolejce' => (int)val("SELECT COUNT(*) FROM firmy WHERE branza_id=? AND status='nowy'", array($b)),
@@ -636,6 +707,7 @@ function ag_api($a) {
             'czekaN' => all("SELECT id,nazwa,osoba,email,telefon,www,miasto,adres,eli_data,(wlasny IS NOT NULL AND wlasny<>'') AS zm FROM szukaj WHERE eli=1 AND status='gotowe' ORDER BY id DESC LIMIT 100"),
             'czekaP' => all("SELECT id,tytul,stanowisko,firma,konto,miasto,url,email,www,powod,ogl_at,(wlasny IS NOT NULL AND wlasny<>'') AS zm FROM ag_oferty WHERE status='gotowe' ORDER BY id DESC LIMIT 100"),
             'czekaS' => all("SELECT id,nazwa,email,miasto,www,problemy,problem_txt,wynik,psi,sekundy,(wlasny IS NOT NULL AND wlasny<>'') AS zm FROM ag_audyt WHERE status='czeka' ORDER BY wynik DESC, id DESC LIMIT 100"),
+            'czekaA' => all("SELECT id,nazwa,email,miasto,www,problemy,problem_txt,wynik,psi,sekundy,(wlasny IS NOT NULL AND wlasny<>'') AS zm FROM ag_audyt WHERE status='czeka_auto' ORDER BY id DESC LIMIT 100"),
             'pol' => array(
                 'ceidg' => ceidg_token() !== '', 'ceidg_debug' => setting('ceidg_debug'),
                 'olx' => setting('ag_olx_last'),
@@ -667,6 +739,7 @@ function ag_api($a) {
         $c['strona']['dziennie'] = $num($st, 'dziennie', 20, 0, 300);
         $c['strona']['reczny'] = !empty($st['reczny']) ? 1 : 0;
         $c['strona']['psi'] = !empty($st['psi']) ? 1 : 0;
+        $c['strona']['auto'] = !empty($st['auto']) ? 1 : 0;
         if (isset($st['psi_key'])) setting_set('psi_key', trim(mb_substr((string)$st['psi_key'], 0, 80)));
         $c['ig']['on'] = !empty($ig['on']) ? 1 : 0;
         if (isset($ig['msg']) && trim($ig['msg']) !== '') $c['ig']['msg'] = mb_substr(trim((string)$ig['msg']), 0, 1000);
@@ -685,8 +758,8 @@ function ag_api($a) {
                 $r = one("SELECT * FROM ag_oferty WHERE id=? AND status='gotowe'", array($id)); if (!$r) continue;
                 if ($a === 'ag_odrzuc') { q("UPDATE ag_oferty SET status='odrzucona', powod='odrzucone ręcznie' WHERE id=?", array($id)); $n++; continue; }
                 if (ag_praca_dodaj($r, $s)) $n++;
-            } elseif ($typ === 'strona') {
-                $r = one("SELECT * FROM ag_audyt WHERE id=? AND status='czeka'", array($id)); if (!$r) continue;
+            } elseif ($typ === 'strona' || $typ === 'auto') {
+                $r = one("SELECT * FROM ag_audyt WHERE id=? AND status=?", array($id, $typ === 'auto' ? 'czeka_auto' : 'czeka')); if (!$r) continue;
                 if ($a === 'ag_odrzuc') { q("UPDATE ag_audyt SET status='odrzucona' WHERE id=?", array($id)); $n++; continue; }
                 if (ag_strona_dodaj($r, $s)) $n++;
             } else {
@@ -708,7 +781,8 @@ function ag_api($a) {
         $w = !empty($r['wlasny']) ? json_decode($r['wlasny'], true) : null;
         if (is_array($w)) out(array('temat' => $w['temat'], 'tekst' => $w['tekst'], 'wlasny' => true));
         $tpl = tpl_for(ag_bid_typ($typ), 'pierwszy'); $v = firm_vars($firm);
-        out(array('temat' => apply_vars($tpl['temat'], $v), 'tekst' => apply_vars(ag_tpl_txt($tpl), $v), 'wlasny' => false));
+        $pp = ag_parts($tpl);
+        out(array('temat' => apply_vars($tpl['temat'], $v), 'tekst' => apply_vars($pp['tekst'], $v), 'wlasny' => false));
     }
     if ($a === 'ag_mail_zapisz') {
         $id = (int)g('id'); if (!ag_item($typ, $id)) fail('Nie ma takiej pozycji');
@@ -719,20 +793,21 @@ function ag_api($a) {
     // szablony maili Eli (pierwszy, przypomnienie, ostatnie przypomnienie) – prosta edycja tekstu
     if ($a === 'ag_tpl_get') {
         $bid = ag_bid_typ($typ); $o = array();
-        foreach (array('pierwszy', 'przypomnienie', 'przypomnienie2') as $t) { $tpl = tpl_for($bid, $t); $o[$t] = array('temat' => $tpl['temat'], 'tekst' => ag_tpl_txt($tpl)); }
+        foreach (array('pierwszy', 'przypomnienie', 'przypomnienie2') as $t) { $tpl = tpl_for($bid, $t); $o[$t] = array_merge(array('temat' => $tpl['temat']), ag_parts($tpl)); }
         out(array('tpl' => $o, 'bid' => $bid));
     }
     if ($a === 'ag_tpl_zapisz') {
         $bid = ag_bid_typ($typ); $t = (array)g('tpl');
         foreach (array('pierwszy', 'przypomnienie', 'przypomnienie2') as $k) {
             if (!isset($t[$k]['temat'], $t[$k]['tekst']) || trim($t[$k]['tekst']) === '') continue;
-            save_template($bid, $k, array('temat' => mb_substr(trim($t[$k]['temat']), 0, 255), 'bloki' => array(array('t' => 'tekst', 'text' => mb_substr(trim($t[$k]['tekst']), 0, 8000))), 'nadtytul' => '', 'naglowek' => '', 'tresc' => '', 'przycisk' => ''));
+            $x = $t[$k]; $f = function ($k2, $max) use ($x) { return isset($x[$k2]) ? mb_substr(trim((string)$x[$k2]), 0, $max) : ''; };
+            save_template($bid, $k, ag_build($f('temat', 255), $f('tekst', 8000), $f('btn', 120), $f('sub', 255), $f('po', 2000)));
         }
-        ag_log('', 'info', 'Zmieniono maile: ' . ($typ === 'praca' ? 'szukają pracownika' : ($typ === 'strona' ? 'słaba strona' : 'nowe firmy')));
+        ag_log('', 'info', 'Zmieniono maile: ' . ($typ === 'praca' ? 'szukają pracownika' : ($typ === 'strona' ? 'słaba strona' : ($typ === 'auto' ? 'dobra strona – automatyzacje' : 'nowe firmy'))));
         out(array());
     }
     if ($a === 'ag_tpl_reset') {
-        $sets = ag_sets(); $n = $typ === 'praca' ? AG_BR_PRACA : ($typ === 'strona' ? AG_BR_STRONA : AG_BR_NOWE);
+        $sets = ag_sets(); $n = $typ === 'praca' ? AG_BR_PRACA : ($typ === 'strona' ? AG_BR_STRONA : ($typ === 'auto' ? AG_BR_AUTO : AG_BR_NOWE));
         foreach (array('pierwszy', 'przypomnienie', 'przypomnienie2') as $k) save_template(ag_bid_typ($typ), $k, $sets[$n][$k]);
         out(array());
     }
@@ -757,14 +832,15 @@ function ag_api($a) {
     if ($a === 'ag_sprawdz') {
         @set_time_limit(90);
         $www = trim(gs('www', 255)); if ($www === '') fail('Wpisz adres strony');
-        list($p, $sc, $sek, $ig, $err, $furl, $cap) = ag_audyt($www, true);
+        list($p, $sc, $sek, $ig, $err, $furl, $cap, $sig) = ag_audyt($www, true);
         if ($err) fail('Eli nie mogła otworzyć strony: ' . $err);
         $waga = 0; foreach ($p as $x) $waga += $x[2];
-        $firm = array('nazwa' => dup_host($www), 'miasto' => '', 'osoba' => '', 'www' => $www, 'eli_problem' => $p ? ag_problem_txt($p) : '', 'zrodlo' => 'audyt', 'token' => str_repeat('0', 32));
-        $tpl = tpl_for(ag_br_id(AG_BR_STRONA), 'pierwszy');
+        $slaba = $waga >= max(1, (int)ag_cfg()['strona']['min']); $pm = ag_pomysl($sig);
+        $firm = array('nazwa' => dup_host($www), 'miasto' => '', 'osoba' => '', 'www' => $www, 'eli_problem' => $slaba ? ag_problem_txt($p) : $pm[1], 'zrodlo' => 'audyt', 'token' => str_repeat('0', 32));
+        $tpl = tpl_for(ag_br_id($slaba ? AG_BR_STRONA : AG_BR_AUTO), 'pierwszy');
         list($subj, $html) = render_mail($tpl, $firm, array());
         ag_log('strona', 'info', 'Ręczne sprawdzenie ' . dup_host($www) . ': ' . ($p ? implode(', ', array_map(function ($x) { return $x[0]; }, $p)) : 'bez problemów'));
-        out(array('problemy' => $p, 'psi' => $sc, 'sekundy' => $sek, 'ig' => $ig, 'form' => $furl, 'captcha' => $cap, 'waga' => $waga, 'pisze' => $waga >= max(1, (int)ag_cfg()['strona']['min']), 'temat' => $subj, 'html' => $html, 'psi_blad' => $sc === null ? setting('ag_psi_blad') : ''));
+        out(array('problemy' => $p, 'psi' => $sc, 'sekundy' => $sek, 'ig' => $ig, 'form' => $furl, 'captcha' => $cap, 'waga' => $waga, 'pisze' => $waga >= max(1, (int)ag_cfg()['strona']['min']), 'temat' => $subj, 'html' => $html, 'psi_blad' => $sc === null ? setting('ag_psi_blad') : '', 'pomysl' => $slaba ? '' : $pm[0]));
     }
     if ($a === 'ag_audyty') {
         out(array('rows' => all('SELECT id,nazwa,www,miasto,problem_txt,wynik,psi,sekundy,status,created_at FROM ag_audyt ORDER BY id DESC LIMIT 200')));
@@ -776,7 +852,7 @@ function ag_api($a) {
             'eli_problem' => "- strona nie jest dopasowana do telefonu, na komórce trzeba ' . ($sklep ? 'go' : 'ją') . ' powiększać palcami,\n- nie ma formularza, przez który klient może od razu zostawić zapytanie.", 'zrodlo' => 'ceidg');
         $firm['token'] = str_repeat('0', 32);
         $tpl = tpl_for(ag_bid_typ($typ), 'pierwszy');
-        if ($it && !empty($it[0]['wlasny'])) { $w = json_decode($it[0]['wlasny'], true); if (is_array($w)) { $tpl['temat'] = $w['temat']; $tpl['bloki'] = json_encode(array(array('t' => 'tekst', 'text' => $w['tekst'])), JSON_UNESCAPED_UNICODE); } }
+        if ($it && !empty($it[0]['wlasny'])) { $w = json_decode($it[0]['wlasny'], true); if (is_array($w)) $tpl = ag_tpl_with_text($tpl, $w['temat'], $w['tekst']); }
         list($subj, $html) = render_mail($tpl, $firm, array());
         out(array('temat' => $subj, 'html' => $html));
     }
