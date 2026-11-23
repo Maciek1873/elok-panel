@@ -90,6 +90,7 @@ function firm_vars($f) {
         '{imie}' => strtok(trim(setting('podpis_imie')) . ' ', ' '),
         '{stanowisko}' => isset($f['eli_tytul']) && $f['eli_tytul'] !== '' ? $f['eli_tytul'] : 'pracownik biurowy',
         '{problem}' => isset($f['eli_problem']) ? (string)$f['eli_problem'] : '',
+        '{obowiazki}' => isset($f['eli_problem']) && $f['eli_problem'] !== '' && empty($f['www_problem']) ? (string)$f['eli_problem'] : 'przepisywanie danych i dokumentów',
         '{www}' => isset($f['www']) && $f['www'] !== '' ? preg_replace('/^www\./', '', strtolower((string)parse_url(preg_match('#^https?://#i', $f['www']) ? $f['www'] : 'http://' . $f['www'], PHP_URL_HOST))) : 'Państwa strona',
     );
 }

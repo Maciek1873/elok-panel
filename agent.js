@@ -10,7 +10,7 @@ var WOJ = ['dolnośląskie', 'kujawsko-pomorskie', 'lubelskie', 'lubuskie', 'ł�
 var LT = { znaleziono: 'Znalazła', kontakt: 'Kontakt', dodano: 'Zrobione', blad: 'Błąd', info: 'Info' };
 var LC = { znaleziono: 'st-wyslano', kontakt: 'st-otworzyl', dodano: 'st-zainteresowany', blad: 'st-blad', info: 'st-nowy' };
 var ZN = { nowe: 'Nowe firmy', praca: 'Szukają pracownika', strona: 'Słaba strona' };
-var VARS = { nowe: ['{firma}', '{miasto}', '{imie}', '{moj_telefon}'], praca: ['{stanowisko}', '{firma}', '{miasto}', '{imie}', '{moj_telefon}'], strona: ['{www}', '{problem}', '{firma}', '{miasto}', '{imie}', '{moj_telefon}'] };
+var VARS = { nowe: ['{firma}', '{miasto}', '{imie}', '{moj_telefon}'], praca: ['{stanowisko}', '{obowiazki}', '{firma}', '{miasto}', '{imie}', '{moj_telefon}'], strona: ['{www}', '{problem}', '{firma}', '{miasto}', '{imie}', '{moj_telefon}'] };
 var D = null, TAB = 'nowe', SEL = {}, TIMER = null, TYPE = null, WORKING = false, ED = null;
 
 // ---------- wygląd (wstrzykiwany raz) ----------
@@ -82,6 +82,7 @@ function lines() {
   if (c.nowe.on) out.push('Pilnuję nowych firm w CEIDG – zarejestrowanych w ostatnich ' + c.nowe.dni + ' dniach.');
   if (c.praca.on) out.push('Czytam ogłoszenia o pracę biurową – szukam firm, które toną w papierach.');
   if (c.strona.on) out.push('Sprawdzam strony firm: telefon, szybkość, SSL, formularz.');
+  if (c.form.on) out.push('Szukam formularzy kontaktowych u firm, które nie podają maila.');
   if (c.ig.on) out.push('Zbieram profile firm na Instagramie i piszę dla Ciebie wiadomości.');
   for (i = 0; i < D.log.length && i < 4; i++) out.push('Ostatnio: ' + D.log[i].info);
   return out.length ? out : ['Włącz któreś z zadań poniżej.'];
@@ -106,7 +107,7 @@ function heroHtml() {
   return '<div class="' + cls + '" id="ag-hero">' + avatar() +
     '<div class="ag-txt"><h2>' + (WORKING ? 'Eli <span>pracuje…</span>' : c.on ? 'Eli <span>szuka klientów</span>' : 'Eli <span>śpi</span>') + '</h2>' +
     '<div class="ag-type" id="ag-type"></div>' +
-    '<div class="ag-tasks">' + tk('nowe', 'Nowe firmy') + tk('praca', 'Ogłoszenia o pracę') + tk('strona', 'Słabe strony') + tk('ig', 'Instagram') + '</div>' +
+    '<div class="ag-tasks">' + tk('nowe', 'Nowe firmy') + tk('praca', 'Ogłoszenia o pracę') + tk('strona', 'Słabe strony') + tk('form', 'Formularze') + tk('ig', 'Instagram') + '</div>' +
     '<div class="mut" style="margin-top:10px;font-size:12px;color:#9A968C">Ostatnio: ' + fd(s.ostatnio) + (s.wynik ? ' · ' + esc(s.wynik) : '') + '</div></div>' +
     '<div class="ag-side"><label class="ag-big" for="ag-on">' + (c.on ? 'Eli aktywna' : 'Aktywuj Eli') + ' <span class="sw"><input type="checkbox" id="ag-on"' + (c.on ? ' checked' : '') + ' onchange="window.AG.toggle(this.checked)"><i></i></span></label>' +
     '<a class="btn" onclick="window.AG.run(this)">Uruchom teraz</a></div></div>';
@@ -189,10 +190,22 @@ function render() {
   }
   h += '</div>';
 
+  // ----- formularze -----
+  var fm = d.form || [];
+  h += '<div class="card sec"><div class="pad" style="padding-bottom:10px"><h2 class="ct" style="margin:0">Formularze do wypełnienia <span class="mut" style="font-weight:500;font-size:13px">(' + fm.length + ' · razem wysłane: ' + (L.form_wyslane || 0) + ')</span></h2>' +
+    '<p class="mut" style="margin:6px 0 0;font-size:12.5px">Firmy bez maila, ale z formularzem na stronie i konkretnym problemem. „Kopiuj i otwórz” kopiuje wiadomość i otwiera formularz – wklejasz, wpisujesz swoje dane i wysyłasz. Formularze z zabezpieczeniem (CAPTCHA) są na końcu listy.</p></div>';
+  if (!fm.length) h += '<div class="empty" style="display:block;padding:18px">' + (c.form.on ? 'Eli jeszcze nie znalazła – sprawdza strony firm bez maila z Twoich list.' : 'Zadanie Formularze jest wyłączone.') + '</div>';
+  for (i = 0; i < fm.length && i < 15; i++) {
+    var f2 = fm[i];
+    h += '<div class="ag-ig"><div class="m"><b>' + esc(f2.nazwa) + '</b> <span class="mut">· ' + esc(host(f2.www)) + (f2.miasto ? ', ' + esc(f2.miasto) : '') + '</span> <span class="pill sm st-przypomnienie">' + esc(f2.problem) + '</span>' + (+f2.captcha ? ' <span class="pill sm st-nowy">CAPTCHA</span>' : '') + '<p>' + esc(f2.msg) + '</p></div>' +
+      '<div class="ac"><a class="btn sm dark" onclick="window.AG.fmOpen(' + i + ')">Kopiuj i otwórz</a><a class="btn sm" onclick="window.AG.fmDone(' + f2.id + ',\'ok\')">Wysłane</a><a class="btn sm" onclick="window.AG.fmDone(' + f2.id + ',\'pomin\')">Pomiń</a></div></div>';
+  }
+  h += '</div>';
+
   // ----- zadania -----
   h += '<div class="grid g2 sec">';
   h += '<div class="card pad"><h2 class="ct">1. Nowe firmy (CEIDG)</h2>' +
-    sw('n-on', c.nowe.on, 'Szukaj nowo zarejestrowanych firm', 'Mail: gratulacje + strona, reklama, automatyzacje') +
+    sw('n-on', c.nowe.on, 'Szukaj nowo zarejestrowanych firm', 'Mail: klienci szukają w Google – strona, która zbiera zapytania') +
     sw('n-r', c.nowe.reczny, 'Zatwierdzam ręcznie', 'Wyłączone = idą do mailingu same') +
     '<div class="g2f"><div><label class="f">Zarejestrowane w ostatnich (dni)</label><input id="n-dni" type="number" min="1" max="60" value="' + (+c.nowe.dni) + '"></div>' +
     '<div><label class="f">Dziennie do mailingu</label><input id="n-dz" type="number" min="0" max="300" value="' + (+c.nowe.dziennie) + '"></div></div>' +
@@ -202,7 +215,7 @@ function render() {
   h += '</div>' + foot('nowe') + '</div>';
 
   h += '<div class="card pad"><h2 class="ct">2. Szukają pracownika (OLX)</h2>' +
-    sw('p-on', c.praca.on, 'Szukaj ogłoszeń o pracę biurową', 'Mail: zamiast etatu – automatyzacje') +
+    sw('p-on', c.praca.on, 'Szukaj ogłoszeń o pracę biurową', 'Mail: obowiązki z ogłoszenia, które da się zautomatyzować') +
     sw('p-r', c.praca.reczny, 'Zatwierdzam ręcznie', 'Na start zalecane – sprawdzasz, czy to prawdziwa firma') +
     '<div class="g2f"><div><label class="f">Dziennie do mailingu</label><input id="p-dz" type="number" min="0" max="300" value="' + (+c.praca.dziennie) + '"></div><div></div></div>' +
     '<label class="f">Czego szukać (jedna fraza w linii)</label><textarea id="p-fr" rows="5">' + esc(c.praca.frazy) + '</textarea>' +
@@ -215,10 +228,14 @@ function render() {
     '<div class="g2f"><div><label class="f">Dziennie do mailingu</label><input id="s-dz" type="number" min="0" max="300" value="' + (+c.strona.dziennie) + '"></div><div></div></div>' +
     '<div class="hint">Eli bierze firmy ze stroną i mailem z Twoich list w „Szukaj firm”, które jeszcze nie dostały maila (teraz: ' + L.strona_pula + '). Pisze tylko, gdy znajdzie wyraźny problem.</div>' + foot('strona') + '</div>';
 
-  h += '<div class="card pad"><h2 class="ct">4. Instagram</h2>' +
+  h += '<div class="card pad"><h2 class="ct">4. Formularze kontaktowe</h2>' +
+    sw('f-on', c.form.on, 'Szukaj formularzy u firm bez maila', 'Tylko gdy Eli znajdzie na stronie konkretny problem – inaczej nie piszemy') +
+    '<label class="f">Wiadomość (zmienne: {www}, {problem_krotko}, {imie}, {moj_telefon}, {moj_email})</label><textarea id="f-msg" rows="8">' + esc(c.form.msg) + '</textarea>' +
+    '<div class="row" style="margin-top:12px"><a class="btn dark" onclick="window.AG.save(this)">Zapisz</a></div></div>';
+  h += '<div class="card pad"><h2 class="ct">5. Instagram</h2>' +
     sw('i-on', c.ig.on, 'Szukaj profili firm na Instagramie', 'Na stronach firm z Twoich list – najpierw tych bez maila') +
     '<label class="f">Wiadomość (zmienne: {firma}, {imie}, {www}, {problem_ig})</label><textarea id="i-msg" rows="5">' + esc(c.ig.msg) + '</textarea>' +
-    '<div class="hint">{problem_ig} – jeśli Eli sprawdziła stronę, wstawi np. „(zauważyłem, że nie jest dopasowana do telefonu)”, a jeśli nie – nic.</div>' +
+    '<div class="hint">{problem_ig} – jeśli Eli sprawdziła stronę, wstawi np. „i zauważyłem, że strona nie jest dopasowana do telefonu”, a jeśli nie – nic.</div>' +
     '<div class="row" style="margin-top:12px"><a class="btn dark" onclick="window.AG.save(this)">Zapisz</a></div></div>';
   h += '</div>';
 
@@ -254,7 +271,8 @@ function gather() {
     nowe: { on: $('n-on').checked, reczny: $('n-r').checked, dni: $('n-dni').value, dziennie: $('n-dz').value, pkd: $('n-pkd').value, woj: woj },
     praca: { on: $('p-on').checked, reczny: $('p-r').checked, dziennie: $('p-dz').value, frazy: $('p-fr').value },
     strona: { on: $('s-on').checked, reczny: $('s-r').checked, psi: $('s-psi').checked, dziennie: $('s-dz').value },
-    ig: { on: $('i-on').checked, msg: $('i-msg').value }
+    ig: { on: $('i-on').checked, msg: $('i-msg').value },
+    form: { on: $('f-on').checked, msg: $('f-msg').value }
   };
 }
 function ids() { var a = []; for (var k in SEL) if (SEL.hasOwnProperty(k) && SEL[k]) a.push(+k); return a; }
@@ -375,6 +393,15 @@ window.AG = {
   },
   igDone: function (id, a) {
     api('ag_ig', { id: id, akcja: a === 'ok' ? 'wyslane' : 'pomin' }, function () { toast(a === 'ok' ? 'Zapisane jako napisane' : 'Pominięte'); view(true); });
+  },
+  fmOpen: function (i) {
+    var f = D.form[i]; if (!f) return;
+    copy(f.msg);
+    window.open(f.url, '_blank', 'noopener');
+    toast('Wiadomość skopiowana – wklej ją w formularzu');
+  },
+  fmDone: function (id, a) {
+    api('ag_form', { id: id, akcja: a === 'ok' ? 'wyslane' : 'pomin' }, function () { toast(a === 'ok' ? 'Zapisane jako wysłane' : 'Pominięte'); view(true); });
   },
   oferty: function () {
     api('ag_oferty', {}, function (r) {
